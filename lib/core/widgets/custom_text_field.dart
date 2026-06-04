@@ -11,16 +11,18 @@ class CustomTextField extends StatefulWidget {
 
   final bool isPassword;
 
+  final TextInputType keyboardType;
+
+  final int maxLines;
+
   const CustomTextField({
     super.key,
-
     required this.controller,
-
     required this.hint,
-
     required this.prefixIcon,
-
     this.isPassword = false,
+    this.keyboardType = TextInputType.text,
+    this.maxLines = 1,
   });
 
   @override
@@ -34,6 +36,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: widget.controller,
+
+      keyboardType: widget.keyboardType,
+
+      maxLines: widget.isPassword ? 1 : widget.maxLines,
 
       obscureText: widget.isPassword ? obscure : false,
 
@@ -51,39 +57,33 @@ class _CustomTextFieldState extends State<CustomTextField> {
                     obscure = !obscure;
                   });
                 },
-
                 icon: Icon(
                   obscure ? Icons.visibility_off : Icons.visibility,
-
                   color: AppColors.tealGreen,
                 ),
               )
             : null,
 
         filled: true,
-
         fillColor: AppColors.white,
 
         contentPadding: const EdgeInsets.symmetric(
-          vertical: 18,
           horizontal: 16,
+          vertical: 18,
         ),
 
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-
           borderSide: BorderSide.none,
         ),
 
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-
-          borderSide: BorderSide(color: AppColors.borderColor),
+          borderSide: const BorderSide(color: AppColors.borderColor),
         ),
 
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-
           borderSide: const BorderSide(color: AppColors.lightGreen, width: 2),
         ),
       ),

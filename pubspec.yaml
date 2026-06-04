@@ -42,6 +42,7 @@ dependencies:
   local_auth: ^2.3.0
   shared_preferences: ^2.5.3
   file_picker: ^10.1.9
+  fl_chart: ^0.69.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -46,7 +46,7 @@ class AppColors {
 
   // ⏳ Pending
   static const Color pendingOrange =
-  Color(0xFFEF6C00);
+  Colors.orange;
 
   // =================================================
   // ⚪ Neutral Colors

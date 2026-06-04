@@ -11,11 +11,8 @@ class CustomUploadCard extends StatelessWidget {
 
   const CustomUploadCard({
     super.key,
-
     required this.onTap,
-
     required this.title,
-
     required this.uploaded,
   });
 
@@ -52,10 +49,24 @@ class CustomUploadCard extends StatelessWidget {
             const SizedBox(height: 12),
 
             Text(
-              uploaded ? 'Uploaded Successfully' : title,
+              title,
 
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
+
+            if (uploaded)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+
+                child: Text(
+                  'Uploaded',
+
+                  style: TextStyle(
+                    color: AppColors.successGreen,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

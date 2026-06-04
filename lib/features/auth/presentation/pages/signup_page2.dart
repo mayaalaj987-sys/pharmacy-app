@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-
+import 'pending_page.dart';
 import '../../../../core/theme/app_colors.dart';
 
 import '../../../../core/widgets/custom_button.dart';
@@ -180,11 +180,13 @@ class _SignupPage2State extends State<SignupPage2> {
                 text: 'Finish Signup',
 
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: AppColors.pendingOrange,
+                  Navigator.pushReplacement(
 
-                      content: Text('Account sent for review'),
+                    context,
+
+                    MaterialPageRoute(
+
+                      builder: (_) => const PendingPage(),
                     ),
                   );
                 },
