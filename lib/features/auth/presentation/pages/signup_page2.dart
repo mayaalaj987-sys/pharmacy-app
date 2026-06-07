@@ -97,39 +97,13 @@ class _SignupPage2State extends State<SignupPage2> {
               Container(
                 padding: const EdgeInsets.all(14),
 
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-
-                  borderRadius: BorderRadius.circular(18),
-                ),
 
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Container(
-                        height: 10,
-
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGreen,
-
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
 
                     const SizedBox(width: 8),
 
-                    Expanded(
-                      child: Container(
-                        height: 10,
 
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGreen,
-
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),

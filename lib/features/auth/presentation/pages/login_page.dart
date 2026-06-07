@@ -36,8 +36,8 @@ class _LoginPageState extends State<LoginPage> {
 
               Center(
                 child: Container(
-                  width: 120,
-                  height: 120,
+                  width: 150,
+                  height: 150,
 
                   decoration: BoxDecoration(
                     color: AppColors.white,
@@ -45,12 +45,9 @@ class _LoginPageState extends State<LoginPage> {
                     borderRadius: BorderRadius.circular(30),
                   ),
 
-                  child: const Icon(
-                    Icons.local_pharmacy,
-
-                    size: 70,
-
-                    color: AppColors.darkGreen,
+                  child: Image.asset(
+                    'assets/images/login.jpg',
+                    width: 70,
                   ),
                 ),
               ),
@@ -99,23 +96,9 @@ class _LoginPageState extends State<LoginPage> {
                 isPassword: true,
               ),
 
-              const SizedBox(height: 14),
 
-              Align(
-                alignment: Alignment.centerRight,
 
-                child: TextButton(
-                  onPressed: () {},
-
-                  child: const Text(
-                    'Forgot Password?',
-
-                    style: TextStyle(color: AppColors.tealGreen),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
+              const SizedBox(height: 34),
 
               CustomButton(
                 text: 'Login',
@@ -177,27 +160,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 30),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
 
-                children: [
-                  const Text('Don’t have an account?'),
-
-                  TextButton(
-                    onPressed: () {},
-
-                    child: const Text(
-                      'Create Account',
-
-                      style: TextStyle(
-                        color: AppColors.darkGreen,
-
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
