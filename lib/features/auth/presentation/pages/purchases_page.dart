@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/data/medicine_data.dart';
 import '../../../../core/data/purchase_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../data/models/medicine_model.dart';
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -113,43 +115,101 @@ class _PurchasesPageState extends State<PurchasesPage> {
                               const SizedBox(height: 12),
 
                               if (purchase.status == "Pending")
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        onPressed: () {
-                                          setState(() {
-                                            purchase.status = "Received";
-                                          });
-                                        },
+                          if (purchase.status == "Pending")
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
 
-                                        icon: const Icon(Icons.check),
+                                  purchase.status = "Received";
 
-                                        label: const Text("Receive"),
+                                  final medicineIndex = medicines.indexWhere(
+                                        (m) =>
+                                    m.name.toLowerCase() ==
+                                        purchase.medicineName.toLowerCase(),
+                                  );
+
+                                  if (medicineIndex != -1) {
+
+                                    final oldMedicine = medicines[medicineIndex];
+
+                                    medicines[medicineIndex] = MedicineModel(
+                                      name: oldMedicine.name,
+                                      category: oldMedicine.category,
+                                      manufacturer: oldMedicine.manufacturer,
+                                      sellingPrice: oldMedicine.sellingPrice,
+                                      costPrice: oldMedicine.costPrice,
+
+                                      quantity: (
+                                          (int.tryParse(oldMedicine.quantity) ?? 0) +
+                                              purchase.quantity
+                                      ).toString(),
+
+                                      reorderLevel: oldMedicine.reorderLevel,
+                                      expiryDate: oldMedicine.expiryDate,
+                                      barcode: oldMedicine.barcode,
+                                      notes: oldMedicine.notes,
+                                    );
+
+                                  } else {
+
+                                    medicines.add(
+                                      MedicineModel(
+                                        name: purchase.medicineName,
+                                        category: "General",
+                                        manufacturer: purchase.supplierName,
+
+                                        sellingPrice: purchase.price.toString(),
+                                        costPrice: purchase.price.toString(),
+
+                                        quantity: purchase.quantity.toString(),
+
+                                        reorderLevel: "10",
+
+                                        expiryDate: "01/01/2027",
+
+                                        barcode: purchase.id,
+
+                                        notes: "Added automatically from Purchase",
                                       ),
-                                    ),
+                                    );
+                                  }
 
-                                    const SizedBox(width: 10),
+                                  print(
+                                    "Medicines Count: ${medicines.length}",
+                                  );
+                                });
+                              },
 
-                                    Expanded(
-                                      child: ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red,
-                                        ),
+                              icon: const Icon(Icons.check),
 
-                                        onPressed: () {
-                                          setState(() {
-                                            purchase.status = "Cancelled";
-                                          });
-                                        },
+                              label: const Text("Receive"),
+                            ),
+                          ),
 
-                                        icon: const Icon(Icons.close),
+                          const SizedBox(width: 10),
 
-                                        label: const Text("Cancel"),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+
+                              onPressed: () {
+                                setState(() {
+                                  purchase.status = "Cancelled";
+                                });
+                              },
+
+                              icon: const Icon(Icons.close),
+
+                              label: const Text("Cancel"),
+                            ),
+                          ),
+                        ],
+                      ),
                             ],
                           ),
                         ),

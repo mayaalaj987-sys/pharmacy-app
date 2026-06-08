@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
-import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/widgets/custom_button.dart';
+
+import '../../theme/app_colors.dart';
+import '../custom_button.dart';
 
 class PosTotalSection extends StatelessWidget {
-  const PosTotalSection({super.key});
+  final double total;
+  final VoidCallback onCompleteSale;
+
+  const PosTotalSection({
+    super.key,
+    required this.total,
+    required this.onCompleteSale,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -11,9 +19,9 @@ class PosTotalSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text(
-              '\$0.00',
-              style: TextStyle(
+            Text(
+              "\$${total.toStringAsFixed(2)}",
+              style: const TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
                 color: AppColors.lightGreen,
@@ -35,8 +43,8 @@ class PosTotalSection extends StatelessWidget {
         const SizedBox(height: 20),
 
         CustomButton(
-          text: "Complete Sale - \$0.00",
-          onPressed: () {},
+          text: "Complete Sale - \$${total.toStringAsFixed(2)}",
+          onPressed: onCompleteSale,
         ),
       ],
     );
