@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../features/auth/data/models/medicine_model.dart';
+import '../data/medicine_data.dart';
+import '../data/sales_data.dart';
 import '../theme/app_colors.dart';
 
 class StatsSection extends StatelessWidget {
@@ -7,6 +10,34 @@ class StatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    /// Total Revenue
+    double revenue = 0;
+
+    for (var sale in sales) {
+      revenue += double.tryParse(sale.totalAmount) ?? 0;
+    }
+
+    /// Today Sales
+    final todaySales = sales.length;
+
+    /// Low Stock
+    final lowStock = medicines.where((medicine) {
+      final quantity = int.tryParse(medicine.quantity) ?? 0;
+
+      final reorder = int.tryParse(medicine.reorderLevel) ?? 0;
+
+      return quantity <= reorder;
+    }).length;
+
+    /// Expiring
+    final expiring = medicines.where((medicine) {
+      if (medicine.expiryDate.isEmpty) {
+        return false;
+      }
+
+      return true;
+    }).length;
+
     return GridView.count(
       shrinkWrap: true,
       crossAxisCount: 2,
@@ -14,34 +45,38 @@ class StatsSection extends StatelessWidget {
       childAspectRatio: 1.5,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
+
       children: [
         _StatCard(
           title: "Today Sales",
-          value: "1,250\$",
+          value: todaySales.toString(),
           icon: Icons.shopping_cart,
           color: AppColors.lightGreen,
-          percent: "+12.5%",
+          percent: "Orders",
         ),
+
         _StatCard(
           title: "Revenue",
-          value: "45,280\$",
+          value: "\$${revenue.toStringAsFixed(2)}",
           icon: Icons.attach_money,
           color: Colors.blue,
-          percent: "+8.3%",
+          percent: "Total Revenue",
         ),
+
         _StatCard(
           title: "Low Stock",
-          value: "12",
+          value: lowStock.toString(),
           icon: Icons.warning,
           color: AppColors.warningYellow,
-          percent: "View items",
+          percent: "Need Restock",
         ),
+
         _StatCard(
           title: "Expiring",
-          value: "8",
+          value: expiring.toString(),
           icon: Icons.error,
           color: AppColors.errorRed,
-          percent: "View items",
+          percent: "Medicines",
         ),
       ],
     );
@@ -67,13 +102,16 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
+
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           Icon(icon, color: color),
 

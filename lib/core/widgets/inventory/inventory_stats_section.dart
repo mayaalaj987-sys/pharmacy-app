@@ -1,19 +1,61 @@
 import 'package:flutter/material.dart';
 
+import '../../data/medicine_data.dart';
+
 class InventoryStatsSection extends StatelessWidget {
   const InventoryStatsSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+
+    /// Total
+    final totalMedicines = medicines.length;
+
+    /// Out Of Stock
+    final outOfStock = medicines.where((medicine) {
+
+      final quantity =
+          int.tryParse(medicine.quantity) ?? 0;
+
+      return quantity == 0;
+
+    }).length;
+
+    /// Expiring
+    final expiring = medicines.where((medicine) {
+
+      if (medicine.expiryDate.isEmpty) {
+        return false;
+      }
+
+      try {
+
+        final expiryDate =
+        DateTime.parse(medicine.expiryDate);
+
+        final days =
+            expiryDate.difference(
+              DateTime.now(),
+            ).inDays;
+
+        return days <= 90;
+
+      } catch (e) {
+        return false;
+      }
+
+    }).length;
+
     return Padding(
       padding: const EdgeInsets.all(16),
 
       child: Row(
         children: [
+
           Expanded(
             child: _statCard(
               title: "Expiring",
-              value: "8",
+              value: expiring.toString(),
               color: Colors.amber,
               background: const Color(0xffFFF8E8),
             ),
@@ -24,7 +66,7 @@ class InventoryStatsSection extends StatelessWidget {
           Expanded(
             child: _statCard(
               title: "Out of Stock",
-              value: "0",
+              value: outOfStock.toString(),
               color: Colors.red,
               background: const Color(0xffFFF0F0),
             ),
@@ -35,7 +77,7 @@ class InventoryStatsSection extends StatelessWidget {
           Expanded(
             child: _statCard(
               title: "Total",
-              value: "11",
+              value: totalMedicines.toString(),
               color: Colors.teal,
               background: const Color(0xffEEF8F7),
             ),
@@ -56,7 +98,6 @@ class InventoryStatsSection extends StatelessWidget {
 
       decoration: BoxDecoration(
         color: background,
-
         borderRadius: BorderRadius.circular(24),
       ),
 
@@ -64,9 +105,9 @@ class InventoryStatsSection extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
 
         children: [
+
           Text(
             value,
-
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -78,10 +119,11 @@ class InventoryStatsSection extends StatelessWidget {
 
           Text(
             title,
-
             textAlign: TextAlign.center,
-
-            style: TextStyle(fontSize: 16, color: color),
+            style: TextStyle(
+              fontSize: 16,
+              color: color,
+            ),
           ),
         ],
       ),
