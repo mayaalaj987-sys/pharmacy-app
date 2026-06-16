@@ -1,18 +1,20 @@
-// مشان تخزين وحفظ ال token
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class SecureStorageService {
+class TokenStorage {
+  static const _key = "token";
 
-  static const _storage = FlutterSecureStorage();
-
-  static Future<void> saveToken(String token) async {
-    await _storage.write(
-      key: 'token',
-      value: token,
-    );
+  Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, token);
   }
 
-  static Future<String?> getToken() async {
-    return await _storage.read(key: 'token');
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_key);
+  }
+
+  Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
   }
 }

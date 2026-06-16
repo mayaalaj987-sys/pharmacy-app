@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phamacy_managment/core/theme/app_colors.dart';
 
 import '../../../../core/widgets/custom_app_bar.dart';
 
@@ -8,7 +9,7 @@ class AnalyticsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFF2F0EF),
+      backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "analytics"),

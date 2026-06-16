@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/purchase_data.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../data/models/purchase_model.dart';
 import '../../data/models/supplier_model.dart';
 
@@ -12,6 +13,8 @@ class SupplierDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white,
+
       appBar: AppBar(title: Text(supplier.name)),
 
       body: supplier.medicines.isEmpty

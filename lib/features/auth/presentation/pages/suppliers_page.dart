@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/suppliers/supplier_list.dart';
 import 'add_supplier_page.dart';
 
@@ -15,6 +16,8 @@ class _SuppliersPageState extends State<SuppliersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white,
+
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(

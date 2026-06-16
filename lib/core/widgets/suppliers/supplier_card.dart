@@ -32,6 +32,8 @@ class SupplierCard extends StatelessWidget {
       },
 
       child: Card(
+        color: AppColors.white,
+
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
 
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

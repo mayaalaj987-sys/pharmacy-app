@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/data/medicine_data.dart';
 import '../../../../core/data/sales_data.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/pos_page/pos_empty_cart.dart';
@@ -226,6 +227,8 @@ class _PosPageState extends State<PosPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white,
+
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(

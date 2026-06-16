@@ -20,7 +20,7 @@ class MedicineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Color(0xFFE8F6D5),
+      color: AppColors.veryLightGreen,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

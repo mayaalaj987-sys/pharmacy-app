@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/widgets/settings_page/settings_about_tile.dart';
+import '../../../../core/widgets/settings_page/settings_delete_account_tile.dart';
+import '../../../../core/widgets/settings_page/settings_logout_tile.dart';
+import '../../../../core/widgets/settings_page/settings_profile_card.dart';
+import '../../../../core/widgets/settings_page/settings_rate_tile.dart';
+import '../../../../core/widgets/settings_page/settings_theme_tile.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -13,8 +19,35 @@ class SettingsPage extends StatelessWidget {
         child: CustomAppBar(title: "Settings"),
       ),
 
-      body: const Center(
-        child: Text("SettingsPage", style: TextStyle(fontSize: 22)),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+
+        child: Column(
+          children: const [
+            SettingsProfileCard(),
+
+
+            SizedBox(height: 16),
+
+            SettingsThemeTile(),
+
+            SizedBox(height: 16),
+
+            SettingsRateTile(),
+
+            SizedBox(height: 16),
+
+            SettingsAboutTile(),
+
+            SizedBox(height: 16),
+
+            SettingsLogoutTile(),
+
+            SizedBox(height: 16),
+
+            SettingsDeleteAccountTile(),
+          ],
+        ),
       ),
     );
   }

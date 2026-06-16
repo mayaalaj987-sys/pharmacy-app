@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/sales_data.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 
 class SaleHistoryPage extends StatefulWidget {
@@ -29,6 +30,8 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
     }
 
     return Scaffold(
+      backgroundColor: AppColors.white,
+
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Sales History"),

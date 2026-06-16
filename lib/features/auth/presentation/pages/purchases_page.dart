@@ -21,6 +21,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final receivedCount = purchases.where((e) => e.status == "Received").length;
 
     return Scaffold(
+      backgroundColor: AppColors.white,
+
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Purchases"),

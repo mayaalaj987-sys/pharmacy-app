@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/medicine_data.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
@@ -95,27 +96,61 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
 
             const SizedBox(height: 16),
 
-            DropdownButtonFormField<String>(
-              value: selectedCategory,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
 
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                borderRadius: BorderRadius.circular(18),
+
+                border: Border.all(color: AppColors.lightGreen, width: 1.5),
+
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
 
-              items: categories.map((category) {
-                return DropdownMenuItem(value: category, child: Text(category));
-              }).toList(),
+              child: DropdownButtonFormField<String>(
+                value: selectedCategory,
 
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
 
-              onChanged: (value) {
-                setState(() {
-                  selectedCategory = value!;
-                });
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
 
-              },
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.darkGreen,
+                ),
 
+                dropdownColor: Colors.white,
+
+                style: const TextStyle(
+                  color: AppColors.darkGreen,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+
+                items: categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+
+                onChanged: (value) {
+                  setState(() {
+                    selectedCategory = value!;
+                  });
+                },
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -173,18 +208,11 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
 
             const SizedBox(height: 16),
 
-            TextField(
+            CustomTextField(
               controller: notesController,
-
+              hint: "Notes",
+              prefixIcon: Icons.notes,
               maxLines: 4,
-
-              decoration: InputDecoration(
-                hintText: "Notes",
-
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
             ),
 
             const SizedBox(height: 24),

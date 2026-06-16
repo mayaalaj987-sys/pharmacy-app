@@ -12,6 +12,7 @@ class MorePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.veryLightGreen,
 
+
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "More Options"),

@@ -1,26 +1,31 @@
-
 class UserModel {
-
   final int id;
-  final String username;
+  final String name;
   final String email;
+  final String? profile;
   final String status;
 
   UserModel({
     required this.id,
-    required this.username,
+    required this.name,
     required this.email,
-    required this.status,
+    this.profile,
+    this.status = "pending",
   });
 
-  factory UserModel.fromJson(
-      Map<String, dynamic> json,
-      ) {
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'],
-      username: json['username'],
+      name: json['name'],
       email: json['email'],
-      status: json['status'],
+      profile: json['profile'],
+      status: json['status'] ?? "pending",
     );
+  }
+
+  /// مسار الصورة كامل (إذا الباك بيرجع نسبي فقط)
+  String? get imagePath {
+    if (profile == null) return null;
+    return "http://10.0.2.2:8000/storage/$profile";
   }
 }

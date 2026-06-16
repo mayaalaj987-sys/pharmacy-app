@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:phamacy_managment/features/auth/presentation/pages/home_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
-
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+
+import '../cubit/auth_cubit.dart';
+import '../cubit/auth_state.dart';
 import 'main_navigation_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -20,151 +22,180 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
 
   @override
+  void dispose() {
+    usernameController.dispose();
+
+    passwordController.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
+    return BlocConsumer<AuthCubit, AuthState>(
+      listener: (context, state) {
+        if (state is AuthSuccess) {
+          Navigator.pushReplacement(
+            context,
 
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+            MaterialPageRoute(builder: (_) => const MainNavigationPage()),
+          );
+        }
 
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        if (state is AuthError) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
+        }
+      },
 
-            children: [
-              const SizedBox(height: 40),
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: AppColors.veryLightGreen,
 
-              Center(
-                child: Container(
-                  width: 150,
-                  height: 150,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
 
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
 
-                    borderRadius: BorderRadius.circular(30),
-                  ),
+                children: [
+                  const SizedBox(height: 40),
 
-                  child: Image.asset(
-                    'assets/images/login.jpg',
-                    width: 70,
-                  ),
-                ),
-              ),
+                  Center(
+                    child: Container(
+                      width: 150,
 
-              const SizedBox(height: 40),
+                      height: 150,
 
-              const Text(
-                'Welcome Back',
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
 
-                style: TextStyle(
-                  fontSize: 32,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
 
-                  fontWeight: FontWeight.bold,
-
-                  color: AppColors.darkGreen,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              const Text(
-                'Login to continue',
-
-                style: TextStyle(fontSize: 15, color: AppColors.secondaryText),
-              ),
-
-              const SizedBox(height: 40),
-
-              CustomTextField(
-                controller: usernameController,
-
-                hint: 'Username',
-
-                prefixIcon: Icons.person,
-              ),
-
-              const SizedBox(height: 20),
-
-              CustomTextField(
-                controller: passwordController,
-
-                hint: 'Password',
-
-                prefixIcon: Icons.lock,
-
-                isPassword: true,
-              ),
-
-
-
-              const SizedBox(height: 34),
-
-              CustomButton(
-                text: 'Login',
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-
-                    MaterialPageRoute(builder: (_) => const MainNavigationPage(),
+                      child: Image.asset('assets/images/login.jpg'),
                     ),
-                  );
-                },
-              ),
+                  ),
 
-              const SizedBox(height: 20),
+                  const SizedBox(height: 40),
 
-              Container(
-                width: double.infinity,
+                  const Text(
+                    'Welcome Back',
 
-                padding: const EdgeInsets.all(18),
+                    style: TextStyle(
+                      fontSize: 32,
 
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-
-                  borderRadius: BorderRadius.circular(18),
-                ),
-
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.fingerprint,
-
-                      size: 50,
+                      fontWeight: FontWeight.bold,
 
                       color: AppColors.darkGreen,
                     ),
+                  ),
 
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
-                    const Text(
-                      'Login with Fingerprint',
+                  const Text(
+                    'Login to continue',
 
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      fontSize: 15,
 
-                        color: AppColors.darkGreen,
-                      ),
+                      color: AppColors.secondaryText,
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  CustomTextField(
+                    controller: usernameController,
+
+                    hint: 'Email',
+
+                    prefixIcon: Icons.email,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  CustomTextField(
+                    controller: passwordController,
+
+                    hint: 'Password',
+
+                    prefixIcon: Icons.lock,
+
+                    isPassword: true,
+                  ),
+
+                  const SizedBox(height: 34),
+
+                  CustomButton(
+                    text: state is AuthLoading ? "Loading..." : "Login",
+
+                    onPressed: state is AuthLoading
+                        ? null
+                        : () {
+                            context.read<AuthCubit>().login(
+                              usernameController.text,
+
+                              passwordController.text,
+                            );
+                          },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Container(
+                    width: double.infinity,
+
+                    padding: const EdgeInsets.all(18),
+
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+
+                      borderRadius: BorderRadius.circular(18),
                     ),
 
-                    const SizedBox(height: 6),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.fingerprint,
 
-                    Text(
-                      'Fast & secure authentication',
+                          size: 50,
 
-                      style: TextStyle(color: AppColors.secondaryText),
+                          color: AppColors.darkGreen,
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        const Text(
+                          'Login with Fingerprint',
+
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+
+                            color: AppColors.darkGreen,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          'Fast & secure authentication',
+
+                          style: TextStyle(color: AppColors.secondaryText),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 30),
+                ],
               ),
-
-              const SizedBox(height: 30),
-
-
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
