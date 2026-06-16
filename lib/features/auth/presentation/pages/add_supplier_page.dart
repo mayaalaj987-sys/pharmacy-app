@@ -74,7 +74,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
         child: Column(
           children: [
 
-            CustomTextField(
+           /* CustomTextField(
               controller: nameController,
               hint: "Supplier Name",
               prefixIcon: Icons.business,
@@ -143,7 +143,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
 
                 Navigator.pop(context);
               },
-            ),
+            ),*/
           ],
         ),
       ),

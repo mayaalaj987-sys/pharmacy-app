@@ -13,6 +13,19 @@ class SuppliersPage extends StatefulWidget {
 }
 
 class _SuppliersPageState extends State<SuppliersPage> {
+
+  Future<void> onAddSupplierPage() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AddSupplierPage(),
+      ),
+    );
+
+    setState(() {});
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,19 +38,23 @@ class _SuppliersPageState extends State<SuppliersPage> {
         ),
       ),
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const AddSupplierPage(),
-            ),
-          );
+      floatingActionButton: GestureDetector(
+        onTap: onAddSupplierPage,
 
-          setState(() {});
-        },
+        child: Container(
+          width: 50,
+          height: 50,
 
-        child: const Icon(Icons.add),
+          decoration: BoxDecoration(
+            color: AppColors.darkGreen,
+            borderRadius: BorderRadius.circular(16),
+          ),
+
+          child: const Icon(
+            Icons.add,
+            color: Colors.white,
+          ),
+        ),
       ),
 
       body: const SupplierList(),

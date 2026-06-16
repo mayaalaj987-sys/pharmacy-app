@@ -110,6 +110,7 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
+
                 ],
               ),
 
@@ -128,6 +129,7 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
                 icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,
                   color: AppColors.darkGreen,
+
                 ),
 
                 dropdownColor: Colors.white,
