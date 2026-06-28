@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:phamacy_managment/features/auth/presentation/pages/account_type_page.dart';
+import 'package:phamacy_managment/features/auth/presentation/pages/home_page.dart';
+import 'package:phamacy_managment/features/auth/presentation/pages/signup_page1.dart';
 import 'package:provider/provider.dart';
 
 import 'core/network/dio_client.dart';
@@ -11,6 +14,7 @@ import 'features/auth/data/datasource/auth_repository.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/auth/presentation/pages/logo_page.dart';
 import 'features/auth/presentation/pages/main_navigation_page.dart';
+import 'features/auth/presentation/pages/pending_page.dart';
 
 void main() {
   final storage = TokenStorage();

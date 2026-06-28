@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
-import 'login_page.dart';
+import '../../../../core/widgets/custom_button.dart';
+import 'employee_login_page.dart';
 
-class PendingPage extends StatelessWidget {
-  const PendingPage({super.key});
+class EmployeePendingPage extends StatelessWidget {
+  const EmployeePendingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +31,14 @@ class PendingPage extends StatelessWidget {
                   ],
                 ),
                 child: const Icon(
-                  Icons.access_time_rounded,
+                  Icons.hourglass_empty_rounded,
                   size: 80,
                   color: AppColors.pendingOrange,
                 ),
               ),
               const SizedBox(height: 40),
               const Text(
-                'Account Under Review',
+                'Application Submitted!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 30,
@@ -46,10 +47,9 @@ class PendingPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              Text(
-                'Your pharmacy account has been submitted successfully.\n\n'
-                    'Our team is currently reviewing your documents.\n\n'
-                    'You will be able to login once your account is approved.',
+              const Text(
+                'Your application has been submitted successfully.\n\n'
+                'You will be notified once a pharmacist accepts your application.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -69,13 +69,10 @@ class PendingPage extends StatelessWidget {
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.pending_actions,
-                      color: AppColors.pendingOrange,
-                    ),
+                    Icon(Icons.pending_actions, color: AppColors.pendingOrange),
                     SizedBox(width: 10),
                     Text(
-                      'Waiting for Admin Approval',
+                      'Waiting for Pharmacist Approval',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -86,23 +83,16 @@ class PendingPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-              // زر للذهاب للوغين بعد ما يعرف إن حسابه اتفعّل
-              TextButton(
+              CustomButton(
+                text: 'Back To Login',
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const LoginPage(),
+                      builder: (_) => const EmployeeLoginPage(),
                     ),
                   );
                 },
-                child: const Text(
-                  'Already approved? Login here',
-                  style: TextStyle(
-                    color: AppColors.darkGreen,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
               ),
             ],
           ),

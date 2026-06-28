@@ -89,7 +89,7 @@ class _SignupPage2State extends State<SignupPage2> {
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is AuthSuccess) {
+        if (state is PharmacyRegisterSuccess) { // بدل AuthSuccess
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const PendingPage()),
@@ -97,9 +97,8 @@ class _SignupPage2State extends State<SignupPage2> {
         }
 
         if (state is AuthError) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
       builder: (context, state) {

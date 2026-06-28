@@ -40,12 +40,14 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> registerPharmacy(FormData data) async {
     try {
       emit(AuthLoading());
-
       await repository.registerPharmacy(data);
-
-      emit(AuthSuccess());
+      emit(PharmacyRegisterSuccess()); // بدل AuthSuccess
     } catch (e) {
-      emit(AuthError(e.toString()));
+      if (e is DioException) {
+        emit(AuthError(ErrorHandler.handle(e)));
+      } else {
+        emit(AuthError(e.toString()));
+      }
     }
   }
 }

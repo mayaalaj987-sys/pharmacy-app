@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phamacy_managment/core/theme/app_colors.dart';
 
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/settings_page/settings_about_tile.dart';
@@ -14,6 +15,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Settings"),
@@ -25,7 +27,6 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           children: const [
             SettingsProfileCard(),
-
 
             SizedBox(height: 16),
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/auth/presentation/pages/login_page.dart';
-
 import '../../theme/app_colors.dart';
 
 class SettingsLogoutTile extends StatelessWidget {
@@ -11,49 +10,100 @@ class SettingsLogoutTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       color: AppColors.white,
-
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ListTile(
         leading: const Icon(Icons.logout, color: AppColors.pendingOrange),
-
         title: const Text(
           "Logout",
-
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 18,
+          color: AppColors.tealGreen,
+        ),
         onTap: () {
           showDialog(
             context: context,
-
             builder: (_) {
               return AlertDialog(
-                title: const Text("Logout"),
+                backgroundColor: AppColors.white,
 
-                content: const Text("Are you sure you want to logout?"),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
 
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                title: const Text(
+                  "Logout",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                ),
 
-                    child: const Text("Cancel"),
+                content: const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    "Are you sure you want to logout?",
+                    style: TextStyle(fontSize: 15),
                   ),
+                ),
 
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushAndRemoveUntil(
-                        context,
 
-                        MaterialPageRoute(builder: (_) => const LoginPage()),
+                actionsPadding: const EdgeInsets.only(
+                  left: 16,
+                  right: 20,
+                  bottom: 16,
+                ),
+                actions: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.tealGreen,
+                            backgroundColor: AppColors.veryLightGreen,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            "Cancel",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
 
-                        (route) => false,
-                      );
-                    },
+                      const SizedBox(width: 12),
 
-                    child: const Text("Logout"),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.tealGreen,
+                            foregroundColor: AppColors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          child: const Text(
+                            "Logout",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               );

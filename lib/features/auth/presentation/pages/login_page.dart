@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:phamacy_managment/features/auth/presentation/pages/pending_page.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -37,18 +38,26 @@ class _LoginPageState extends State<LoginPage> {
         if (state is AuthSuccess) {
           Navigator.pushReplacement(
             context,
-
             MaterialPageRoute(builder: (_) => const MainNavigationPage()),
           );
         }
-
         if (state is AuthError) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message)));
+          if (state.message.contains('pending')) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const PendingPage()),
+            );
+          } else if (state.message.contains('rejected')) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('تم رفض طلب صيدليتك من الإدارة')),
+            );
+          } else {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
+          }
         }
       },
-
       builder: (context, state) {
         return Scaffold(
           backgroundColor: AppColors.veryLightGreen,
@@ -142,54 +151,6 @@ class _LoginPageState extends State<LoginPage> {
                             );
                           },
                   ),
-
-                  const SizedBox(height: 20),
-
-                  Container(
-                    width: double.infinity,
-
-                    padding: const EdgeInsets.all(18),
-
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.fingerprint,
-
-                          size: 50,
-
-                          color: AppColors.darkGreen,
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        const Text(
-                          'Login with Fingerprint',
-
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-
-                            color: AppColors.darkGreen,
-                          ),
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Text(
-                          'Fast & secure authentication',
-
-                          style: TextStyle(color: AppColors.secondaryText),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
                 ],
               ),
             ),
