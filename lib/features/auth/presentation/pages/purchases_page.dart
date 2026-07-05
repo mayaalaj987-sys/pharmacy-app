@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/data/medicine_data.dart';
 import '../../../../core/data/purchase_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
-import '../../data/models/medicine_model.dart';
+import '../../../../core/widgets/purchases/purchase_card.dart';
+import '../../../../core/widgets/purchases/purchase_stat_card.dart';
+
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -20,11 +21,16 @@ class _PurchasesPageState extends State<PurchasesPage> {
 
     final receivedCount = purchases.where((e) => e.status == "Received").length;
 
+    final cancelledCount = purchases
+        .where((e) => e.status == "Cancelled")
+        .length;
+
     return Scaffold(
       backgroundColor: AppColors.white,
 
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
+
         child: CustomAppBar(title: "Purchases"),
       ),
 
@@ -36,30 +42,36 @@ class _PurchasesPageState extends State<PurchasesPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: _buildStatCard(
-                    "Orders",
-                    purchases.length.toString(),
-                    Colors.blue,
+                  child: PurchaseStatCard(
+                    title: "Cancel",
+
+                    value: cancelledCount.toString(),
+
+                    color: AppColors.errorRed,
                   ),
                 ),
 
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child: _buildStatCard(
-                    "Pending",
-                    pendingCount.toString(),
-                    Colors.orange,
+                  child: PurchaseStatCard(
+                    title: "Pending",
+
+                    value: pendingCount.toString(),
+
+                    color: AppColors.pendingOrange,
                   ),
                 ),
 
                 const SizedBox(width: 10),
 
                 Expanded(
-                  child: _buildStatCard(
-                    "Received",
-                    receivedCount.toString(),
-                    Colors.green,
+                  child: PurchaseStatCard(
+                    title: "Received",
+
+                    value: receivedCount.toString(),
+
+                    color: AppColors.lightGreen,
                   ),
                 ),
               ],
@@ -73,216 +85,17 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     itemCount: purchases.length,
 
                     itemBuilder: (context, index) {
-                      final purchase = purchases[index];
+                      return PurchaseCard(
+                        purchase: purchases[index],
 
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-
-                                children: [
-                                  Text(
-                                    purchase.medicineName,
-
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-
-                                  _buildStatusBadge(purchase.status),
-                                ],
-                              ),
-
-                              const SizedBox(height: 8),
-
-                              Text("Supplier: ${purchase.supplierName}"),
-
-                              Text("Quantity: ${purchase.quantity}"),
-
-                              Text("Price: \$${purchase.price}"),
-
-                              const SizedBox(height: 12),
-
-                              if (purchase.status == "Pending")
-                          if (purchase.status == "Pending")
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                setState(() {
-
-                                  purchase.status = "Received";
-
-                                  final medicineIndex = medicines.indexWhere(
-                                        (m) =>
-                                    m.name.toLowerCase() ==
-                                        purchase.medicineName.toLowerCase(),
-                                  );
-
-                                  if (medicineIndex != -1) {
-
-                                    final oldMedicine = medicines[medicineIndex];
-
-                                    medicines[medicineIndex] = MedicineModel(
-                                      name: oldMedicine.name,
-                                      category: oldMedicine.category,
-                                      manufacturer: oldMedicine.manufacturer,
-                                      sellingPrice: oldMedicine.sellingPrice,
-                                      costPrice: oldMedicine.costPrice,
-
-                                      quantity: (
-                                          (int.tryParse(oldMedicine.quantity) ?? 0) +
-                                              purchase.quantity
-                                      ).toString(),
-
-                                      reorderLevel: oldMedicine.reorderLevel,
-                                      expiryDate: oldMedicine.expiryDate,
-                                      barcode: oldMedicine.barcode,
-                                      notes: oldMedicine.notes,
-                                    );
-
-                                  } else {
-
-                                    medicines.add(
-                                      MedicineModel(
-                                        name: purchase.medicineName,
-                                        category: "General",
-                                        manufacturer: purchase.supplierName,
-
-                                        sellingPrice: purchase.price.toString(),
-                                        costPrice: purchase.price.toString(),
-
-                                        quantity: purchase.quantity.toString(),
-
-                                        reorderLevel: "10",
-
-                                        expiryDate: "01/01/2027",
-
-                                        barcode: purchase.id,
-
-                                        notes: "Added automatically from Purchase",
-                                      ),
-                                    );
-                                  }
-
-                                  print(
-                                    "Medicines Count: ${medicines.length}",
-                                  );
-                                });
-                              },
-
-                              icon: const Icon(Icons.check),
-
-                              label: const Text("Receive"),
-                            ),
-                          ),
-
-                          const SizedBox(width: 10),
-
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-
-                              onPressed: () {
-                                setState(() {
-                                  purchase.status = "Cancelled";
-                                });
-                              },
-
-                              icon: const Icon(Icons.close),
-
-                              label: const Text("Cancel"),
-                            ),
-                          ),
-                        ],
-                      ),
-                            ],
-                          ),
-                        ),
+                        onUpdate: () {
+                          setState(() {});
+                        },
                       );
                     },
                   ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-
-      decoration: BoxDecoration(
-        color: color.withOpacity(.15),
-
-        borderRadius: BorderRadius.circular(16),
-      ),
-
-      child: Column(
-        children: [
-          Text(
-            value,
-
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(title),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(String status) {
-    Color color;
-
-    switch (status) {
-      case "Received":
-        color = Colors.green;
-        break;
-
-      case "Cancelled":
-        color = Colors.red;
-        break;
-
-      default:
-        color = Colors.orange;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-
-      decoration: BoxDecoration(
-        color: color.withOpacity(.15),
-
-        borderRadius: BorderRadius.circular(20),
-      ),
-
-      child: Text(
-        status,
-
-        style: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
     );
   }
