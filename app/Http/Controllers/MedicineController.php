@@ -175,22 +175,19 @@ class MedicineController extends Controller
             'out_of_stock_medicines' => $medicines,
         ]);
     }
-    public function getMedicinesByCategory(Request $request)
+    public function getMedicinesByCategory(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            'pharmacy_id'       => 'required|exists:pharmacies,id',
-            'category_medicine' => 'required|in:Antibiotics,Painkillers,Vitamins,Antidiabetics,Gastrointestinal,Respiratory,Cardiovascular,Dermatology',
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'category'    => 'required|string',
         ]);
 
         $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
-            ->where('category_medicine', $request->category_medicine)
-            ->where('quantity', '>', 0)
+            ->where('category_medicine', $request->category)
             ->get();
 
         return response()->json([
-            'category'        => $request->category_medicine,
-            'medicines_count' => $medicines->count(),
-            'medicines'       => $medicines,
+            'medicines' => $medicines,
         ]);
     }
 }

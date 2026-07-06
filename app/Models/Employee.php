@@ -2,45 +2,37 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class Employee extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'pharmacy_id',
-        'name',
-        'phone',
-        'email',
-        'password',
-        'cv',
-        'experience_proof',
-        'salary',
-        'role',
-        'status',
-        'first_login',
+        'pharmacy_id', 'name', 'phone', 'email', 'password',
+        'cv', 'experience_proof', 'salary', 'role', 'status', 'first_login',
     ];
 
     protected $hidden = [
         'password',
     ];
 
-    protected $casts = [
-        'password'    => 'hashed',
-        'first_login' => 'boolean',
-        'salary'      => 'decimal:2',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'password' => 'hashed',
+            'first_login' => 'boolean',
+        ];
+    }
 
-    // علاقة مع الصيدلية
     public function pharmacy()
     {
         return $this->belongsTo(Pharmacy::class);
     }
 
-    // علاقة مع المبيعات
     public function sales()
     {
         return $this->hasMany(Sale::class);

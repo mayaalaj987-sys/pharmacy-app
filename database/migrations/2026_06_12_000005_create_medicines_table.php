@@ -10,17 +10,20 @@ return new class extends Migration
     {
         Schema::create('medicines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('supplier_id')->nullable()->constrained('suppliers')->onDelete('set null');
             $table->foreignId('pharmacy_id')->nullable()->constrained('pharmacies')->onDelete('cascade');
+            $table->foreignId('supplier_id')->nullable()->constrained('suppliers')->onDelete('set null');
             $table->string('name');
-            $table->decimal('cost_price');
-            $table->decimal('selling_price');
-            $table->string('manufacturer');
-            $table->integer('quantity');
-            $table->integer('reorder_level')->default(30);
-            $table->date('expire_date');
-            $table->string('category_medicine');
-            $table->decimal('qr_code');
+            $table->enum('category_medicine', [
+                'Antibiotics', 'Painkillers', 'Vitamins', 'Antidiabetics',
+                'Gastrointestinal', 'Respiratory', 'Cardiovascular', 'Dermatology'
+            ]);
+            $table->decimal('cost_price', 10, 2);
+            $table->decimal('selling_price', 10, 2);
+            $table->string('manufacturer')->nullable();
+            $table->integer('quantity')->default(0);
+            $table->integer('reorder_level')->default(0);
+            $table->date('expire_date')->nullable();
+            $table->string('qr_code')->nullable();
             $table->timestamps();
         });
     }

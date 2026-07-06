@@ -2,21 +2,33 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
+    use HasFactory;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'supplier_id', 'pharmacy_id', 'payment_method',
+        'status', 'total_price', 'date',
+    ];
 
-    public function pharmacy()
+    protected function casts(): array
     {
-        return $this->belongsTo(Pharmacy::class);
+        return [
+            'date' => 'date',
+        ];
     }
 
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function pharmacy()
+    {
+        return $this->belongsTo(Pharmacy::class);
     }
 
     public function items()

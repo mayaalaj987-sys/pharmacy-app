@@ -7,26 +7,19 @@ use Illuminate\Http\Request;
 
 class RoleMiddleware
 {
-    public function handle(Request $request, Closure $next, string $role): mixed
+    public function handle($request, Closure $next, ...$roles)
     {
         $user = $request->user();
 
         if (!$user) {
             return response()->json([
-                'message' => 'غير مصرح لك بالدخول',
+                'message' => 'Unauthenticated'
             ], 401);
         }
 
-        // نتحقق مين هو
-        if ($role === 'pharmacist' && !($user instanceof \App\Models\Pharmacist)) {
+        if (!in_array($user->role, $roles)) {
             return response()->json([
-                'message' => 'هذا الإجراء مخصص للصيدلاني فقط',
-            ], 403);
-        }
-
-        if ($role === 'employee' && !($user instanceof \App\Models\Employee)) {
-            return response()->json([
-                'message' => 'هذا الإجراء مخصص للموظف فقط',
+                'message' => 'Unauthorized'
             ], 403);
         }
 

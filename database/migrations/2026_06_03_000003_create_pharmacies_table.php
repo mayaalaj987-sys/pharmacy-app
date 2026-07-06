@@ -13,8 +13,8 @@ return new class extends Migration
             $table->foreignId('pharmacist_id')->constrained('pharmacists')->onDelete('cascade');
             $table->string('pharmacy_name');
             $table->string('pharmacy_address');
-            $table->json('certificate');
-            $table->json('license');
+            $table->string('certificate');
+            $table->string('license');
             $table->enum('status', ['pending', 'approved','rejected'])->default('pending');
             $table->timestamps();
         });

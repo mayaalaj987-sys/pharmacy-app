@@ -10,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('notifications', function (Blueprint $table) {
             $table->id();
-            $table->string('title');
-            $table->text('message');
-            $table->boolean('is_read')->default(false);
-            $table->string('type');
-            $table->timestamp('date')->useCurrent();
             $table->foreignId('pharmacy_id')->constrained('pharmacies')->onDelete('cascade');
+            $table->string('title');
+            $table->string('message');
+            $table->string('type');
+            $table->boolean('is_read')->default(false);
+            $table->date('date');
             $table->timestamps();
         });
     }

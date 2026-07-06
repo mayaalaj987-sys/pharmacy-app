@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('ratings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pharmacist_id')->constrained('pharmacists')->onDelete('cascade');
+            $table->tinyInteger('stars');
             $table->date('date');
-            $table->unsignedTinyInteger('stars');
             $table->timestamps();
         });
     }

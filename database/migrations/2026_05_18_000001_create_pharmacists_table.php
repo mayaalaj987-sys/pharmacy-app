@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-
     public function up(): void
     {
         Schema::create('pharmacists', function (Blueprint $table) {
@@ -14,11 +13,10 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
-            $table->json('profile_image')->nullable();
+            $table->string('profile_image')->nullable();
             $table->timestamps();
         });
     }
-
 
     public function down(): void
     {

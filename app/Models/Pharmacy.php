@@ -1,16 +1,27 @@
 <?php
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Pharmacy extends Model
 {
-    protected $guarded = [];
-    protected $hidden = ['updated_at', 'created_at', 'status'];
+    use HasFactory;
+
+    protected $fillable = [
+        'pharmacist_id', 'pharmacy_name', 'pharmacy_address',
+        'certificate', 'license', 'status',
+    ];
 
     public function pharmacist()
     {
-        return $this->belongsTo(Pharmacist::class, 'pharmacist_id');
+        return $this->belongsTo(Pharmacist::class);
+    }
+
+    public function employees()
+    {
+        return $this->hasMany(Employee::class);
     }
 
     public function medicines()
@@ -18,19 +29,14 @@ class Pharmacy extends Model
         return $this->hasMany(Medicine::class);
     }
 
-    public function orders()
-    {
-        return $this->hasMany(Order::class);
-    }
-
     public function sales()
     {
         return $this->hasMany(Sale::class);
     }
 
-    public function employees()
+    public function orders()
     {
-        return $this->hasMany(Employee::class)->where('status', 'approved');
+        return $this->hasMany(Order::class);
     }
 
     public function notifications()

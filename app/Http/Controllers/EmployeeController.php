@@ -120,63 +120,65 @@ class EmployeeController extends Controller
     // ===== UPDATED: الصيدلاني يوافق على موظف ويوظفه بصيدلية معينة =====
     public function approveEmployee(Request $request, $id): \Illuminate\Http\JsonResponse
     {
-        $pharmacist = $request->user();
+        try {
 
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-            'salary'      => 'nullable|numeric',
-        ]);
+            $pharmacist = $request->user();
 
-        // التحقق إن الصيدلية تابعة للصيدلاني الحالي
-        $pharmacy = Pharmacy::where('id', $request->pharmacy_id)
-            ->where('pharmacist_id', $pharmacist->id)
-            ->first();
+            $request->validate([
+                'pharmacy_id' => 'required|exists:pharmacies,id',
+                'salary'      => 'nullable|numeric',
+            ]);
 
-        if (!$pharmacy) {
+            $pharmacy = Pharmacy::where('id', $request->pharmacy_id)
+                ->where('pharmacist_id', $pharmacist->id)
+                ->first();
+
+            if (!$pharmacy) {
+                return response()->json([
+                    'message' => 'الصيدلية غير موجودة أو لا تملك صلاحية عليها',
+                ], 403);
+            }
+
+            $employee = Employee::find($id);
+
+            if (!$employee) {
+                return response()->json([
+                    'message' => 'الموظف غير موجود',
+                ], 404);
+            }
+
+            if ($employee->status !== 'pending') {
+                return response()->json([
+                    'message' => 'هذا الموظف تمت معالجة طلبه مسبقاً',
+                ], 400);
+            }
+
+            $employeeCount = Employee::where('pharmacy_id', $request->pharmacy_id)
+                ->where('status', 'approved')
+                ->count();
+
+            if ($employeeCount >= 2) {
+                return response()->json([
+                    'message' => 'هذه الصيدلية وصلت للحد الأقصى (2)',
+                ], 400);
+            }
+
+            $employee->pharmacy_id = $request->pharmacy_id;
+            $employee->status = 'approved';
+            $employee->salary = $employee->role === 'employee' ? $request->salary : null;
+            $employee->save();
+
             return response()->json([
-                'message' => 'الصيدلية غير موجودة أو لا تملك صلاحية عليها',
-            ], 403);
-        }
+                'message'  => 'تم القبول بنجاح',
+                'employee' => $employee,
+            ]);
 
-        $employee = Employee::findOrFail($id);
+        } catch (\Throwable $e) {
 
-        if ($employee->status !== 'pending') {
             return response()->json([
-                'message' => 'هذا الموظف تمت معالجة طلبه مسبقاً',
-            ], 400);
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // التحقق من حد 2 موظفين بالصيدلية المحددة
-        $employeeCount = Employee::where('pharmacy_id', $request->pharmacy_id)
-            ->where('status', 'approved')
-            ->count();
-
-        if ($employeeCount >= 2) {
-            return response()->json([
-                'message' => 'هذه الصيدلية وصلت للحد الأقصى من الموظفين (2)',
-            ], 400);
-        }
-
-        // ✅ هون بيتوظف بالصيدلية المحددة
-        $employee->update([
-            'pharmacy_id' => $request->pharmacy_id,
-            'status'      => 'approved',
-            'salary'      => $employee->role === 'employee' ? $request->salary : null,
-        ]);
-
-        Notification::create([
-            'pharmacy_id' => $request->pharmacy_id,
-            'title'       => 'تم توظيف موظف جديد',
-            'message'     => 'تم قبول الموظف ' . $employee->name . ' في الصيدلية',
-            'type'        => 'employee',
-            'is_read'     => false,
-            'date'        => now(),
-        ]);
-
-        return response()->json([
-            'message'  => 'تم قبول الموظف وتوظيفه في الصيدلية بنجاح',
-            'employee' => $employee,
-        ]);
     }
 
     // ===== رفض موظف =====
