@@ -11,22 +11,25 @@ use App\Http\Controllers\PharmacistController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\RatingController;
+use App\Http\Controllers\AdminDashboardController;
 
-
+// ==========================================
+// 🔓 1. المسارات العامة (Public Routes)
+// ==========================================
 Route::post('/register',          [PharmacistController::class, 'register']);
 Route::post('/register/pharmacy', [PharmacistController::class, 'registerPharmacy']);
 Route::post('/login',             [PharmacistController::class, 'login']);
-Route::post('/employee/register', [EmployeeController::class,   'register']);   // ✅ UPDATED: بدون اسم صيدلية
+Route::post('/employee/register', [EmployeeController::class,   'register']);
 Route::post('/employee/login',    [EmployeeController::class,   'login']);
 
-
-
-Route::middleware(['auth:sanctum'])->get('/test', function () {
-    return response()->json(['msg' => 'ok']);
+Route::middleware(['auth:pharmacist'])->group(function () {
+    Route::get('/test-auth', function () {
+        return response()->json(['status' => 'auth ok']);
+    });
 });
 
-Route::middleware(['auth:sanctum', 'role:employee'])->group(function () {
-    Route::get('/medicines',                [MedicineController::class,     'getMedicines']);
+
+Route::middleware(['auth:employee'])->group(function () {    Route::get('/medicines',                [MedicineController::class,     'getMedicines']);
     Route::get('/medicines/search',         [MedicineController::class,     'searchMedicine']);
     Route::get('/medicines/low-stock',      [MedicineController::class,     'getLowStockMedicines']);
     Route::get('/medicines/expiring',       [MedicineController::class,     'getExpiringMedicines']);
@@ -40,22 +43,16 @@ Route::middleware(['auth:sanctum', 'role:employee'])->group(function () {
     Route::post('/tasks/{id}/done',         [TaskController::class,         'markAsDone']);
 });
 
-// ===== Admin Routes =====
-Route::prefix('admin')->group(function () {
-    Route::get('/pharmacies',               [PharmacistController::class, 'getAllPharmacies']);
-    Route::get('/pharmacies/pending',       [PharmacistController::class, 'getPendingPharmacies']);
-    Route::post('/pharmacies/{id}/approve', [PharmacistController::class, 'approvePharmacy']);
-    Route::post('/pharmacies/{id}/reject',  [PharmacistController::class, 'rejectPharmacy']);
-});
-
-// ===== Pharmacist Routes =====
-Route::middleware(['auth:sanctum'])->group(function () {
+// ==========================================
+// 🥼 3. مسارات الصيادلة الملاك (Pharmacist/Owners)
+// ==========================================
+Route::middleware(['auth:pharmacist'])->group(function () {
     Route::post('/logout',                  [PharmacistController::class,   'logout']);
     Route::delete('/delete-account',        [PharmacistController::class,   'deleteAccount']);
     Route::get('/profile',                  [PharmacistController::class,   'getProfile']);
     Route::post('/profile/update',          [PharmacistController::class,   'updateProfile']);
-    Route::post('/pharmacy/add',            [PharmacistController::class,   'addPharmacy']);// ✅ NEW: تعديل معلومات صيدلية معينة
-    Route::post('/pharmacy/{id}/update',    [PharmacistController::class,   'updatePharmacy']);// ✅ UPDATED: كل طلبات التوظيف المفتوحة (بدون صيدلية محددة)
+    Route::post('/pharmacy/add',            [PharmacistController::class,   'addPharmacy']);
+    Route::post('/pharmacy/{id}/update',    [PharmacistController::class,   'updatePharmacy']);
     Route::get('/employees/pending',        [EmployeeController::class,     'getAllPendingEmployees']);
     Route::post('/employees/approve/{id}',  [EmployeeController::class,     'approveEmployee']);
     Route::post('/employees/reject/{id}',   [EmployeeController::class,     'rejectEmployee']);
@@ -96,3 +93,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/tasks/{id}',            [TaskController::class,         'deleteTask']);
 });
 
+// ==========================================
+// 👑 4. مسارات الآدمن (React Dashboard)
+// ==========================================
+// تم استخدام الاسم الاختصاري 'admin' المضاف للـ Kernel وحذف البادئة المكررة ليعمل بوستمان بسلاسة
+
+
+    // المسارات القديمة الخاصة بك
+    Route::prefix('admin')->group(function () {
+        Route::get('/pharmacies',               [PharmacistController::class, 'getAllPharmacies']);
+        Route::get('/pharmacies/pending',       [PharmacistController::class, 'getPendingPharmacies']);
+        Route::post('/pharmacies/{id}/approve', [PharmacistController::class, 'approvePharmacy']);
+        Route::post('/pharmacies/{id}/reject',  [PharmacistController::class, 'rejectPharmacy']);
+
+    // ✨ مسارات الفروع والبحث والـ Toggle (بدون تكرار api/)
+    Route::get('/owners/{owner_id}/branches',           [AdminDashboardController::class, 'getOwnerBranches']);
+    Route::patch('/branches/toggle-status/{branch_id}', [AdminDashboardController::class, 'toggleBranchStatus']);
+
+    // ✨ بوابة الشكاوى والدعم (Support Desk)
+    Route::get('/tickets/all',                          [AdminDashboardController::class, 'getAllTickets']);
+    Route::post('/tickets/respond/{ticket_id}',         [AdminDashboardController::class, 'respondToTicket']);
+
+    // ✨ محرك التقارير والإحصائيات المتقدم (Analytics Engine)
+    Route::get('/analytics/pharmacies-summary',         [AdminDashboardController::class, 'getPharmaciesSummary']);
+    Route::get('/analytics/job-market-summary',         [AdminDashboardController::class, 'getJobMarketSummary']);
+    Route::get('/analytics/onboarding-trends',          [AdminDashboardController::class, 'getOnboardingTrends']);
+});

@@ -11,14 +11,31 @@ class AdminMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  Closure(Request): (Response)  $next
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
      */
-
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
-        if ($request->header('X-Admin-Key') !== env('ADMIN_KEY')) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        // 👇 فحص سريع مؤقت: للتأكد أن بوستمان يرسل الـ Headers بشكل صحيح والسيرفر يستقبلها
+       // return response()->json(['msg' => 'وصلت لميدل وير الآدمن بنجاح وبوستمان سليم']);
+
+        try {
+            $adminKey = $request->header('X-Admin-Key');
+            $expectedKey = env('ADMIN_KEY');
+
+            if (!$adminKey || $adminKey !== $expectedKey) {
+                return response()->json([
+                    'message' => 'Unauthorized. Admin key is missing or invalid.'
+                ], 401);
+            }
+
+            return $next($request);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Server Error in Admin Middleware.',
+                'error' => $e->getMessage()
+            ], 500);
         }
-        return $next($request);
     }
 }

@@ -12,7 +12,7 @@ class Pharmacist extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'profile_image',
+        'name', 'email', 'password', 'profile_image','created_at','updated_at'
     ];
 
     protected $hidden = [

@@ -11,7 +11,7 @@ class Pharmacy extends Model
 
     protected $fillable = [
         'pharmacist_id', 'pharmacy_name', 'pharmacy_address',
-        'certificate', 'license', 'status',
+        'certificate', 'license', 'status','created_at','updated_at'
     ];
 
     public function pharmacist()

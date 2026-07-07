@@ -10,7 +10,7 @@ return [
         Sanctum::currentApplicationUrlWithPort()
     ))),
 
-    'guard' => ['pharmacist', 'employee'],
+    'guard' => ['web'],
 
     'expiration' => null,
 

@@ -42,7 +42,8 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
 
-        // 👇 مهم إلنا
+        // 👇 الميدل ويرز الخاصة بك
         'role' => \App\Http\Middleware\RoleMiddleware::class,
+        'admin' => \App\Http\Middleware\AdminMiddleware::class, // 🌟 تمت إضافة هذا السطر هنا بنجاح
     ];
 }
