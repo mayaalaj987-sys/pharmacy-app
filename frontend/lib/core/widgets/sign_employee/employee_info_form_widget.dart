@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 
 class EmployeeInfoFormWidget extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController phoneController;
-  final TextEditingController locationController;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
 
   const EmployeeInfoFormWidget({
     super.key,
     required this.nameController,
     required this.phoneController,
-    required this.locationController,
+    required this.emailController,
+    required this.passwordController,
   });
 
   @override
@@ -32,9 +33,17 @@ class EmployeeInfoFormWidget extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         CustomTextField(
-          controller: locationController,
-          hint: 'Location',
-          prefixIcon: Icons.location_on,
+          controller: emailController,
+          hint: 'Email',
+          prefixIcon: Icons.email,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 16),
+        CustomTextField(
+          controller: passwordController,
+          hint: 'Password',
+          prefixIcon: Icons.lock,
+          isPassword: true,
         ),
       ],
     );

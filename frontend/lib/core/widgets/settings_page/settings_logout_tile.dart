@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../features/auth/presentation/pages/login_page.dart';
+import '../../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../theme/app_colors.dart';
 
 class SettingsLogoutTile extends StatelessWidget {
@@ -46,7 +47,6 @@ class SettingsLogoutTile extends StatelessWidget {
                   ),
                 ),
 
-
                 actionsPadding: const EdgeInsets.only(
                   left: 16,
                   right: 20,
@@ -89,13 +89,8 @@ class SettingsLogoutTile extends StatelessWidget {
                             elevation: 0,
                           ),
                           onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const LoginPage(),
-                              ),
-                              (route) => false,
-                            );
+                            Navigator.pop(context);
+                            context.read<AuthCubit>().logout();
                           },
                           child: const Text(
                             "Logout",

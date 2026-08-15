@@ -107,6 +107,7 @@ class OrderController extends Controller
 
         try {
             $order = Order::with('items.medicine')->lockForUpdate()->findOrFail($id);
+            $this->pharmacyContext->assertMatches($request, (int) $order->pharmacy_id);
             Gate::forUser($request->user())->authorize('update', $order);
 
             if ($order->status === 'received') {
@@ -172,6 +173,7 @@ class OrderController extends Controller
     public function cancelOrder(Request $request, int $id): JsonResponse
     {
         $order = Order::findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $order->pharmacy_id);
         Gate::forUser($request->user())->authorize('update', $order);
 
         if ($order->status !== 'pending') {
@@ -206,6 +208,7 @@ class OrderController extends Controller
     public function getOrder(Request $request, int $id): JsonResponse
     {
         $order = Order::with(['supplier', 'items.medicine'])->findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $order->pharmacy_id);
         Gate::forUser($request->user())->authorize('view', $order);
 
         return response()->json(['order' => $order]);

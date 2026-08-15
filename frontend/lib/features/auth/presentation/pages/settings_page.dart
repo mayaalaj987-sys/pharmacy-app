@@ -3,6 +3,7 @@ import 'package:phamacy_managment/core/theme/app_colors.dart';
 
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/settings_page/settings_about_tile.dart';
+import '../../../../core/widgets/settings_page/settings_active_pharmacy_tile.dart';
 import '../../../../core/widgets/settings_page/settings_delete_account_tile.dart';
 import '../../../../core/widgets/settings_page/settings_logout_tile.dart';
 import '../../../../core/widgets/settings_page/settings_profile_card.dart';
@@ -27,6 +28,10 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           children: const [
             SettingsProfileCard(),
+
+            SizedBox(height: 16),
+
+            SettingsActivePharmacyTile(),
 
             SizedBox(height: 16),
 

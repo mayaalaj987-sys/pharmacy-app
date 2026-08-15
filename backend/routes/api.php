@@ -9,18 +9,23 @@ use App\Http\Controllers\PharmacistController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [PharmacistController::class, 'register']);
-Route::post('/register/pharmacy', [PharmacistController::class, 'registerPharmacy']);
 Route::post('/login', [PharmacistController::class, 'login']);
 Route::post('/employee/register', [EmployeeController::class, 'register']);
 Route::post('/employee/login', [EmployeeController::class, 'login']);
 
-// Endpoints shared by both Sanctum-backed actor types are declared once.
 Route::middleware(['auth:pharmacist,employee'])->group(function () {
+    Route::get('/me', [SessionController::class, 'me']);
+    Route::post('/logout', [SessionController::class, 'logout']);
+});
+
+// Operational endpoints shared by both actor types require an approved tenant.
+Route::middleware(['auth:pharmacist,employee', 'active.pharmacy'])->group(function () {
     Route::get('/medicines', [MedicineController::class, 'getMedicines']);
     Route::get('/medicines/search', [MedicineController::class, 'searchMedicine']);
     Route::get('/medicines/low-stock', [MedicineController::class, 'getLowStockMedicines']);
@@ -32,7 +37,7 @@ Route::middleware(['auth:pharmacist,employee'])->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });
 
-Route::middleware(['auth:employee'])->group(function () {
+Route::middleware(['auth:employee', 'active.pharmacy'])->group(function () {
     Route::get('/sale/my-sales', [SaleController::class, 'getEmployeeSales']);
     Route::get('/tasks', [TaskController::class, 'getMyTasks']);
     Route::post('/tasks/{id}/done', [TaskController::class, 'markAsDone']);
@@ -40,13 +45,14 @@ Route::middleware(['auth:employee'])->group(function () {
 
 Route::middleware(['auth:pharmacist'])->group(function () {
     Route::get('/test-auth', fn () => response()->json(['status' => 'auth ok']));
-    Route::post('/logout', [PharmacistController::class, 'logout']);
     Route::delete('/delete-account', [PharmacistController::class, 'deleteAccount']);
     Route::get('/profile', [PharmacistController::class, 'getProfile']);
     Route::post('/profile/update', [PharmacistController::class, 'updateProfile']);
     Route::post('/pharmacy/add', [PharmacistController::class, 'addPharmacy']);
     Route::post('/pharmacy/{id}/update', [PharmacistController::class, 'updatePharmacy']);
+});
 
+Route::middleware(['auth:pharmacist', 'active.pharmacy'])->group(function () {
     Route::get('/employees/pending', [EmployeeController::class, 'getAllPendingEmployees']);
     Route::post('/employees/approve/{id}', [EmployeeController::class, 'approveEmployee']);
     Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees']);

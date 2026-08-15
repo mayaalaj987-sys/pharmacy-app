@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
 use App\Models\Employee;
 use App\Models\Notification;
+use App\Models\Task;
 use App\Services\PharmacyContextResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -14,12 +15,12 @@ class TaskController extends Controller
     public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
 
     // ===== الصيدلاني: إضافة مهمة لموظف =====
-    public function createTask(Request $request): \Illuminate\Http\JsonResponse
+    public function createTask(Request $request): JsonResponse
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'employee_id' => 'required|exists:employees,id',
-            'title'       => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
         ]);
 
@@ -30,7 +31,7 @@ class TaskController extends Controller
             ->where('status', 'approved')
             ->first();
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json([
                 'message' => 'الموظف غير موجود في هذه الصيدلية',
             ], 404);
@@ -39,29 +40,29 @@ class TaskController extends Controller
         $task = Task::create([
             'pharmacy_id' => $pharmacy->id,
             'employee_id' => $request->employee_id,
-            'title'       => $request->title,
+            'title' => $request->title,
             'description' => $request->description,
-            'status'      => 'pending',
+            'status' => 'pending',
         ]);
 
         // إشعار للصيدلية إن مهمة انضافت
         Notification::create([
             'pharmacy_id' => $pharmacy->id,
-            'title'       => 'مهمة جديدة',
-            'message'     => 'تم تعيين مهمة "' . $task->title . '" للموظف ' . $employee->name,
-            'type'        => 'task',
-            'is_read'     => false,
-            'date'        => now(),
+            'title' => 'مهمة جديدة',
+            'message' => 'تم تعيين مهمة "'.$task->title.'" للموظف '.$employee->name,
+            'type' => 'task',
+            'is_read' => false,
+            'date' => now(),
         ]);
 
         return response()->json([
             'message' => 'تم إضافة المهمة بنجاح',
-            'task'    => $task,
+            'task' => $task,
         ], 201);
     }
 
     // ===== الصيدلاني: عرض كل مهام صيدلية =====
-    public function getPharmacyTasks(Request $request): \Illuminate\Http\JsonResponse
+    public function getPharmacyTasks(Request $request): JsonResponse
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
@@ -76,15 +77,16 @@ class TaskController extends Controller
 
         return response()->json([
             'pending_count' => $tasks->where('status', 'pending')->count(),
-            'done_count'    => $tasks->where('status', 'done')->count(),
-            'tasks'         => $tasks,
+            'done_count' => $tasks->where('status', 'done')->count(),
+            'tasks' => $tasks,
         ]);
     }
 
     // ===== الصيدلاني: حذف مهمة =====
-    public function deleteTask(Request $request, $id): \Illuminate\Http\JsonResponse
+    public function deleteTask(Request $request, $id): JsonResponse
     {
         $task = Task::findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $task->pharmacy_id);
         Gate::forUser($request->user())->authorize('delete', $task);
         $task->delete();
 
@@ -94,7 +96,7 @@ class TaskController extends Controller
     }
 
     // ===== الموظف: عرض مهامه =====
-    public function getMyTasks(Request $request): \Illuminate\Http\JsonResponse
+    public function getMyTasks(Request $request): JsonResponse
     {
         $employee = $request->user(); // من الـ token
         $this->pharmacyContext->resolve($request);
@@ -105,19 +107,20 @@ class TaskController extends Controller
 
         return response()->json([
             'pending_count' => $tasks->where('status', 'pending')->count(),
-            'done_count'    => $tasks->where('status', 'done')->count(),
-            'tasks'         => $tasks,
+            'done_count' => $tasks->where('status', 'done')->count(),
+            'tasks' => $tasks,
         ]);
     }
 
     // ===== الموظف: يعلم على المهمة "تم" =====
-    public function markAsDone(Request $request, $id): \Illuminate\Http\JsonResponse
+    public function markAsDone(Request $request, $id): JsonResponse
     {
         $employee = $request->user();
 
         $task = Task::where('id', $id)
             ->where('employee_id', $employee->id) // يتأكد إن المهمة إلو هو
             ->firstOrFail();
+        $this->pharmacyContext->assertMatches($request, (int) $task->pharmacy_id);
         Gate::forUser($employee)->authorize('update', $task);
 
         if ($task->status === 'done') {
@@ -131,16 +134,16 @@ class TaskController extends Controller
         // إشعار للصيدلية إن الموظف أنجز المهمة
         Notification::create([
             'pharmacy_id' => $task->pharmacy_id,
-            'title'       => 'مهمة منجزة ✅',
-            'message'     => 'أنجز الموظف ' . $employee->name . ' المهمة: "' . $task->title . '"',
-            'type'        => 'task',
-            'is_read'     => false,
-            'date'        => now(),
+            'title' => 'مهمة منجزة ✅',
+            'message' => 'أنجز الموظف '.$employee->name.' المهمة: "'.$task->title.'"',
+            'type' => 'task',
+            'is_read' => false,
+            'date' => now(),
         ]);
 
         return response()->json([
             'message' => 'تم تعليم المهمة كمنجزة',
-            'task'    => $task,
+            'task' => $task,
         ]);
     }
 }

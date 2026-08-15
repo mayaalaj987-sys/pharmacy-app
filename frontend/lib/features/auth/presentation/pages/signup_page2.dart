@@ -12,12 +12,13 @@ import '../../../../core/widgets/custom_upload_card.dart';
 
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
+import '../../data/models/pharmacist_registration_draft.dart';
 import 'pending_page.dart';
 
 class SignupPage2 extends StatefulWidget {
-  final int pharmacistId;
+  final PharmacistRegistrationDraft draft;
 
-  const SignupPage2({super.key, required this.pharmacistId});
+  const SignupPage2({super.key, required this.draft});
 
   @override
   State<SignupPage2> createState() => _SignupPage2State();
@@ -75,21 +76,28 @@ class _SignupPage2State extends State<SignupPage2> {
     }
 
     FormData data = FormData.fromMap({
-      "pharmacist_id": widget.pharmacistId,
+      "name": widget.draft.name,
+      "email": widget.draft.email,
+      "password": widget.draft.password,
+      if (widget.draft.profileImage != null)
+        "profile_image": await MultipartFile.fromFile(
+          widget.draft.profileImage!.path,
+        ),
       "pharmacy_name": pharmacyNameController.text,
       "pharmacy_address": pharmacyAddressController.text,
       "certificate": await MultipartFile.fromFile(certificateFile!.path),
       "license": await MultipartFile.fromFile(licenseFile!.path),
     });
 
-    context.read<AuthCubit>().registerPharmacy(data);
+    if (!mounted) return;
+    context.read<AuthCubit>().registerPharmacist(data);
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is PharmacyRegisterSuccess) { // بدل AuthSuccess
+        if (state is PharmacistRegisterSuccess) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const PendingPage()),
@@ -97,8 +105,9 @@ class _SignupPage2State extends State<SignupPage2> {
         }
 
         if (state is AuthError) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(state.message)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
       builder: (context, state) {
