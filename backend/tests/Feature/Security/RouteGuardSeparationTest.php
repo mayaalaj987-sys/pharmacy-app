@@ -1,0 +1,50 @@
+<?php
+
+namespace Tests\Feature\Security;
+
+use App\Http\Middleware\RoleMiddleware;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
+use Symfony\Component\HttpFoundation\Response;
+
+class RouteGuardSeparationTest extends SecurityTestCase
+{
+    public function test_shared_routes_are_declared_once_with_both_sanctum_guards(): void
+    {
+        $routes = collect(app('router')->getRoutes()->getRoutes());
+
+        foreach ([
+            ['GET', 'api/medicines'],
+            ['POST', 'api/sale/create'],
+            ['GET', 'api/notifications'],
+        ] as [$method, $uri]) {
+            $matches = $routes->filter(fn (Route $route) => $route->uri() === $uri && in_array($method, $route->methods(), true));
+
+            $this->assertCount(1, $matches, $method.' '.$uri.' must be declared once.');
+            $this->assertContains('auth:pharmacist,employee', $matches->first()->gatherMiddleware());
+        }
+    }
+
+    public function test_employee_reject_route_is_not_exposed(): void
+    {
+        $routes = collect(app('router')->getRoutes()->getRoutes());
+        $matches = $routes->filter(fn (Route $route) => $route->uri() === 'api/employees/reject/{id}');
+
+        $this->assertCount(0, $matches);
+    }
+
+    public function test_role_middleware_allows_matching_roles_and_rejects_non_matching_roles(): void
+    {
+        $pharmacist = $this->pharmacist('role');
+        $request = Request::create('/role-test');
+        $request->setUserResolver(fn () => $pharmacist);
+        $middleware = new RoleMiddleware;
+
+        $allowed = $middleware->handle($request, fn () => new Response('ok'), 'pharmacist');
+        $denied = $middleware->handle($request, fn () => new Response('ok'), 'employee');
+
+        $this->assertSame(200, $allowed->getStatusCode());
+        $this->assertSame('ok', $allowed->getContent());
+        $this->assertSame(403, $denied->getStatusCode());
+    }
+}
