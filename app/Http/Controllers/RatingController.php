@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Rating;
+use App\Models\Pharmacist;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 
 class RatingController extends Controller
@@ -13,8 +15,13 @@ class RatingController extends Controller
             'pharmacist_id' => 'required|exists:pharmacists,id',
             'stars'         => 'required|integer|min:1|max:5',
         ]);
+        $pharmacist = $request->user();
 
-        $alreadyRated = Rating::where('pharmacist_id', $request->pharmacist_id)
+        if (! $pharmacist instanceof Pharmacist || (int) $request->pharmacist_id !== (int) $pharmacist->id) {
+            throw new AuthorizationException('The pharmacist identifier does not match the authenticated user.');
+        }
+
+        $alreadyRated = Rating::where('pharmacist_id', $pharmacist->id)
             ->exists();
 
         if ($alreadyRated) {
@@ -24,7 +31,7 @@ class RatingController extends Controller
         }
 
         $rating = Rating::create([
-            'pharmacist_id' => $request->pharmacist_id,
+            'pharmacist_id' => $pharmacist->id,
             'stars'         => $request->stars,
             'date'          => now()->toDateString(),
         ]);

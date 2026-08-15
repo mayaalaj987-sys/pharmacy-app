@@ -8,34 +8,18 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AdminMiddleware
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure  $next
-     * @return mixed
-     */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
-        // 👇 فحص سريع مؤقت: للتأكد أن بوستمان يرسل الـ Headers بشكل صحيح والسيرفر يستقبلها
-       // return response()->json(['msg' => 'وصلت لميدل وير الآدمن بنجاح وبوستمان سليم']);
+        $expectedKey = (string) config('admin.key', '');
+        $providedKey = (string) $request->header('X-Admin-Key', '');
 
-        try {
-            $adminKey = $request->header('X-Admin-Key');
-            $expectedKey = env('ADMIN_KEY');
-
-            if (!$adminKey || $adminKey !== $expectedKey) {
-                return response()->json([
-                    'message' => 'Unauthorized. Admin key is missing or invalid.'
-                ], 401);
-            }
-
-            return $next($request);
-        } catch (\Exception $e) {
+        // Temporary containment only. Fail closed until an admin identity system exists.
+        if ($expectedKey === '' || $providedKey === '' || ! hash_equals($expectedKey, $providedKey)) {
             return response()->json([
-                'message' => 'Server Error in Admin Middleware.',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Unauthorized.',
+            ], 401);
         }
+
+        return $next($request);
     }
 }

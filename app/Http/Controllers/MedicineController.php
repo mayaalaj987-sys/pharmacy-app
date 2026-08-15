@@ -3,191 +3,168 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medicine;
-use App\Models\Pharmacy;
-use Illuminate\Http\Request;
 use App\Models\Notification;
+use App\Services\PharmacyContextResolver;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class MedicineController extends Controller
 {
-    public function addMedicine(Request $request)
+    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+
+    public function addMedicine(Request $request): JsonResponse
     {
-        $request->validate([
-            'pharmacy_id'       => 'required|exists:pharmacies,id',
-            'name'              => 'required|string',
+        $validated = $request->validate([
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'name' => 'required|string',
             'category_medicine' => 'required|in:Antibiotics,Painkillers,Vitamins,Antidiabetics,Gastrointestinal,Respiratory,Cardiovascular,Dermatology',
-            'selling_price'     => 'required|numeric',
-            'cost_price'        => 'required|numeric',
-            'quantity'          => 'required|integer',
-            'expire_date'       => 'required|date',
-            'manufacturer'      => 'required|string',
-            'reorder_level'     => 'nullable|integer',
-            'qr_code'           => 'required|numeric',
+            'selling_price' => 'required|numeric',
+            'cost_price' => 'required|numeric',
+            'quantity' => 'required|integer',
+            'expire_date' => 'required|date',
+            'manufacturer' => 'required|string',
+            'reorder_level' => 'nullable|integer',
+            'qr_code' => 'required|numeric',
         ]);
 
-        $medicine = Medicine::create($request->all());
+        $pharmacy = $this->pharmacyContext->resolve($request);
+        $validated['pharmacy_id'] = $pharmacy->id;
+        $medicine = Medicine::create($validated);
 
         return response()->json([
-            'message'  => 'Medicine added Successfully',
+            'message' => 'Medicine added Successfully',
             'medicine' => $medicine,
         ], 201);
     }
 
-    public function getMedicines(Request $request)
+    public function getMedicines(Request $request): JsonResponse
+    {
+        $pharmacyId = $this->validatedPharmacyId($request);
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)->where('quantity', '>', 0)->get();
+
+        return response()->json(['medicines_count' => $medicines->count(), 'medicines' => $medicines]);
+    }
+
+    public function searchMedicine(Request $request): JsonResponse
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
+            'name' => 'required|string',
         ]);
-
-        $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)
+            ->where('name', 'LIKE', '%'.$request->string('name').'%')
             ->where('quantity', '>', 0)
             ->get();
 
-        return response()->json([
-            'medicines_count' => $medicines->count(),
-            'medicines'       => $medicines,
-        ]);
+        return response()->json(['medicines' => $medicines]);
     }
 
-    public function searchMedicine(Request $request)
-    {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-            'name'        => 'required|string',
-        ]);
-
-        $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
-            ->where('name', 'LIKE', '%' . $request->name . '%')
-            ->where('quantity', '>', 0)
-            ->get();
-
-        return response()->json([
-            'medicines' => $medicines,
-        ]);
-    }
-
-    public function editMedicine(Request $request, $id)
+    public function editMedicine(Request $request, int $id): JsonResponse
     {
         $medicine = Medicine::findOrFail($id);
+        Gate::forUser($request->user())->authorize('update', $medicine);
 
-        $request->validate([
-            'name'              => 'sometimes|string',
+        $validated = $request->validate([
+            'name' => 'sometimes|string',
             'category_medicine' => 'sometimes|in:Antibiotics,Painkillers,Vitamins,Antidiabetics,Gastrointestinal,Respiratory,Cardiovascular,Dermatology',
-            'selling_price'     => 'sometimes|numeric',
-            'cost_price'        => 'sometimes|numeric',
-            'quantity'          => 'sometimes|integer',
-            'expire_date'       => 'sometimes|date',
-            'manufacturer'      => 'sometimes|string',
-            'reorder_level'     => 'sometimes|integer',
-            'qr_code'           => 'sometimes|numeric',
+            'selling_price' => 'sometimes|numeric',
+            'cost_price' => 'sometimes|numeric',
+            'quantity' => 'sometimes|integer',
+            'expire_date' => 'sometimes|date',
+            'manufacturer' => 'sometimes|string',
+            'reorder_level' => 'sometimes|integer',
+            'qr_code' => 'sometimes|numeric',
+            'supplier_id' => 'sometimes|nullable|exists:suppliers,id',
         ]);
 
-        $medicine->update($request->all());
+        $medicine->update($validated);
 
-        return response()->json([
-            'message'  => 'Medicine updated Successfully',
-            'medicine' => $medicine,
-        ]);
+        return response()->json(['message' => 'Medicine updated Successfully', 'medicine' => $medicine]);
     }
 
-    public function getExpiringMedicines(Request $request)
+    public function getExpiringMedicines(Request $request): JsonResponse
     {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-        ]);
-
-        $threeMonthsLater = now()->addMonths(3);
-
-        $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
-            ->whereDate('expire_date', '<=', $threeMonthsLater)
+        $pharmacyId = $this->validatedPharmacyId($request);
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)
+            ->whereDate('expire_date', '<=', now()->addMonths(3))
             ->whereDate('expire_date', '>=', now())
             ->get();
 
         foreach ($medicines as $medicine) {
-            $alreadyNotified = Notification::where('pharmacy_id', $request->pharmacy_id)
-                ->where('type', 'expiry')
-                ->where('message', 'LIKE', '%' . $medicine->name . '%')
-                ->exists();
-
-            if (!$alreadyNotified) {
-                Notification::create([
-                    'pharmacy_id' => $request->pharmacy_id,
-                    'title'       => 'تنبيه انتهاء صلاحية',
-                    'message'     => 'دواء ' . $medicine->name . ' ينتهي قريباً',
-                    'type'        => 'expiry',
-                    'is_read'     => false,
-                    'date'        => now(),
-                ]);
-            }
+            $this->notifyOnce($pharmacyId, 'expiry', 'تنبيه انتهاء صلاحية', 'دواء '.$medicine->name.' ينتهي قريباً', $medicine->name);
         }
 
-        return response()->json([
-            'expiring_count'     => $medicines->count(),
-            'expiring_medicines' => $medicines,
-        ]);
+        return response()->json(['expiring_count' => $medicines->count(), 'expiring_medicines' => $medicines]);
     }
 
-    public function getLowStockMedicines(Request $request)
+    public function getLowStockMedicines(Request $request): JsonResponse
     {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-        ]);
-
-        $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
+        $pharmacyId = $this->validatedPharmacyId($request);
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)
             ->whereColumn('quantity', '<=', 'reorder_level')
             ->get();
 
         foreach ($medicines as $medicine) {
-            $alreadyNotified = Notification::where('pharmacy_id', $request->pharmacy_id)
-                ->where('type', 'low_stock')
-                ->where('message', 'LIKE', '%' . $medicine->name . '%')
-                ->exists();
-
-            if (!$alreadyNotified) {
-                Notification::create([
-                    'pharmacy_id' => $request->pharmacy_id,
-                    'title'       => 'تنبيه نقص مخزون',
-                    'message'     => 'دواء ' . $medicine->name . ' كميته أصبحت ' . $medicine->quantity . ' فقط',
-                    'type'        => 'low_stock',
-                    'is_read'     => false,
-                    'date'        => now(),
-                ]);
-            }
+            $this->notifyOnce(
+                $pharmacyId,
+                'low_stock',
+                'تنبيه نقص مخزون',
+                'دواء '.$medicine->name.' كميته أصبحت '.$medicine->quantity.' فقط',
+                $medicine->name
+            );
         }
 
-        return response()->json([
-            'low_stock_count'     => $medicines->count(),
-            'low_stock_medicines' => $medicines,
-        ]);
+        return response()->json(['low_stock_count' => $medicines->count(), 'low_stock_medicines' => $medicines]);
     }
 
-    public function getOutOfStockMedicines(Request $request)
+    public function getOutOfStockMedicines(Request $request): JsonResponse
+    {
+        $pharmacyId = $this->validatedPharmacyId($request);
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)->where('quantity', 0)->get();
+
+        return response()->json(['out_of_stock_count' => $medicines->count(), 'out_of_stock_medicines' => $medicines]);
+    }
+
+    public function getMedicinesByCategory(Request $request): JsonResponse
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
+            'category' => 'required|string',
         ]);
-
-        $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
-            ->where('quantity', 0)
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)
+            ->where('category_medicine', $request->string('category'))
             ->get();
 
-        return response()->json([
-            'out_of_stock_count'     => $medicines->count(),
-            'out_of_stock_medicines' => $medicines,
-        ]);
+        return response()->json(['medicines' => $medicines]);
     }
-    public function getMedicinesByCategory(Request $request): \Illuminate\Http\JsonResponse
+
+    private function validatedPharmacyId(Request $request): int
     {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-            'category'    => 'required|string',
-        ]);
+        $request->validate(['pharmacy_id' => 'required|exists:pharmacies,id']);
 
-        $medicines = Medicine::where('pharmacy_id', $request->pharmacy_id)
-            ->where('category_medicine', $request->category)
-            ->get();
+        return $this->pharmacyContext->resolve($request)->id;
+    }
 
-        return response()->json([
-            'medicines' => $medicines,
-        ]);
+    private function notifyOnce(int $pharmacyId, string $type, string $title, string $message, string $medicineName): void
+    {
+        $alreadyNotified = Notification::where('pharmacy_id', $pharmacyId)
+            ->where('type', $type)
+            ->where('message', 'LIKE', '%'.$medicineName.'%')
+            ->exists();
+
+        if (! $alreadyNotified) {
+            Notification::create([
+                'pharmacy_id' => $pharmacyId,
+                'title' => $title,
+                'message' => $message,
+                'type' => $type,
+                'is_read' => false,
+                'date' => now(),
+            ]);
+        }
     }
 }

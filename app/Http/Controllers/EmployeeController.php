@@ -3,13 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
-use App\Models\Pharmacy;
 use App\Models\Notification;
+use App\Services\PharmacyContextResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Throwable;
 
 class EmployeeController extends Controller
 {
+    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+
     // ===== تسجيل الموظف — بدون اختيار صيدلية، الطلب يروح لكل الصيدليات =====
     public function register(Request $request): \Illuminate\Http\JsonResponse
     {
@@ -120,99 +125,65 @@ class EmployeeController extends Controller
     // ===== UPDATED: الصيدلاني يوافق على موظف ويوظفه بصيدلية معينة =====
     public function approveEmployee(Request $request, $id): \Illuminate\Http\JsonResponse
     {
+        $request->validate([
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'salary' => 'nullable|numeric',
+        ]);
+        $pharmacy = $this->pharmacyContext->resolve($request);
+
+        DB::beginTransaction();
+
         try {
+            $employee = Employee::lockForUpdate()->find($id);
 
-            $pharmacist = $request->user();
-
-            $request->validate([
-                'pharmacy_id' => 'required|exists:pharmacies,id',
-                'salary'      => 'nullable|numeric',
-            ]);
-
-            $pharmacy = Pharmacy::where('id', $request->pharmacy_id)
-                ->where('pharmacist_id', $pharmacist->id)
-                ->first();
-
-            if (!$pharmacy) {
-                return response()->json([
-                    'message' => 'الصيدلية غير موجودة أو لا تملك صلاحية عليها',
-                ], 403);
-            }
-
-            $employee = Employee::find($id);
-
-            if (!$employee) {
+            if (! $employee) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'الموظف غير موجود',
                 ], 404);
             }
 
-            if ($employee->status !== 'pending') {
+            if ($employee->status !== 'pending' || $employee->pharmacy_id !== null) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'هذا الموظف تمت معالجة طلبه مسبقاً',
                 ], 400);
             }
 
-            $employeeCount = Employee::where('pharmacy_id', $request->pharmacy_id)
+            $employeeCount = Employee::where('pharmacy_id', $pharmacy->id)
                 ->where('status', 'approved')
                 ->count();
 
             if ($employeeCount >= 2) {
+                DB::rollBack();
                 return response()->json([
                     'message' => 'هذه الصيدلية وصلت للحد الأقصى (2)',
                 ], 400);
             }
 
-            $employee->pharmacy_id = $request->pharmacy_id;
+            $employee->pharmacy_id = $pharmacy->id;
             $employee->status = 'approved';
             $employee->salary = $employee->role === 'employee' ? $request->salary : null;
             $employee->save();
+            DB::commit();
 
             return response()->json([
                 'message'  => 'تم القبول بنجاح',
                 'employee' => $employee,
             ]);
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
 
-        } catch (\Throwable $e) {
-
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'تعذر قبول الموظف'], 500);
         }
-    }
-
-    // ===== رفض موظف =====
-    public function rejectEmployee($id): \Illuminate\Http\JsonResponse
-    {
-        $employee = Employee::findOrFail($id);
-
-        if ($employee->status !== 'pending') {
-            return response()->json([
-                'message' => 'هذا الموظف تمت معالجة طلبه مسبقاً',
-            ], 400);
-        }
-
-        $employee->update(['status' => 'rejected']);
-        return response()->json(['message' => 'تم رفض الموظف']);
     }
 
     // ===== NEW: الصيدلاني يحذف موظف من صيدليته كلياً =====
     public function dismissEmployee(Request $request, $id): \Illuminate\Http\JsonResponse
     {
-        $pharmacist = $request->user();
-
         $employee = Employee::findOrFail($id);
-
-        // التحقق إن الموظف تابع لصيدلية من صيدليات الصيدلاني الحالي
-        $pharmacy = Pharmacy::where('id', $employee->pharmacy_id)
-            ->where('pharmacist_id', $pharmacist->id)
-            ->first();
-
-        if (!$pharmacy) {
-            return response()->json([
-                'message' => 'لا تملك صلاحية إزالة هذا الموظف',
-            ], 403);
-        }
+        Gate::forUser($request->user())->authorize('delete', $employee);
 
         if ($employee->status !== 'approved') {
             return response()->json([
@@ -244,11 +215,7 @@ class EmployeeController extends Controller
     // ===== الصيدلاني: كل موظفي صيدلية معينة =====
     public function getEmployees(Request $request, $pharmacy_id): \Illuminate\Http\JsonResponse
     {
-        $pharmacist = $request->user();
-
-        $pharmacy = Pharmacy::where('id', $pharmacy_id)
-            ->where('pharmacist_id', $pharmacist->id)
-            ->firstOrFail();
+        $pharmacy = $this->pharmacyContext->owned($request, (int) $pharmacy_id);
 
         $employees = Employee::where('pharmacy_id', $pharmacy->id)
             ->where('status', 'approved')

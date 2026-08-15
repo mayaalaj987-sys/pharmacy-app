@@ -3,62 +3,53 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Services\PharmacyContextResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class NotificationController extends Controller
 {
-    // ===== عرض كل الإشعارات =====
-    public function getNotifications(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-        ]);
+    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
 
-        $notifications = Notification::where('pharmacy_id', $request->pharmacy_id)
-            ->latest()
-            ->get();
+    public function getNotifications(Request $request): JsonResponse
+    {
+        $request->validate(['pharmacy_id' => 'required|exists:pharmacies,id']);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+        $notifications = Notification::where('pharmacy_id', $pharmacyId)->latest()->get();
 
         return response()->json([
-            'unread_count'  => $notifications->where('is_read', false)->count(),
+            'unread_count' => $notifications->where('is_read', false)->count(),
             'notifications' => $notifications,
         ]);
     }
 
-    // ===== تعليم إشعار كمقروء =====
-    public function markAsRead($id): \Illuminate\Http\JsonResponse
+    public function markAsRead(Request $request, int $id): JsonResponse
     {
         $notification = Notification::findOrFail($id);
+        Gate::forUser($request->user())->authorize('update', $notification);
         $notification->update(['is_read' => true]);
 
-        return response()->json([
-            'message' => 'تم تعليم الإشعار كمقروء',
-        ]);
+        return response()->json(['message' => 'تم تعليم الإشعار كمقروء']);
     }
 
-    // ===== تعليم كل الإشعارات كمقروءة =====
-    public function markAllAsRead(Request $request): \Illuminate\Http\JsonResponse
+    public function markAllAsRead(Request $request): JsonResponse
     {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-        ]);
-
-        Notification::where('pharmacy_id', $request->pharmacy_id)
+        $request->validate(['pharmacy_id' => 'required|exists:pharmacies,id']);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+        Notification::where('pharmacy_id', $pharmacyId)
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
-        return response()->json([
-            'message' => 'تم تعليم كل الإشعارات كمقروءة',
-        ]);
+        return response()->json(['message' => 'تم تعليم كل الإشعارات كمقروءة']);
     }
 
-    // ===== حذف إشعار =====
-    public function deleteNotification($id): \Illuminate\Http\JsonResponse
+    public function deleteNotification(Request $request, int $id): JsonResponse
     {
         $notification = Notification::findOrFail($id);
+        Gate::forUser($request->user())->authorize('delete', $notification);
         $notification->delete();
 
-        return response()->json([
-            'message' => 'تم حذف الإشعار',
-        ]);
+        return response()->json(['message' => 'تم حذف الإشعار']);
     }
 }

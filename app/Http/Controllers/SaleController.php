@@ -2,211 +2,246 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Employee;
 use App\Models\Medicine;
+use App\Models\Notification;
+use App\Models\Pharmacist;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\Notification;
+use App\Services\PharmacyContextResolver;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class SaleController extends Controller
 {
-    public function createSale(Request $request)
+    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+
+    public function createSale(Request $request): JsonResponse
     {
         $request->validate([
-            'pharmacy_id'         => 'required|exists:pharmacies,id',
-            'pharmacist_id'       => 'nullable|exists:pharmacists,id',
-            'employee_id'         => 'nullable|exists:employees,id',
-            'customer_name'       => 'nullable|string',
-            'payment_method'      => 'required|in:cash,card,insurance',
-            'card_number'         => 'required_if:payment_method,card|digits:10',
-            'items'               => 'required|array|min:1',
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'pharmacist_id' => 'nullable|exists:pharmacists,id',
+            'employee_id' => 'nullable|exists:employees,id',
+            'customer_name' => 'nullable|string',
+            'payment_method' => 'required|in:cash,card,insurance',
+            'card_number' => 'required_if:payment_method,card|digits:10',
+            'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
-            'items.*.quantity'    => 'required|integer|min:1',
+            'items.*.quantity' => 'required|integer|min:1',
         ]);
+
+        $pharmacy = $this->pharmacyContext->resolve($request);
+        [$pharmacistId, $employeeId] = $this->trustedActorIds($request);
 
         DB::beginTransaction();
 
         try {
+            $medicines = [];
             $totalPrice = 0;
 
-            foreach ($request->items as $item) {
-                $medicine = Medicine::findOrFail($item['medicine_id']);
+            foreach ($request->input('items') as $item) {
+                $medicine = Medicine::where('pharmacy_id', $pharmacy->id)
+                    ->lockForUpdate()
+                    ->findOrFail($item['medicine_id']);
+                $medicines[$medicine->id] = $medicine;
 
                 if ($medicine->quantity < $item['quantity']) {
                     DB::rollBack();
-                    return response()->json([
-                        'message' => 'الكمية غير متوفرة: ' . $medicine->name,
-                    ], 400);
+
+                    return response()->json(['message' => 'الكمية غير متوفرة: '.$medicine->name], 400);
                 }
 
                 $totalPrice += $medicine->selling_price * $item['quantity'];
             }
 
             if ($request->payment_method === 'insurance') {
-                $totalPrice = $totalPrice * 0.80;
+                $totalPrice *= 0.80;
             }
 
             $sale = Sale::create([
-                'pharmacy_id'    => $request->pharmacy_id,
-                'pharmacist_id'  => $request->pharmacist_id,
-                'employee_id'    => $request->employee_id,
-                'customer_name'  => $request->customer_name,
+                'pharmacy_id' => $pharmacy->id,
+                'pharmacist_id' => $pharmacistId,
+                'employee_id' => $employeeId,
+                'customer_name' => $request->customer_name,
                 'payment_method' => $request->payment_method,
-                'total_price'    => $totalPrice,
-                'date'           => now()->toDateString(),
+                'total_price' => $totalPrice,
+                'date' => now()->toDateString(),
             ]);
 
-            foreach ($request->items as $item) {
-                $medicine = Medicine::findOrFail($item['medicine_id']);
-
+            foreach ($request->input('items') as $item) {
+                $medicine = $medicines[$item['medicine_id']];
                 SaleItem::create([
-                    'sale_id'     => $sale->id,
-                    'medicine_id' => $item['medicine_id'],
-                    'quantity'    => $item['quantity'],
-                    'price'       => $medicine->selling_price,
+                    'sale_id' => $sale->id,
+                    'medicine_id' => $medicine->id,
+                    'quantity' => $item['quantity'],
+                    'price' => $medicine->selling_price,
                 ]);
-
                 $medicine->decrement('quantity', $item['quantity']);
                 $medicine->refresh();
-
-                // ✅ FIX: نتحقق من نفاد المخزون أولاً قبل low_stock
-                // لأنه إذا نفد ما بدنا إشعارين
-                if ($medicine->quantity == 0) {
-                    // ✅ NEW: إشعار out_of_stock (كان ناقص من createSale)
-                    $alreadyNotified = \App\Models\Notification::where('pharmacy_id', $request->pharmacy_id)
-                        ->where('type', 'out_of_stock')
-                        ->where('message', 'LIKE', '%' . $medicine->name . '%')
-                        ->exists();
-
-                    if (!$alreadyNotified) {
-                        Notification::create([
-                            'pharmacy_id' => $request->pharmacy_id,
-                            'title'       => 'نفاد المخزون ⚠️',
-                            'message'     => 'دواء ' . $medicine->name . ' نفد من المخزون تماماً',
-                            'type'        => 'out_of_stock',
-                            'is_read'     => false,
-                            'date'        => now(),
-                        ]);
-                    }
-                } elseif ($medicine->quantity <= $medicine->reorder_level) {
-                    // إشعار low_stock فقط إذا ما نفد (لتجنب إشعارين)
-                    $alreadyNotified = Notification::where('pharmacy_id', $request->pharmacy_id)
-                        ->where('type', 'low_stock')
-                        ->where('message', 'LIKE', '%' . $medicine->name . '%')
-                        ->exists();
-
-                    if (!$alreadyNotified) {
-                        Notification::create([
-                            'pharmacy_id' => $request->pharmacy_id,
-                            'title'       => 'تنبيه نقص مخزون',
-                            'message'     => 'دواء ' . $medicine->name . ' كميته أصبحت ' . $medicine->quantity . ' فقط',
-                            'type'        => 'low_stock',
-                            'is_read'     => false,
-                            'date'        => now(),
-                        ]);
-                    }
-                }
+                $this->createStockNotification($pharmacy->id, $medicine);
             }
 
             Notification::create([
-                'pharmacy_id' => $request->pharmacy_id,
-                'title'       => 'عملية بيع جديدة',
-                'message'     => 'تمت عملية بيع بقيمة ' . $totalPrice,
-                'type'        => 'sale',
-                'is_read'     => false,
-                'date'        => now(),
+                'pharmacy_id' => $pharmacy->id,
+                'title' => 'عملية بيع جديدة',
+                'message' => 'تمت عملية بيع بقيمة '.$totalPrice,
+                'type' => 'sale',
+                'is_read' => false,
+                'date' => now(),
             ]);
 
             DB::commit();
 
             return response()->json([
-                'message'        => 'تمت عملية البيع بنجاح',
-                'sale_id'        => $sale->id,
-                'total_price'    => $totalPrice,
-                'items_count'    => count($request->items),
+                'message' => 'تمت عملية البيع بنجاح',
+                'sale_id' => $sale->id,
+                'total_price' => $totalPrice,
+                'items_count' => count($request->input('items')),
                 'payment_method' => $request->payment_method,
-                'date'           => $sale->date,
+                'date' => $sale->date,
             ], 201);
-
-        } catch (\Exception $e) {
+        } catch (ModelNotFoundException $exception) {
             DB::rollBack();
-            return response()->json(['message' => 'حدث خطأ: ' . $e->getMessage()], 500);
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
+
+            return response()->json(['message' => 'حدث خطأ أثناء إنشاء عملية البيع'], 500);
         }
     }
 
-    public function getDailySales(Request $request)
+    public function getDailySales(Request $request): JsonResponse
     {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-        ]);
-
-        $sales = Sale::where('pharmacy_id', $request->pharmacy_id)
+        $pharmacyId = $this->validatedPharmacyId($request);
+        $sales = Sale::where('pharmacy_id', $pharmacyId)
             ->whereDate('date', now()->toDateString())
             ->with('items.medicine')
             ->get();
 
         return response()->json([
-            'date'        => now()->toDateString(),
+            'date' => now()->toDateString(),
             'total_sales' => $sales->count(),
             'total_price' => $sales->sum('total_price'),
-            'sales'       => $sales,
+            'sales' => $sales,
         ]);
     }
 
-    public function getAllSales(Request $request)
+    public function getAllSales(Request $request): JsonResponse
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'nullable|in:daily,weekly,monthly,yearly',
+            'filter' => 'nullable|in:daily,weekly,monthly,yearly',
         ]);
-
-        $query = Sale::where('pharmacy_id', $request->pharmacy_id)
-            ->with('items.medicine');
-
-        if ($request->filter) {
-            $query->whereBetween('created_at', match($request->filter) {
-                'daily'   => [now()->startOfDay(),   now()->endOfDay()],
-                'weekly'  => [now()->startOfWeek(),  now()->endOfWeek()],
-                'monthly' => [now()->startOfMonth(), now()->endOfMonth()],
-                'yearly'  => [now()->startOfYear(),  now()->endOfYear()],
-            });
-        }
-
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+        $query = Sale::where('pharmacy_id', $pharmacyId)->with('items.medicine');
+        $this->applyDateFilter($query, $request->input('filter'));
         $sales = $query->latest()->get();
 
         return response()->json([
             'total_sales' => $sales->count(),
             'total_price' => $sales->sum('total_price'),
-            'sales'       => $sales,
+            'sales' => $sales,
         ]);
     }
 
-    public function getEmployeeSales(Request $request)
+    public function getEmployeeSales(Request $request): JsonResponse
     {
         $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'filter'      => 'nullable|in:daily,weekly,monthly,yearly',
+            'filter' => 'nullable|in:daily,weekly,monthly,yearly',
         ]);
+        $employee = $request->user();
 
-        $query = Sale::where('employee_id', $request->employee_id)
-            ->with('items.medicine');
-
-        if ($request->filter) {
-            $query->whereBetween('created_at', match($request->filter) {
-                'daily'   => [now()->startOfDay(),   now()->endOfDay()],
-                'weekly'  => [now()->startOfWeek(),  now()->endOfWeek()],
-                'monthly' => [now()->startOfMonth(), now()->endOfMonth()],
-                'yearly'  => [now()->startOfYear(),  now()->endOfYear()],
-            });
+        if (! $employee instanceof Employee || (int) $request->employee_id !== (int) $employee->id) {
+            throw new AuthorizationException('You cannot access another employee\'s sales.');
         }
 
+        $this->pharmacyContext->resolve($request);
+        $query = Sale::where('employee_id', $employee->id)
+            ->where('pharmacy_id', $employee->pharmacy_id)
+            ->with('items.medicine');
+        $this->applyDateFilter($query, $request->input('filter'));
         $sales = $query->latest()->get();
 
         return response()->json([
             'total_sales' => $sales->count(),
             'total_price' => $sales->sum('total_price'),
-            'sales'       => $sales,
+            'sales' => $sales,
+        ]);
+    }
+
+    private function trustedActorIds(Request $request): array
+    {
+        $user = $request->user();
+
+        if ($user instanceof Pharmacist) {
+            if (($request->filled('pharmacist_id') && (int) $request->pharmacist_id !== (int) $user->id)
+                || $request->filled('employee_id')) {
+                throw new AuthorizationException('Sale actor identifiers do not match the authenticated user.');
+            }
+
+            return [$user->id, null];
+        }
+
+        if ($user instanceof Employee) {
+            if (($request->filled('employee_id') && (int) $request->employee_id !== (int) $user->id)
+                || $request->filled('pharmacist_id')) {
+                throw new AuthorizationException('Sale actor identifiers do not match the authenticated user.');
+            }
+
+            return [null, $user->id];
+        }
+
+        throw new AuthorizationException('Unauthenticated.');
+    }
+
+    private function validatedPharmacyId(Request $request): int
+    {
+        $request->validate(['pharmacy_id' => 'required|exists:pharmacies,id']);
+
+        return $this->pharmacyContext->resolve($request)->id;
+    }
+
+    private function applyDateFilter($query, ?string $filter): void
+    {
+        if (! $filter) {
+            return;
+        }
+
+        $query->whereBetween('created_at', match ($filter) {
+            'daily' => [now()->startOfDay(), now()->endOfDay()],
+            'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
+            'monthly' => [now()->startOfMonth(), now()->endOfMonth()],
+            'yearly' => [now()->startOfYear(), now()->endOfYear()],
+        });
+    }
+
+    private function createStockNotification(int $pharmacyId, Medicine $medicine): void
+    {
+        $type = $medicine->quantity === 0 ? 'out_of_stock' : ($medicine->quantity <= $medicine->reorder_level ? 'low_stock' : null);
+
+        if (! $type || Notification::where('pharmacy_id', $pharmacyId)
+            ->where('type', $type)
+            ->where('message', 'LIKE', '%'.$medicine->name.'%')
+            ->exists()) {
+            return;
+        }
+
+        Notification::create([
+            'pharmacy_id' => $pharmacyId,
+            'title' => $type === 'out_of_stock' ? 'نفاد المخزون ⚠️' : 'تنبيه نقص مخزون',
+            'message' => $type === 'out_of_stock'
+                ? 'دواء '.$medicine->name.' نفد من المخزون تماماً'
+                : 'دواء '.$medicine->name.' كميته أصبحت '.$medicine->quantity.' فقط',
+            'type' => $type,
+            'is_read' => false,
+            'date' => now(),
         ]);
     }
 }

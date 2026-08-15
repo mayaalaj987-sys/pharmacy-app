@@ -6,10 +6,13 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Medicine;
 use App\Models\Employee;
+use App\Services\PharmacyContextResolver;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
+    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+
     private function getDateRange(string $filter): array
     {
         return match($filter) {
@@ -28,10 +31,11 @@ class ReportController extends Controller
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'filter'      => 'required|in:daily,weekly,monthly,yearly',
         ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
         [$start, $end] = $this->getDateRange($request->filter);
 
-        $revenue = Sale::where('pharmacy_id', $request->pharmacy_id)
+        $revenue = Sale::where('pharmacy_id', $pharmacyId)
             ->whereBetween('created_at', [$start, $end])
             ->sum('total_price');
 
@@ -47,8 +51,9 @@ class ReportController extends Controller
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
         ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
-        $inventoryValue = Medicine::where('pharmacy_id', $request->pharmacy_id)
+        $inventoryValue = Medicine::where('pharmacy_id', $pharmacyId)
             ->selectRaw('SUM(cost_price * quantity) as total_cost, SUM(selling_price * quantity) as total_selling')
             ->first();
 
@@ -65,12 +70,13 @@ class ReportController extends Controller
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
         ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
         // دائماً weekly — متوسط يومي خلال الأسبوع الحالي
         $start = now()->startOfWeek();
         $end   = now()->endOfWeek();
 
-        $totalSalesThisWeek = Sale::where('pharmacy_id', $request->pharmacy_id)
+        $totalSalesThisWeek = Sale::where('pharmacy_id', $pharmacyId)
             ->whereBetween('created_at', [$start, $end])
             ->count();
 
@@ -94,15 +100,16 @@ class ReportController extends Controller
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'filter'      => 'required|in:daily,weekly,monthly,yearly',
         ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
         [$start, $end] = $this->getDateRange($request->filter);
 
-        $revenue = Sale::where('pharmacy_id', $request->pharmacy_id)
+        $revenue = Sale::where('pharmacy_id', $pharmacyId)
             ->whereBetween('created_at', [$start, $end])
             ->sum('total_price');
 
-        $costOfGoods = SaleItem::whereHas('sale', function ($query) use ($request, $start, $end) {
-            $query->where('pharmacy_id', $request->pharmacy_id)
+        $costOfGoods = SaleItem::whereHas('sale', function ($query) use ($pharmacyId, $start, $end) {
+            $query->where('pharmacy_id', $pharmacyId)
                 ->whereBetween('created_at', [$start, $end]);
         })
             ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
@@ -110,7 +117,7 @@ class ReportController extends Controller
             ->first();
 
         // ✅ FIX: الرواتب نحسبها نسبة للفترة الزمنية مو كاملة
-        $monthlySalaries = Employee::where('pharmacy_id', $request->pharmacy_id)
+        $monthlySalaries = Employee::where('pharmacy_id', $pharmacyId)
             ->where('status', 'approved')
             ->where('role', 'employee')
             ->sum('salary');
@@ -140,11 +147,12 @@ class ReportController extends Controller
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'filter'      => 'required|in:daily,weekly,monthly,yearly',
         ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
         [$start, $end] = $this->getDateRange($request->filter);
 
-        $medicines = SaleItem::whereHas('sale', function ($query) use ($request, $start, $end) {
-            $query->where('pharmacy_id', $request->pharmacy_id)
+        $medicines = SaleItem::whereHas('sale', function ($query) use ($pharmacyId, $start, $end) {
+            $query->where('pharmacy_id', $pharmacyId)
                 ->whereBetween('created_at', [$start, $end]);
         })
             ->selectRaw('medicine_id, SUM(quantity) as total_sold')
@@ -171,11 +179,12 @@ class ReportController extends Controller
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'filter'      => 'required|in:daily,weekly,monthly,yearly',
         ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
         [$start, $end] = $this->getDateRange($request->filter);
 
-        $categories = SaleItem::whereHas('sale', function ($query) use ($request, $start, $end) {
-            $query->where('pharmacy_id', $request->pharmacy_id)
+        $categories = SaleItem::whereHas('sale', function ($query) use ($pharmacyId, $start, $end) {
+            $query->where('pharmacy_id', $pharmacyId)
                 ->whereBetween('created_at', [$start, $end]);
         })
             ->selectRaw('medicines.category_medicine, SUM(sale_items.quantity) as total_sold')
@@ -198,7 +207,7 @@ class ReportController extends Controller
             'pharmacy_id' => 'required|exists:pharmacies,id',
         ]);
 
-        $pharmacyId = $request->pharmacy_id;
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
         $today      = now()->toDateString();
         $start      = now()->startOfDay();
         $end        = now()->endOfDay();

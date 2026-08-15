@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
-use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 
 class PharmacistController extends Controller
@@ -170,16 +170,8 @@ class PharmacistController extends Controller
     {
         $pharmacist = $request->user();
 
-        // التحقق إن الصيدلية تابعة للصيدلاني الحالي
-        $pharmacy = Pharmacy::where('id', $id)
-            ->where('pharmacist_id', $pharmacist->id)
-            ->first();
-
-        if (!$pharmacy) {
-            return response()->json([
-                'message' => 'الصيدلية غير موجودة أو لا تملك صلاحية تعديلها',
-            ], 404);
-        }
+        $pharmacy = Pharmacy::findOrFail($id);
+        Gate::forUser($pharmacist)->authorize('update', $pharmacy);
 
         $request->validate([
             'pharmacy_name'    => 'sometimes|string',
@@ -224,86 +216,4 @@ class PharmacistController extends Controller
         ], 201);
     }
 
-    // ===== ADMIN =====
-
-    public function getAllPharmacies(): \Illuminate\Http\JsonResponse
-    {
-        $pharmacies = Pharmacy::with('pharmacist')->get();
-        return response()->json(['pharmacies' => $pharmacies]);
-    }
-
-    public function getPendingPharmacies(): \Illuminate\Http\JsonResponse
-    {
-        $pharmacies = Pharmacy::where('status', 'pending')->with('pharmacist')->get();
-        return response()->json(['pharmacies' => $pharmacies]);
-    }
-
-    public function approvePharmacy($id): \Illuminate\Http\JsonResponse
-    {
-        try {
-
-            $pharmacy = Pharmacy::find($id);
-
-            if (!$pharmacy) {
-                return response()->json([
-                    'message' => 'Pharmacy not found'
-                ], 404);
-            }
-
-            if ($pharmacy->status !== 'pending') {
-                return response()->json([
-                    'message' => 'This pharmacy is already ' . $pharmacy->status
-                ], 400);
-            }
-
-            $pharmacy->status = 'approved';
-            $pharmacy->save();
-
-            return response()->json([
-                'message' => 'Pharmacy approved successfully',
-                'pharmacy' => $pharmacy
-            ]);
-
-        } catch (\Throwable $e) {
-
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-
-    public function rejectPharmacy($id): \Illuminate\Http\JsonResponse
-    {
-        try {
-
-            $pharmacy = Pharmacy::find($id);
-
-            if (!$pharmacy) {
-                return response()->json([
-                    'message' => 'Pharmacy not found'
-                ], 404);
-            }
-
-            if ($pharmacy->status !== 'pending') {
-                return response()->json([
-                    'message' => 'This pharmacy is already ' . $pharmacy->status
-                ], 400);
-            }
-
-            $pharmacy->status = 'rejected';
-            $pharmacy->save();
-
-            return response()->json([
-                'message' => 'Pharmacy rejected successfully',
-                'pharmacy' => $pharmacy
-            ]);
-
-        } catch (\Throwable $e) {
-
-            return response()->json([
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Employee;
+use App\Models\Pharmacist;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,31 +12,26 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        // 👇 فحص سريع مؤقت: إذا رجع لك هذا الرد في بوستمان، فالسيرفر سليم والمشكلة بقاعدة البيانات
-         return response()->json(['msg' => 'وصلت لميدل وير الأدوار بنجاح قبل فحص الـ DB']);
+        $user = $request->user();
 
-        try {
-            $user = $request->user();
-
-            if (!$user) {
-                return response()->json([
-                    'message' => 'Unauthenticated.'
-                ], 401);
-            }
-
-            if (!in_array($user->role, $roles)) {
-                return response()->json([
-                    'message' => 'Unauthorized. This action requires a specific role.'
-                ], 403);
-            }
-
-            return $next($request);
-        } catch (\Exception $e) {
-            // حماية لمنع انهيار السيرفر (ECONNRESET) في حال حدوث خطأ أثناء فحص التوكن
+        if (! $user) {
             return response()->json([
-                'message' => 'Unauthenticated or Token Invalid.',
-                'error' => $e->getMessage()
+                'message' => 'Unauthenticated.',
             ], 401);
         }
+
+        $role = match (true) {
+            $user instanceof Pharmacist => 'pharmacist',
+            $user instanceof Employee => $user->role,
+            default => null,
+        };
+
+        if ($role === null || ! in_array($role, $roles, true)) {
+            return response()->json([
+                'message' => 'Unauthorized.',
+            ], 403);
+        }
+
+        return $next($request);
     }
 }

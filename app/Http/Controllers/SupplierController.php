@@ -23,7 +23,10 @@ class SupplierController extends Controller
     {
         $supplier = Supplier::findOrFail($id);
 
-        $medicines = Medicine::where('supplier_id', $id)->get();
+        // Supplier catalogue rows are global. Tenant inventory rows must not leak here.
+        $medicines = Medicine::where('supplier_id', $id)
+            ->whereNull('pharmacy_id')
+            ->get();
 
         return response()->json([
             'supplier'  => $supplier->name,

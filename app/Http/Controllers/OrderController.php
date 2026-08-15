@@ -3,218 +3,211 @@
 namespace App\Http\Controllers;
 
 use App\Models\Medicine;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Notification;
-use App\Models\Pharmacy;
+use App\Services\PharmacyContextResolver;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Throwable;
 
 class OrderController extends Controller
 {
-    // ===== إنشاء طلب =====
-    public function createOrder(Request $request)
+    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+
+    public function createOrder(Request $request): JsonResponse
     {
         $request->validate([
-            'supplier_id'          => 'required|exists:suppliers,id',
-            'pharmacy_id'          => 'required|exists:pharmacies,id',
-            'payment_method'       => 'required|in:cash,card',
-            'items'                => 'required|array|min:1',
-            'items.*.medicine_id'  => 'required|exists:medicines,id',
-            'items.*.quantity'     => 'required|integer|min:1',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'payment_method' => 'required|in:cash,card',
+            'items' => 'required|array|min:1',
+            'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.quantity' => 'required|integer|min:1',
         ]);
+        $pharmacy = $this->pharmacyContext->resolve($request);
 
         DB::beginTransaction();
 
         try {
             $totalPrice = 0;
+            $medicines = [];
 
-            foreach ($request->items as $item) {
-                $medicine = Medicine::findOrFail($item['medicine_id']);
+            foreach ($request->input('items') as $item) {
+                // Orders may reference only the global supplier catalogue, never another tenant's stock row.
+                $medicine = Medicine::whereNull('pharmacy_id')
+                    ->where('supplier_id', $request->supplier_id)
+                    ->find($item['medicine_id']);
 
-                // التأكد إن الدواء تابع للمورد
-                if ($medicine->supplier_id != $request->supplier_id) {
+                if (! $medicine) {
                     DB::rollBack();
-                    return response()->json([
-                        'message' => 'الدواء ' . $medicine->name . ' غير متوفر عند هذا المورد',
-                    ], 400);
+
+                    return response()->json(['message' => 'الدواء غير متوفر عند هذا المورد'], 400);
                 }
 
+                $medicines[$medicine->id] = $medicine;
                 $totalPrice += $medicine->cost_price * $item['quantity'];
             }
 
             $order = Order::create([
-                'supplier_id'    => $request->supplier_id,
-                'pharmacy_id'    => $request->pharmacy_id,
-                'date'           => now()->toDateString(),
-                'total_price'    => $totalPrice,
+                'supplier_id' => $request->supplier_id,
+                'pharmacy_id' => $pharmacy->id,
+                'date' => now()->toDateString(),
+                'total_price' => $totalPrice,
                 'payment_method' => $request->payment_method,
-                'status'         => 'pending',
+                'status' => 'pending',
             ]);
 
-            foreach ($request->items as $item) {
-                $medicine = Medicine::findOrFail($item['medicine_id']);
-
+            foreach ($request->input('items') as $item) {
+                $medicine = $medicines[$item['medicine_id']];
                 OrderItem::create([
-                    'order_id'    => $order->id,
-                    'medicine_id' => $item['medicine_id'],
-                    'quantity'    => $item['quantity'],
-                    'price'       => $medicine->cost_price,
+                    'order_id' => $order->id,
+                    'medicine_id' => $medicine->id,
+                    'quantity' => $item['quantity'],
+                    'price' => $medicine->cost_price,
                 ]);
             }
 
-            // إشعار الطلب
             Notification::create([
-                'pharmacy_id' => $request->pharmacy_id,
-                'title'       => 'طلب جديد',
-                'message'     => 'تم إنشاء طلب جديد من ' . $order->supplier->name,
-                'type'        => 'order',
-                'is_read'     => false,
-                'date'        => now(),
+                'pharmacy_id' => $pharmacy->id,
+                'title' => 'طلب جديد',
+                'message' => 'تم إنشاء طلب جديد من '.$order->supplier->name,
+                'type' => 'order',
+                'is_read' => false,
+                'date' => now(),
             ]);
 
             DB::commit();
 
             return response()->json([
-                'message'     => 'تم إنشاء الطلب بنجاح',
-                'order_id'    => $order->id,
+                'message' => 'تم إنشاء الطلب بنجاح',
+                'order_id' => $order->id,
                 'total_price' => $totalPrice,
-                'status'      => 'pending',
+                'status' => 'pending',
             ], 201);
-
-        } catch (\Exception $e) {
+        } catch (AuthorizationException|ModelNotFoundException $exception) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'خطأ: ' . $e->getMessage(),
-            ], 500);
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
+
+            return response()->json(['message' => 'تعذر إنشاء الطلب'], 500);
         }
     }
 
-    // ===== استلام الطلب =====
-    public function receiveOrder($id)
+    public function receiveOrder(Request $request, int $id): JsonResponse
     {
         DB::beginTransaction();
 
         try {
-            $order = Order::with('items')->findOrFail($id);
+            $order = Order::with('items.medicine')->lockForUpdate()->findOrFail($id);
+            Gate::forUser($request->user())->authorize('update', $order);
 
             if ($order->status === 'received') {
-                return response()->json([
-                    'message' => 'تم استلام الطلب مسبقاً',
-                ], 400);
+                DB::rollBack();
+
+                return response()->json(['message' => 'تم استلام الطلب مسبقاً'], 400);
             }
 
             if ($order->status === 'cancelled') {
-                return response()->json([
-                    'message' => 'لا يمكن استلام طلب ملغي',
-                ], 400);
+                DB::rollBack();
+
+                return response()->json(['message' => 'لا يمكن استلام طلب ملغي'], 400);
             }
 
             foreach ($order->items as $item) {
-                // نشوف إذا الدواء موجود بصيدلية الصيدلاني
                 $existingMedicine = Medicine::where('pharmacy_id', $order->pharmacy_id)
                     ->where('name', $item->medicine->name)
                     ->first();
 
                 if ($existingMedicine) {
-                    // إضافة الكمية للدواء الموجود
                     $existingMedicine->increment('quantity', $item->quantity);
                 } else {
-                    // إنشاء دواء جديد بالصيدلية
                     Medicine::create([
-                        'pharmacy_id'       => $order->pharmacy_id,
-                        'supplier_id'       => $order->supplier_id,
-                        'name'              => $item->medicine->name,
+                        'pharmacy_id' => $order->pharmacy_id,
+                        'supplier_id' => $order->supplier_id,
+                        'name' => $item->medicine->name,
                         'category_medicine' => $item->medicine->category_medicine,
-                        'cost_price'        => $item->medicine->cost_price,
-                        'selling_price'     => $item->medicine->selling_price,
-                        'manufacturer'      => $item->medicine->manufacturer,
-                        'quantity'          => $item->quantity,
-                        'reorder_level'     => $item->medicine->reorder_level,
-                        'expire_date'       => $item->medicine->expire_date,
-                        'qr_code'           => $item->medicine->qr_code,
+                        'cost_price' => $item->medicine->cost_price,
+                        'selling_price' => $item->medicine->selling_price,
+                        'manufacturer' => $item->medicine->manufacturer,
+                        'quantity' => $item->quantity,
+                        'reorder_level' => $item->medicine->reorder_level,
+                        'expire_date' => $item->medicine->expire_date,
+                        'qr_code' => $item->medicine->qr_code,
                     ]);
                 }
             }
 
             $order->update(['status' => 'received']);
-
-            // إشعار الاستلام
             Notification::create([
                 'pharmacy_id' => $order->pharmacy_id,
-                'title'       => 'تم استلام الطلب',
-                'message'     => 'تم استلام الطلب رقم ' . $order->id . ' وإضافته للمخزون',
-                'type'        => 'order',
-                'is_read'     => false,
-                'date'        => now(),
+                'title' => 'تم استلام الطلب',
+                'message' => 'تم استلام الطلب رقم '.$order->id.' وإضافته للمخزون',
+                'type' => 'order',
+                'is_read' => false,
+                'date' => now(),
             ]);
-
             DB::commit();
 
-            return response()->json([
-                'message' => 'تم استلام الطلب وتحديث المخزون بنجاح',
-            ]);
-
-        } catch (\Exception $e) {
+            return response()->json(['message' => 'تم استلام الطلب وتحديث المخزون بنجاح']);
+        } catch (AuthorizationException|ModelNotFoundException $exception) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'خطأ: ' . $e->getMessage(),
-            ], 500);
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
+
+            return response()->json(['message' => 'تعذر استلام الطلب'], 500);
         }
     }
 
-    // ===== إلغاء الطلب =====
-    public function cancelOrder($id)
+    public function cancelOrder(Request $request, int $id): JsonResponse
     {
         $order = Order::findOrFail($id);
+        Gate::forUser($request->user())->authorize('update', $order);
 
         if ($order->status !== 'pending') {
-            return response()->json([
-                'message' => 'لا يمكن إلغاء الطلب، الحالة الحالية: ' . $order->status,
-            ], 400);
+            return response()->json(['message' => 'لا يمكن إلغاء الطلب، الحالة الحالية: '.$order->status], 400);
         }
 
         $order->update(['status' => 'cancelled']);
-
-        // إشعار الإلغاء
         Notification::create([
             'pharmacy_id' => $order->pharmacy_id,
-            'title'       => 'تم إلغاء الطلب',
-            'message'     => 'تم إلغاء الطلب رقم ' . $order->id,
-            'type'        => 'order',
-            'is_read'     => false,
-            'date'        => now(),
+            'title' => 'تم إلغاء الطلب',
+            'message' => 'تم إلغاء الطلب رقم '.$order->id,
+            'type' => 'order',
+            'is_read' => false,
+            'date' => now(),
         ]);
 
-        return response()->json([
-            'message' => 'تم إلغاء الطلب بنجاح',
-        ]);
+        return response()->json(['message' => 'تم إلغاء الطلب بنجاح']);
     }
 
-    // ===== عرض كل الطلبات =====
-    public function getOrders(Request $request)
+    public function getOrders(Request $request): JsonResponse
     {
-        $request->validate([
-            'pharmacy_id' => 'required|exists:pharmacies,id',
-        ]);
-
+        $request->validate(['pharmacy_id' => 'required|exists:pharmacies,id']);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
         $orders = Order::with(['supplier', 'items.medicine'])
-            ->where('pharmacy_id', $request->pharmacy_id)
+            ->where('pharmacy_id', $pharmacyId)
             ->latest()
             ->get();
 
-        return response()->json([
-            'orders' => $orders,
-        ]);
+        return response()->json(['orders' => $orders]);
     }
 
-    // ===== عرض طلب واحد =====
-    public function getOrder($id)
+    public function getOrder(Request $request, int $id): JsonResponse
     {
         $order = Order::with(['supplier', 'items.medicine'])->findOrFail($id);
+        Gate::forUser($request->user())->authorize('view', $order);
 
-        return response()->json([
-            'order' => $order,
-        ]);
+        return response()->json(['order' => $order]);
     }
 }
