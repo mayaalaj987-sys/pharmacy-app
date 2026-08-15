@@ -1,53 +1,148 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/network/error_handler.dart';
 import '../../data/datasource/auth_repository.dart';
+import '../../data/models/auth_api_exception.dart';
+import '../../data/models/auth_session_model.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository repository;
+  late final StreamSubscription<void> _invalidatedSubscription;
+  AuthSession? _session;
 
-  AuthCubit(this.repository) : super(AuthInitial());
+  AuthCubit(this.repository) : super(const AuthInitial()) {
+    _invalidatedSubscription = repository.sessionInvalidated.listen((_) {
+      _session = null;
+      emit(const AuthUnauthenticated());
+    });
+  }
 
-  Future<void> login(String email, String password) async {
+  AuthSession? get session => _session;
+
+  Future<void> restoreSession() async {
+    emit(const AuthRestoring());
     try {
-      emit(AuthLoading());
-      await repository.login(email, password);
-      emit(AuthSuccess());
-    } catch (e) {
-      if (e is DioException) {
-        emit(AuthError(ErrorHandler.handle(e)));
+      final restored = await repository.restoreSession();
+      if (restored == null) {
+        emit(const AuthUnauthenticated());
       } else {
-        emit(AuthError(e.toString()));
+        _routeSession(restored);
       }
+    } on AuthApiException catch (error) {
+      emit(AuthRestoreFailure(error.message));
+    } catch (_) {
+      emit(const AuthRestoreFailure('Unable to restore your session.'));
     }
   }
+
+  Future<void> login(
+    String email,
+    String password, {
+    bool employee = false,
+  }) async {
+    emit(const AuthLoading());
+    try {
+      final authenticated = await repository.login(
+        email,
+        password,
+        employee: employee,
+      );
+      _routeSession(authenticated);
+    } on AuthApiException catch (error) {
+      emit(AuthError(error.message, code: error.code));
+    } catch (_) {
+      emit(const AuthError('Unable to login. Please try again.'));
+    }
+  }
+
   Future<void> registerPharmacist(FormData data) async {
+    emit(const AuthLoading());
     try {
-      emit(AuthLoading());
-      final pharmacistId = await repository.registerPharmacist(data);
-      emit(PharmacistRegisterSuccess(pharmacistId));
-    } catch (e) {
-      if (e is DioException) {
-        emit(AuthError(ErrorHandler.handle(e)));
-      } else {
-        emit(AuthError(e.toString()));
-      }
+      await repository.registerPharmacist(data);
+      emit(const PharmacistRegisterSuccess());
+    } on AuthApiException catch (error) {
+      emit(AuthError(error.message, code: error.code));
+    } catch (_) {
+      emit(const AuthError('Unable to complete registration.'));
     }
   }
 
-  Future<void> registerPharmacy(FormData data) async {
+  Future<void> registerEmployee(FormData data) async {
+    emit(const AuthLoading());
     try {
-      emit(AuthLoading());
-      await repository.registerPharmacy(data);
-      emit(PharmacyRegisterSuccess()); // بدل AuthSuccess
-    } catch (e) {
-      if (e is DioException) {
-        emit(AuthError(ErrorHandler.handle(e)));
-      } else {
-        emit(AuthError(e.toString()));
-      }
+      await repository.registerEmployee(data);
+      emit(const EmployeeRegisterSuccess());
+    } on AuthApiException catch (error) {
+      emit(AuthError(error.message, code: error.code));
+    } catch (_) {
+      emit(const AuthError('Unable to complete registration.'));
     }
+  }
+
+  Future<void> selectActivePharmacy(int pharmacyId) async {
+    final previous = _session;
+    if (previous == null) return;
+
+    emit(const AuthLoading());
+    try {
+      _routeSession(await repository.selectActivePharmacy(pharmacyId));
+    } on AuthApiException catch (error) {
+      emit(
+        AuthPharmacySelectionRequired(previous, errorMessage: error.message),
+      );
+    } catch (_) {
+      emit(
+        AuthPharmacySelectionRequired(
+          previous,
+          errorMessage: 'Unable to select this pharmacy.',
+        ),
+      );
+    }
+  }
+
+  Future<void> refreshSession() async {
+    emit(const AuthLoading());
+    try {
+      _routeSession(await repository.refreshSession());
+    } on AuthApiException catch (error) {
+      if (error.statusCode == 401) {
+        _session = null;
+        emit(const AuthUnauthenticated());
+      } else {
+        emit(AuthRestoreFailure(error.message));
+      }
+    } catch (_) {
+      emit(const AuthRestoreFailure('Unable to refresh your session.'));
+    }
+  }
+
+  Future<void> logout() async {
+    emit(const AuthLoading());
+    try {
+      await repository.logout();
+    } finally {
+      _session = null;
+      emit(const AuthUnauthenticated());
+    }
+  }
+
+  void _routeSession(AuthSession session) {
+    _session = session;
+    if (session.access.operational && session.activePharmacy != null) {
+      emit(AuthAuthenticated(session));
+    } else if (session.access.requiresActivePharmacy) {
+      emit(AuthPharmacySelectionRequired(session));
+    } else {
+      emit(AuthAccessRestricted(session));
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _invalidatedSubscription.cancel();
+    return super.close();
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:phamacy_managment/features/auth/presentation/pages/pending_page.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -8,7 +7,6 @@ import '../../../../core/widgets/custom_text_field.dart';
 
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
-import 'main_navigation_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -35,27 +33,10 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is AuthSuccess) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const MainNavigationPage()),
-          );
-        }
         if (state is AuthError) {
-          if (state.message.contains('pending')) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const PendingPage()),
-            );
-          } else if (state.message.contains('rejected')) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم رفض طلب صيدليتك من الإدارة')),
-            );
-          } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.message)));
-          }
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
       },
       builder: (context, state) {

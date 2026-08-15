@@ -65,6 +65,7 @@ class MedicineController extends Controller
     public function editMedicine(Request $request, int $id): JsonResponse
     {
         $medicine = Medicine::findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $medicine->pharmacy_id);
         Gate::forUser($request->user())->authorize('update', $medicine);
 
         $validated = $request->validate([

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +10,7 @@ import '../../../../core/widgets/custom_text_field.dart';
 
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
+import '../../data/models/pharmacist_registration_draft.dart';
 import 'signup_page2.dart';
 
 class SignupPage1 extends StatefulWidget {
@@ -52,33 +52,25 @@ class _SignupPage1State extends State<SignupPage1> {
       return;
     }
 
-    FormData data = FormData.fromMap({
-      "name": usernameController.text,
-      "email": emailController.text,
-      "password": passwordController.text,
-      if (selectedImage != null)
-        "profile": MultipartFile.fromFileSync(selectedImage!.path),
-    });
-
-    context.read<AuthCubit>().registerPharmacist(data);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SignupPage2(
+          draft: PharmacistRegistrationDraft(
+            name: usernameController.text.trim(),
+            email: emailController.text.trim(),
+            password: passwordController.text,
+            profileImage: selectedImage,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is PharmacistRegisterSuccess) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<AuthCubit>(),
-                child: SignupPage2(pharmacistId: state.pharmacistId),
-              ),
-            ),
-          );
-        }
-
         if (state is AuthError) {
           ScaffoldMessenger.of(
             context,
@@ -141,12 +133,7 @@ class _SignupPage1State extends State<SignupPage1> {
                     isPassword: true,
                   ),
                   const SizedBox(height: 40),
-                  CustomButton(
-                    text: state is AuthLoading ? "Loading..." : "Next",
-                    onPressed: state is AuthLoading
-                        ? null
-                        : () => next(context),
-                  ),
+                  CustomButton(text: "Next", onPressed: () => next(context)),
                 ],
               ),
             ),

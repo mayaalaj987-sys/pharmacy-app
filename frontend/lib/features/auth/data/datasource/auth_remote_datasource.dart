@@ -1,31 +1,15 @@
-// import 'package:dio/dio.dart';
-//
-// import '../../../../core/network/dio_client.dart';
-// import '../../../../core/network/api_constants.dart';
-//
-// class AuthService {
-//   Future<Response> registerPharmacist({
-//     required String username,
-//     required String email,
-//     required String password,
-//   }) async {
-//     return await DioClient.dio.post(
-//       ApiConstants.registerPharmacist,
-//       data: {
-//         "username": username,
-//         "email": email,
-//         "password": password,
-//       },
-//     );
-//   }
-//
-//   Future<Response> login(String email, String password) async {
-//     return await DioClient.dio.post(
-//       ApiConstants.login,
-//       data: {
-//         "email": email,
-//         "password": password,
-//       },
-//     );
-//   }
-// }
+import 'package:dio/dio.dart';
+
+abstract class AuthRemoteDataSource {
+  Future<Response<dynamic>> registerPharmacist(FormData data);
+
+  Future<Response<dynamic>> registerEmployee(FormData data);
+
+  Future<Response<dynamic>> login(String email, String password);
+
+  Future<Response<dynamic>> employeeLogin(String email, String password);
+
+  Future<Response<dynamic>> me({int? activePharmacyId});
+
+  Future<Response<dynamic>> logout();
+}

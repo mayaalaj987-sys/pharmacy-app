@@ -27,6 +27,7 @@ class NotificationController extends Controller
     public function markAsRead(Request $request, int $id): JsonResponse
     {
         $notification = Notification::findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $notification->pharmacy_id);
         Gate::forUser($request->user())->authorize('update', $notification);
         $notification->update(['is_read' => true]);
 
@@ -47,6 +48,7 @@ class NotificationController extends Controller
     public function deleteNotification(Request $request, int $id): JsonResponse
     {
         $notification = Notification::findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $notification->pharmacy_id);
         Gate::forUser($request->user())->authorize('delete', $notification);
         $notification->delete();
 
