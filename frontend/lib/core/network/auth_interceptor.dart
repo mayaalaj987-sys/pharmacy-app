@@ -34,9 +34,10 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    final wasAuthenticated =
+    final usedApplicationAuthentication =
+        err.requestOptions.extra['skipAuthentication'] != true &&
         err.requestOptions.headers['Authorization'] != null;
-    if (err.response?.statusCode == 401 && wasAuthenticated) {
+    if (err.response?.statusCode == 401 && usedApplicationAuthentication) {
       await storage.clearSession();
       sessionEvents.notifyInvalidated();
     }

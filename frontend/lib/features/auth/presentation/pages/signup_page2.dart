@@ -97,7 +97,7 @@ class _SignupPage2State extends State<SignupPage2> {
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is PharmacistRegisterSuccess) {
+        if (state is PharmacistRegistrationStatus) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const PendingPage()),

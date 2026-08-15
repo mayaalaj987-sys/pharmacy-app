@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
 use App\Services\AuthSessionService;
+use App\Services\PharmacistApprovalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,10 @@ use Throwable;
 
 class PharmacistController extends Controller
 {
-    public function __construct(private readonly AuthSessionService $sessions) {}
+    public function __construct(
+        private readonly AuthSessionService $sessions,
+        private readonly PharmacistApprovalService $approvals,
+    ) {}
 
     public function register(Request $request): JsonResponse
     {
@@ -69,9 +73,16 @@ class PharmacistController extends Controller
             throw $exception;
         }
 
+        $statusToken = $pharmacist->createToken(
+            'registration-status-token',
+            ['registration-status'],
+        )->plainTextToken;
+
         return response()->json([
             'message' => 'Registration completed successfully. The pharmacy is awaiting approval.',
             'data' => [
+                'registration_status_token' => $statusToken,
+                'token_type' => 'Bearer',
                 'actor' => [
                     'id' => $pharmacist->id,
                     'type' => 'pharmacist',
@@ -85,8 +96,25 @@ class PharmacistController extends Controller
                     'address' => $pharmacy->pharmacy_address,
                     'status' => $pharmacy->status,
                 ],
+                'registration' => $this->approvals->registrationStatus($pharmacist),
             ],
         ], 201);
+    }
+
+    public function registrationStatus(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => 'prohibited',
+            'phone' => 'prohibited',
+            'pharmacist_id' => 'prohibited',
+            'pharmacy_id' => 'prohibited',
+        ]);
+
+        return response()->json([
+            'data' => [
+                'registration' => $this->approvals->registrationStatus($request->user()),
+            ],
+        ]);
     }
 
     public function login(Request $request): JsonResponse
@@ -105,7 +133,15 @@ class PharmacistController extends Controller
             ], 401);
         }
 
-        $token = $pharmacist->createToken('pharmacist-token')->plainTextToken;
+        $decision = $this->approvals->decision($pharmacist);
+        if (! $decision['approved']) {
+            return response()->json([
+                'message' => $decision['message'],
+                'code' => $decision['code'],
+            ], 403);
+        }
+
+        $token = $pharmacist->createToken('pharmacist-token', ['app'])->plainTextToken;
         $request->setUserResolver(fn () => $pharmacist);
 
         return response()->json([

@@ -1,4 +1,5 @@
 import '../../data/models/auth_session_model.dart';
+import '../../data/models/registration_status_model.dart';
 
 abstract class AuthState {
   const AuthState();
@@ -45,8 +46,16 @@ class AuthRestoreFailure extends AuthState {
   const AuthRestoreFailure(this.message);
 }
 
-class PharmacistRegisterSuccess extends AuthState {
-  const PharmacistRegisterSuccess();
+class PharmacistRegistrationStatus extends AuthState {
+  final RegistrationStatus registration;
+  final bool refreshing;
+  final String? errorMessage;
+
+  const PharmacistRegistrationStatus(
+    this.registration, {
+    this.refreshing = false,
+    this.errorMessage,
+  });
 }
 
 class EmployeeRegisterSuccess extends AuthState {

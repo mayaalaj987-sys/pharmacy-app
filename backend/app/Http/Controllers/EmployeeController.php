@@ -104,7 +104,7 @@ class EmployeeController extends Controller
             $employee->update(['first_login' => false]);
         }
 
-        $token = $employee->createToken('employee-token')->plainTextToken;
+        $token = $employee->createToken('employee-token', ['app'])->plainTextToken;
         $request->setUserResolver(fn () => $employee);
 
         return response()->json([

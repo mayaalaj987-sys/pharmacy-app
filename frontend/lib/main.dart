@@ -23,9 +23,9 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         BlocProvider(
-          create: (_) =>
-              AuthCubit(AuthRepository(AuthApi(), storage, sessionEvents))
-                ..restoreSession(),
+          create: (_) => AuthCubit(
+            AuthRepository(AuthApi(), storage, storage, sessionEvents),
+          )..restoreSession(),
         ),
       ],
       child: const MyApp(),

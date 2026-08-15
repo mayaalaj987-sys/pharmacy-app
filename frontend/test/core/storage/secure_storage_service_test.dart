@@ -36,6 +36,32 @@ void main() {
     expect(await storage.getToken(), isNull);
     expect(await storage.getActivePharmacyId(), isNull);
   });
+
+  test(
+    'keeps registration-status and application credentials isolated',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final secureStore = FakeSecureValueStore();
+      final storage = TokenStorage(secureStorage: secureStore);
+
+      await storage.saveToken('app-token');
+      await storage.saveRegistrationStatusToken('status-token');
+
+      expect(await storage.getToken(), 'app-token');
+      expect(await storage.getRegistrationStatusToken(), 'status-token');
+      expect(secureStore.values['auth_token'], 'app-token');
+      expect(secureStore.values['registration_status_token'], 'status-token');
+
+      await storage.clearSession();
+
+      expect(await storage.getToken(), isNull);
+      expect(await storage.getRegistrationStatusToken(), 'status-token');
+
+      await storage.clearRegistrationStatusToken();
+
+      expect(await storage.getRegistrationStatusToken(), isNull);
+    },
+  );
 }
 
 class FakeSecureValueStore implements SecureValueStore {

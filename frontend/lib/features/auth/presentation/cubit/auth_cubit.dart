@@ -6,12 +6,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/datasource/auth_repository.dart';
 import '../../data/models/auth_api_exception.dart';
 import '../../data/models/auth_session_model.dart';
+import '../../data/models/registration_status_model.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
   final AuthRepository repository;
   late final StreamSubscription<void> _invalidatedSubscription;
   AuthSession? _session;
+  RegistrationStatus? _registrationStatus;
 
   AuthCubit(this.repository) : super(const AuthInitial()) {
     _invalidatedSubscription = repository.sessionInvalidated.listen((_) {
@@ -61,13 +63,38 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> registerPharmacist(FormData data) async {
     emit(const AuthLoading());
     try {
-      await repository.registerPharmacist(data);
-      emit(const PharmacistRegisterSuccess());
+      _registrationStatus = await repository.registerPharmacist(data);
+      emit(PharmacistRegistrationStatus(_registrationStatus!));
     } on AuthApiException catch (error) {
       emit(AuthError(error.message, code: error.code));
     } catch (_) {
       emit(const AuthError('Unable to complete registration.'));
     }
+  }
+
+  Future<void> refreshRegistrationStatus() async {
+    final current = _registrationStatus;
+    if (current == null) return;
+
+    emit(PharmacistRegistrationStatus(current, refreshing: true));
+    try {
+      _registrationStatus = await repository.refreshRegistrationStatus();
+      emit(PharmacistRegistrationStatus(_registrationStatus!));
+    } on AuthApiException catch (error) {
+      emit(PharmacistRegistrationStatus(current, errorMessage: error.message));
+    } catch (_) {
+      emit(
+        PharmacistRegistrationStatus(
+          current,
+          errorMessage: 'Unable to refresh your pharmacy status.',
+        ),
+      );
+    }
+  }
+
+  Future<void> goToLoginFromRegistration() async {
+    await repository.finishRegistrationStatus();
+    _registrationStatus = null;
   }
 
   Future<void> registerEmployee(FormData data) async {

@@ -33,6 +33,42 @@ class RouteGuardSeparationTest extends SecurityTestCase
         $this->assertCount(0, $matches);
     }
 
+    public function test_normal_sanctum_routes_require_the_app_ability(): void
+    {
+        $routes = collect(app('router')->getRoutes()->getRoutes());
+        $exempt = ['api/logout', 'api/registration/status'];
+
+        $normalAuthenticatedRoutes = $routes->filter(function (Route $route) use ($exempt) {
+            $middleware = $route->gatherMiddleware();
+
+            return str_starts_with($route->uri(), 'api/')
+                && ! str_starts_with($route->uri(), 'api/admin/')
+                && ! in_array($route->uri(), $exempt, true)
+                && collect($middleware)->contains(
+                    fn (string $item) => str_starts_with($item, 'auth:'),
+                );
+        });
+
+        $this->assertNotEmpty($normalAuthenticatedRoutes);
+
+        foreach ($normalAuthenticatedRoutes as $route) {
+            $this->assertContains(
+                'abilities:app',
+                $route->gatherMiddleware(),
+                implode('|', $route->methods()).' '.$route->uri().' must require the app ability.',
+            );
+        }
+
+        $statusRoute = $routes->first(fn (Route $route) => $route->uri() === 'api/registration/status');
+        $this->assertNotNull($statusRoute);
+        $this->assertContains('abilities:registration-status', $statusRoute->gatherMiddleware());
+
+        $logoutRoute = $routes->first(fn (Route $route) => $route->uri() === 'api/logout');
+        $this->assertNotNull($logoutRoute);
+        $this->assertNotContains('abilities:app', $logoutRoute->gatherMiddleware());
+        $this->assertNotContains('abilities:registration-status', $logoutRoute->gatherMiddleware());
+    }
+
     public function test_role_middleware_allows_matching_roles_and_rejects_non_matching_roles(): void
     {
         $pharmacist = $this->pharmacist('role');
