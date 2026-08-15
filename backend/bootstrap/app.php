@@ -2,12 +2,14 @@
 
 use App\Http\Middleware\ActivePharmacyContext;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\EnsurePharmacistHasApprovedPharmacy;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => AdminMiddleware::class,
             'active.pharmacy' => ActivePharmacyContext::class,
+            'approved.pharmacist' => EnsurePharmacistHasApprovedPharmacy::class,
+            'abilities' => CheckAbilities::class,
             'role' => RoleMiddleware::class,
         ]);
     })

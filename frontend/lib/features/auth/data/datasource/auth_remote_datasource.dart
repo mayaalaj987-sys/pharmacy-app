@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 abstract class AuthRemoteDataSource {
   Future<Response<dynamic>> registerPharmacist(FormData data);
 
+  Future<Response<dynamic>> registrationStatus(String statusToken);
+
   Future<Response<dynamic>> registerEmployee(FormData data);
 
   Future<Response<dynamic>> login(String email, String password);
@@ -12,4 +14,6 @@ abstract class AuthRemoteDataSource {
   Future<Response<dynamic>> me({int? activePharmacyId});
 
   Future<Response<dynamic>> logout();
+
+  Future<Response<dynamic>> logoutRegistrationStatus(String statusToken);
 }

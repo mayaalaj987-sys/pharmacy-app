@@ -6,6 +6,7 @@ use App\Models\Pharmacist;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
 
 class RegistrationContractTest extends TestCase
@@ -18,14 +19,23 @@ class RegistrationContractTest extends TestCase
 
         $this->post('/api/register', $this->registrationPayload())
             ->assertCreated()
+            ->assertJsonStructure(['data' => ['registration_status_token']])
+            ->assertJsonMissingPath('data.token')
+            ->assertJsonMissingPath('data.session')
             ->assertJsonPath('data.actor.type', 'pharmacist')
-            ->assertJsonPath('data.pharmacy.status', 'pending');
+            ->assertJsonPath('data.pharmacy.status', 'pending')
+            ->assertJsonPath('data.registration.status', 'pending')
+            ->assertJsonPath('data.registration.code', 'pharmacy_review_required');
 
         $this->assertDatabaseHas('pharmacists', ['email' => 'owner@example.test']);
         $this->assertDatabaseHas('pharmacies', [
             'pharmacy_name' => 'Central Pharmacy',
             'status' => 'pending',
         ]);
+        $this->assertSame(
+            ['registration-status'],
+            PersonalAccessToken::sole()->abilities,
+        );
     }
 
     public function test_invalid_initial_pharmacy_creates_no_pharmacist(): void

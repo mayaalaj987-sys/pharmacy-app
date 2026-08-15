@@ -8,6 +8,7 @@ class ApiConstants {
   static const String employeeLogin = "/employee/login";
   static const String registerPharmacist = "/register";
   static const String registerEmployee = "/employee/register";
+  static const String registrationStatus = "/registration/status";
   static const String me = "/me";
   static const String logout = "/logout";
 }

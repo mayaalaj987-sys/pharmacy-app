@@ -56,17 +56,17 @@ class AuthenticationSessionTest extends TestCase
             ->assertJsonPath('data.session.access.code', 'ready');
     }
 
-    public function test_owner_without_approved_pharmacy_receives_status_session(): void
+    public function test_owner_without_approved_pharmacy_is_denied_before_token_creation(): void
     {
         $pharmacist = $this->pharmacist('review');
         $this->pharmacy($pharmacist, 'pending', 'pending');
         $this->pharmacy($pharmacist, 'rejected', 'rejected');
 
         $this->postJson('/api/login', $this->credentials($pharmacist))
-            ->assertOk()
-            ->assertJsonPath('data.session.active_pharmacy', null)
-            ->assertJsonPath('data.session.access.code', 'pharmacy_review_required')
-            ->assertJsonPath('data.session.access.operational', false);
+            ->assertForbidden()
+            ->assertJsonPath('code', 'pharmacy_review_required');
+
+        $this->assertDatabaseCount('personal_access_tokens', 0);
     }
 
     public function test_employee_and_trainee_login_return_normalized_sessions(): void

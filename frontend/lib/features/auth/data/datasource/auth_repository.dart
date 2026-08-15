@@ -5,14 +5,21 @@ import '../../../../core/network/error_handler.dart';
 import '../../../../core/storage/secure_storage_service.dart';
 import '../models/auth_api_exception.dart';
 import '../models/auth_session_model.dart';
+import '../models/registration_status_model.dart';
 import 'auth_remote_datasource.dart';
 
 class AuthRepository {
   final AuthRemoteDataSource api;
   final SessionStorage storage;
+  final RegistrationStatusStorage registrationStatusStorage;
   final AuthSessionEvents sessionEvents;
 
-  AuthRepository(this.api, this.storage, this.sessionEvents);
+  AuthRepository(
+    this.api,
+    this.storage,
+    this.registrationStatusStorage,
+    this.sessionEvents,
+  );
 
   Stream<void> get sessionInvalidated => sessionEvents.invalidated;
 
@@ -77,11 +84,55 @@ class AuthRepository {
     }
   }
 
-  Future<void> registerPharmacist(FormData data) async {
+  Future<RegistrationStatus> registerPharmacist(FormData data) async {
     try {
-      await api.registerPharmacist(data);
+      final response = await api.registerPharmacist(data);
+      final result = PharmacistRegistrationResult.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+      await registrationStatusStorage.saveRegistrationStatusToken(
+        result.statusToken,
+      );
+      return result.registration;
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<RegistrationStatus> refreshRegistrationStatus() async {
+    final token = await registrationStatusStorage.getRegistrationStatusToken();
+    if (token == null || token.isEmpty) {
+      throw const AuthApiException(
+        message: 'Registration status access is no longer available.',
+        code: 'registration_status_unauthenticated',
+        statusCode: 401,
+      );
+    }
+
+    try {
+      final response = await api.registrationStatus(token);
+      final body = Map<String, dynamic>.from(response.data as Map);
+      final responseData = Map<String, dynamic>.from(body['data'] as Map);
+      return RegistrationStatus.fromJson(
+        Map<String, dynamic>.from(responseData['registration'] as Map),
+      );
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<void> finishRegistrationStatus() async {
+    final token = await registrationStatusStorage.getRegistrationStatusToken();
+
+    try {
+      if (token != null && token.isNotEmpty) {
+        await api.logoutRegistrationStatus(token);
+      }
+    } on DioException {
+      // Approval should never trap the user on the status page when the
+      // server cannot be reached. Only the local status credential is cleared.
+    } finally {
+      await registrationStatusStorage.clearRegistrationStatusToken();
     }
   }
 

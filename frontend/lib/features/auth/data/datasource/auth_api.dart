@@ -28,6 +28,17 @@ class AuthApi implements AuthRemoteDataSource {
   }
 
   @override
+  Future<Response<dynamic>> registrationStatus(String statusToken) {
+    return dio.get(
+      ApiConstants.registrationStatus,
+      options: Options(
+        headers: {'Authorization': 'Bearer $statusToken'},
+        extra: {'skipAuthentication': true, 'skipActivePharmacy': true},
+      ),
+    );
+  }
+
+  @override
   Future<Response<dynamic>> login(String email, String password) {
     return dio.post(
       ApiConstants.login,
@@ -62,6 +73,17 @@ class AuthApi implements AuthRemoteDataSource {
     return dio.post(
       ApiConstants.logout,
       options: Options(extra: {'skipActivePharmacy': true}),
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> logoutRegistrationStatus(String statusToken) {
+    return dio.post(
+      ApiConstants.logout,
+      options: Options(
+        headers: {'Authorization': 'Bearer $statusToken'},
+        extra: {'skipAuthentication': true, 'skipActivePharmacy': true},
+      ),
     );
   }
 }

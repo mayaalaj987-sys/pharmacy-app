@@ -11,6 +11,12 @@ abstract class SessionStorage {
   Future<void> clearSession();
 }
 
+abstract class RegistrationStatusStorage {
+  Future<void> saveRegistrationStatusToken(String token);
+  Future<String?> getRegistrationStatusToken();
+  Future<void> clearRegistrationStatusToken();
+}
+
 abstract class SecureValueStore {
   Future<String?> read(String key);
   Future<void> write(String key, String value);
@@ -35,8 +41,9 @@ class FlutterSecureValueStore implements SecureValueStore {
   Future<void> delete(String key) => _storage.delete(key: key);
 }
 
-class TokenStorage implements SessionStorage {
+class TokenStorage implements SessionStorage, RegistrationStatusStorage {
   static const _tokenKey = 'auth_token';
+  static const _registrationStatusTokenKey = 'registration_status_token';
   static const _activePharmacyKey = 'active_pharmacy_id';
   static const _legacyTokenKey = 'token';
 
@@ -87,6 +94,21 @@ class TokenStorage implements SessionStorage {
   @override
   Future<void> clearToken() {
     return _secureStorage.delete(_tokenKey);
+  }
+
+  @override
+  Future<void> saveRegistrationStatusToken(String token) {
+    return _secureStorage.write(_registrationStatusTokenKey, token);
+  }
+
+  @override
+  Future<String?> getRegistrationStatusToken() {
+    return _secureStorage.read(_registrationStatusTokenKey);
+  }
+
+  @override
+  Future<void> clearRegistrationStatusToken() {
+    return _secureStorage.delete(_registrationStatusTokenKey);
   }
 
   @override
