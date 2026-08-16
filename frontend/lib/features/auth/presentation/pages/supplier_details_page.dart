@@ -1,31 +1,78 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/data/purchase_data.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../data/models/purchase_model.dart';
-import '../../data/models/supplier_model.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
+import '../../../suppliers/domain/supplier.dart';
+import '../../../suppliers/presentation/cubit/suppliers_cubit.dart';
+import '../../../suppliers/presentation/cubit/suppliers_state.dart';
 
-class SupplierDetailsPage extends StatelessWidget {
-  final SupplierModel supplier;
+class SupplierDetailsPage extends StatefulWidget {
+  final Supplier supplier;
 
   const SupplierDetailsPage({super.key, required this.supplier});
 
   @override
+  State<SupplierDetailsPage> createState() => _SupplierDetailsPageState();
+}
+
+class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<SuppliersCubit>().loadMedicines(widget.supplier.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final supplier = widget.supplier;
     return Scaffold(
       backgroundColor: AppColors.white,
 
       appBar: AppBar(title: Text(supplier.name)),
 
-      body: supplier.medicines.isEmpty
-          ? const Center(child: Text("No medicines available"))
-          : ListView.builder(
+      body: BlocBuilder<SuppliersCubit, SuppliersState>(
+        builder: (context, state) {
+          if (state.loadingMedicinesFor == supplier.id) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state.medicinesError != null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      state.medicinesError!.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.errorRed),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => context
+                          .read<SuppliersCubit>()
+                          .loadMedicines(supplier.id),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final medicines =
+              state.medicinesBySupplier[supplier.id] ?? const <SupplierMedicine>[];
+          if (medicines.isEmpty) {
+            return const Center(child: Text("No medicines available"));
+          }
+          return ListView.builder(
               padding: const EdgeInsets.all(16),
 
-              itemCount: supplier.medicines.length,
+              itemCount: medicines.length,
 
               itemBuilder: (context, index) {
-                final medicine = supplier.medicines[index];
+                final medicine = medicines[index];
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -86,30 +133,21 @@ class SupplierDetailsPage extends StatelessWidget {
                           width: double.infinity,
 
                           child: ElevatedButton.icon(
-                            onPressed: () {
-                              purchases.add(
-                                PurchaseModel(
-                                  id: DateTime.now().millisecondsSinceEpoch
-                                      .toString(),
-
-                                  supplierName: supplier.name,
-
-                                  medicineName: medicine.name,
-
-                                  quantity: 50,
-
-                                  price: medicine.price,
-
-                                  status: "Pending",
-
-                                  date: DateTime.now(),
-                                ),
-                              );
-
-                              ScaffoldMessenger.of(context).showSnackBar(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              final ok = await context
+                                  .read<OrdersCubit>()
+                                  .createOrder(
+                                    supplierId: supplier.id,
+                                    medicineId: medicine.id,
+                                    quantity: 50,
+                                  );
+                              messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    "${medicine.name} added to purchases",
+                                    ok
+                                        ? "Order created for ${medicine.name}"
+                                        : "Could not create the order",
                                   ),
                                 ),
                               );
@@ -125,7 +163,9 @@ class SupplierDetailsPage extends StatelessWidget {
                   ),
                 );
               },
-            ),
+            );
+        },
+      ),
     );
   }
 }

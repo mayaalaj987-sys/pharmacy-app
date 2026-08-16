@@ -18,6 +18,8 @@ class Employee extends Authenticatable
 
     protected $hidden = [
         'password',
+        'cv',
+        'experience_proof',
     ];
 
     protected function casts(): array
@@ -36,5 +38,10 @@ class Employee extends Authenticatable
     public function sales()
     {
         return $this->hasMany(Sale::class);
+    }
+
+    public function documentVersions()
+    {
+        return $this->hasMany(EmployeeDocumentVersion::class);
     }
 }

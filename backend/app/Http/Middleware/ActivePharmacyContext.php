@@ -13,6 +13,10 @@ class ActivePharmacyContext
 
     public function handle(Request $request, Closure $next): Response
     {
+        $request->attributes->set(
+            'client_supplied_pharmacy_id',
+            $request->request->has('pharmacy_id'),
+        );
         $pharmacy = $this->pharmacyContext->resolve($request);
 
         // Keep legacy controller validation working while the canonical client

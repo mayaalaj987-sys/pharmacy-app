@@ -2,18 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../../features/auth/data/models/auth_session_model.dart';
 import '../../../features/auth/presentation/pages/settings_edit_profile_page.dart';
+import '../../../features/account/presentation/widgets/profile_avatar.dart';
 import '../../theme/app_colors.dart';
 
 class SettingsProfileCard extends StatelessWidget {
-  const SettingsProfileCard({super.key});
+  final AuthSession? sessionOverride;
+
+  const SettingsProfileCard({super.key, this.sessionOverride});
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<AuthCubit>().session;
+    final session = sessionOverride ?? context.watch<AuthCubit>().session;
     final actor = session?.actor;
-    final image = actor?.profileImage;
-    final status = session?.activePharmacy?.status ?? actor?.status ?? 'active';
+    final image = actor?.profileImageUrl;
+    final activePharmacy = session?.activePharmacy;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -30,21 +34,7 @@ class SettingsProfileCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 35,
-            backgroundColor: AppColors.veryLightGreen,
-            backgroundImage: image == null ? null : NetworkImage(image),
-            child: image == null
-                ? Text(
-                    actor?.name.isNotEmpty == true ? actor!.name[0] : '?',
-                    style: const TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.darkGreen,
-                    ),
-                  )
-                : null,
-          ),
+          ProfileAvatar(imageUrl: image, name: actor?.name ?? ''),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -64,23 +54,34 @@ class SettingsProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  status.toUpperCase(),
-                  style: const TextStyle(
-                    color: AppColors.successGreen,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  actor?.phone?.trim().isNotEmpty == true
+                      ? actor!.phone!
+                      : 'No phone number',
+                  style: const TextStyle(color: AppColors.secondaryText),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  activePharmacy?.name ?? 'No active pharmacy',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
           IconButton(
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final updated = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const SettingsEditProfilePage(),
                 ),
               );
+              if (updated == true && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Profile updated successfully.'),
+                  ),
+                );
+              }
             },
             icon: const Icon(Icons.edit),
             color: AppColors.tealGreen,

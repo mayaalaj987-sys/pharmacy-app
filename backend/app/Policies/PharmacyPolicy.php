@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Admin;
 use App\Models\Employee;
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
@@ -27,5 +28,15 @@ class PharmacyPolicy
     {
         return $user instanceof Pharmacist
             && (int) $pharmacy->pharmacist_id === (int) $user->id;
+    }
+
+    public function viewAnyReview(Admin $admin): bool
+    {
+        return $admin->canReviewPharmacies();
+    }
+
+    public function review(Admin $admin, Pharmacy $pharmacy): bool
+    {
+        return $admin->canReviewPharmacies() && $pharmacy->status === 'pending';
     }
 }

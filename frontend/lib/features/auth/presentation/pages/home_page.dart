@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:phamacy_managment/core/theme/app_colors.dart';
+
+import '../../../reports/presentation/cubit/reports_cubit.dart';
 
 import 'package:phamacy_managment/core/widgets/custom_app_bar.dart';
 import 'package:phamacy_managment/core/widgets/dashboard_greeting.dart';
@@ -8,8 +11,19 @@ import 'package:phamacy_managment/core/widgets/quick_actions_section.dart';
 import 'package:phamacy_managment/core/widgets/revenue_chart_section.dart';
 import 'package:phamacy_managment/core/widgets/recent_sales_section.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ReportsCubit>().loadDashboard();
+  }
 
   @override
   Widget build(BuildContext context) {

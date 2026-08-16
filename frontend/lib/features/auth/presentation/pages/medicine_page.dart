@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../inventory/presentation/cubit/inventory_cubit.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
@@ -19,6 +22,13 @@ class _MedicinesPageState extends State<MedicinesPage> {
 
   final searchController = TextEditingController();
   String selectedCategory = "All";
+  String query = "";
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<InventoryCubit>().load();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,8 +47,10 @@ class _MedicinesPageState extends State<MedicinesPage> {
 
           MedicineSearchSection(
             controller: searchController,
+            onQueryChanged: (value) => setState(() => query = value),
 
             onAddMedicine: () async {
+              final cubit = context.read<InventoryCubit>();
               await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -46,7 +58,7 @@ class _MedicinesPageState extends State<MedicinesPage> {
                 ),
               );
 
-              setState(() {});
+              await cubit.load();
             },
           ),
 
@@ -61,6 +73,7 @@ class _MedicinesPageState extends State<MedicinesPage> {
           Expanded(
             child: MedicineList(
               selectedCategory: selectedCategory,
+              query: query,
             ),
           ),
         ],

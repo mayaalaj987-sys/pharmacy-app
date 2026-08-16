@@ -6,7 +6,6 @@ use App\Models\Employee;
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -19,6 +18,7 @@ class PharmacistApprovalGateTest extends TestCase
     public function test_registration_status_token_refreshes_status_without_creating_an_app_session(): void
     {
         Storage::fake('public');
+        Storage::fake('documents');
 
         $response = $this->post('/api/register', $this->registrationPayload())
             ->assertCreated();
@@ -233,8 +233,8 @@ class PharmacistApprovalGateTest extends TestCase
             'password' => 'password',
             'pharmacy_name' => 'Central Pharmacy',
             'pharmacy_address' => 'Main Street',
-            'certificate' => UploadedFile::fake()->create('certificate.pdf', 10, 'application/pdf'),
-            'license' => UploadedFile::fake()->create('license.pdf', 10, 'application/pdf'),
+            'certificate' => $this->validPdfUpload('certificate.pdf'),
+            'license' => $this->validPdfUpload('license.pdf'),
         ];
     }
 }

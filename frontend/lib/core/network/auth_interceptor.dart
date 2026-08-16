@@ -37,8 +37,18 @@ class AuthInterceptor extends Interceptor {
     final usedApplicationAuthentication =
         err.requestOptions.extra['skipAuthentication'] != true &&
         err.requestOptions.headers['Authorization'] != null;
-    if (err.response?.statusCode == 401 && usedApplicationAuthentication) {
+    final responseData = err.response?.data;
+    final code = responseData is Map ? responseData['code']?.toString() : null;
+    final accountWasDeactivated =
+        err.response?.statusCode == 403 && code == 'account_deactivated';
+
+    if ((err.response?.statusCode == 401 || accountWasDeactivated) &&
+        usedApplicationAuthentication) {
       await storage.clearSession();
+      if (accountWasDeactivated && storage is RegistrationStatusStorage) {
+        await (storage as RegistrationStatusStorage)
+            .clearRegistrationStatusToken();
+      }
       sessionEvents.notifyInvalidated();
     }
 

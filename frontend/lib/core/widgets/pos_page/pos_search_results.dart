@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../features/auth/data/models/medicine_model.dart';
+import '../../../features/inventory/domain/medicine.dart';
 
 class PosSearchResults extends StatelessWidget {
-  final List<MedicineModel> medicines;
-  final Function(MedicineModel) onAdd;
+  final List<Medicine> medicines;
+  final Function(Medicine) onAdd;
 
   const PosSearchResults({
     super.key,
@@ -49,7 +49,7 @@ class PosSearchResults extends StatelessWidget {
 
               children: [
                 Text(
-                  "\$${medicine.sellingPrice}",
+                  "\$${medicine.sellingPrice.toStringAsFixed(2)}",
                   style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,

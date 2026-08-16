@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../features/auth/data/models/medicine_model.dart';
-import '../data/medicine_data.dart';
-import '../data/sales_data.dart';
+import '../../features/reports/presentation/cubit/reports_cubit.dart';
+import '../../features/reports/presentation/cubit/reports_state.dart';
 import '../theme/app_colors.dart';
 
 class StatsSection extends StatelessWidget {
@@ -10,75 +10,83 @@ class StatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// Total Revenue
-    double revenue = 0;
+    return BlocBuilder<ReportsCubit, ReportsState>(
+      builder: (context, state) {
+        if (state.status == ReportsStatus.loading ||
+            state.status == ReportsStatus.initial) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    for (var sale in sales) {
-      revenue += double.tryParse(sale.totalAmount) ?? 0;
-    }
+        if (state.status == ReportsStatus.failure) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              children: [
+                Text(
+                  state.error?.message ?? 'Unable to load dashboard.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.errorRed),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  key: const ValueKey('dashboard-retry-button'),
+                  onPressed: () => context.read<ReportsCubit>().loadDashboard(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
 
-    /// Today Sales
-    final todaySales = sales.length;
+        final dashboard = state.dashboard;
 
-    /// Low Stock
-    final lowStock = medicines.where((medicine) {
-      final quantity = int.tryParse(medicine.quantity) ?? 0;
+        return GridView.count(
+          shrinkWrap: true,
+          crossAxisCount: 2,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.5,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
 
-      final reorder = int.tryParse(medicine.reorderLevel) ?? 0;
+          children: [
+            _StatCard(
+              title: "Today Sales",
+              value: dashboard.todaySalesCount.toString(),
+              icon: Icons.shopping_cart,
+              color: AppColors.lightGreen,
+              percent: "Orders",
+            ),
 
-      return quantity <= reorder;
-    }).length;
+            _StatCard(
+              title: "Revenue",
+              value: "\$${dashboard.todayRevenue.toStringAsFixed(2)}",
+              icon: Icons.attach_money,
+              color: Colors.blue,
+              percent: "Today",
+            ),
 
-    /// Expiring
-    final expiring = medicines.where((medicine) {
-      if (medicine.expiryDate.isEmpty) {
-        return false;
-      }
+            _StatCard(
+              title: "Low Stock",
+              value: dashboard.lowStockCount.toString(),
+              icon: Icons.warning,
+              color: AppColors.warningYellow,
+              percent: "Need Restock",
+            ),
 
-      return true;
-    }).length;
-
-    return GridView.count(
-      shrinkWrap: true,
-      crossAxisCount: 2,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-
-      children: [
-        _StatCard(
-          title: "Today Sales",
-          value: todaySales.toString(),
-          icon: Icons.shopping_cart,
-          color: AppColors.lightGreen,
-          percent: "Orders",
-        ),
-
-        _StatCard(
-          title: "Revenue",
-          value: "\$${revenue.toStringAsFixed(2)}",
-          icon: Icons.attach_money,
-          color: Colors.blue,
-          percent: "Total Revenue",
-        ),
-
-        _StatCard(
-          title: "Low Stock",
-          value: lowStock.toString(),
-          icon: Icons.warning,
-          color: AppColors.warningYellow,
-          percent: "Need Restock",
-        ),
-
-        _StatCard(
-          title: "Expiring",
-          value: expiring.toString(),
-          icon: Icons.error,
-          color: AppColors.errorRed,
-          percent: "Medicines",
-        ),
-      ],
+            _StatCard(
+              title: "Expiring",
+              value: dashboard.expiringCount.toString(),
+              icon: Icons.error,
+              color: AppColors.errorRed,
+              percent: "Within 3 Months",
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -104,9 +112,9 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
 
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
 
       child: Column(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:phamacy_managment/core/data/medicine_data.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:phamacy_managment/core/theme/app_colors.dart';
 
+import '../../../features/inventory/presentation/cubit/inventory_cubit.dart';
+import '../../../features/inventory/presentation/cubit/inventory_state.dart';
 import 'medicine_stat_card.dart';
 
 class MedicineStatsSection extends StatelessWidget {
@@ -9,69 +11,57 @@ class MedicineStatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    /// Total Medicines
-    final totalMedicines = medicines.length;
+    return BlocBuilder<InventoryCubit, InventoryState>(
+      builder: (context, state) {
+        final medicines = state.medicines;
 
-    /// Low Stock
-    final lowStock = medicines.where((medicine) {
-      final quantity = int.tryParse(medicine.quantity) ?? 0;
+        final totalMedicines = medicines.length;
 
-      final reorderLevel = int.tryParse(medicine.reorderLevel) ?? 0;
+        final lowStock =
+            medicines.where((m) => m.isLowStock && m.quantity > 0).length;
 
-      return quantity <= reorderLevel && quantity > 0;
-    }).length;
+        final expiring = medicines.where((m) {
+          final expiry = m.expireDate;
+          if (expiry == null) return false;
+          return expiry.difference(DateTime.now()).inDays <= 90;
+        }).length;
 
-    /// Expiring
-    final expiring = medicines.where((medicine) {
-      if (medicine.expiryDate.isEmpty) {
-        return false;
-      }
+        return Padding(
+          padding: const EdgeInsets.all(16),
 
-      try {
-        final expiryDate = DateTime.parse(medicine.expiryDate);
+          child: Row(
+            children: [
+              Expanded(
+                child: MedicineStatCard(
+                  title: "Expiring",
+                  value: expiring.toString(),
+                  color: AppColors.pendingOrange,
+                ),
+              ),
 
-        final difference = expiryDate.difference(DateTime.now()).inDays;
+              const SizedBox(width: 12),
 
-        return difference <= 90;
-      } catch (e) {
-        return false;
-      }
-    }).length;
+              Expanded(
+                child: MedicineStatCard(
+                  title: "Low",
+                  value: lowStock.toString(),
+                  color: AppColors.errorRed,
+                ),
+              ),
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
+              const SizedBox(width: 12),
 
-      child: Row(
-        children: [
-          Expanded(
-            child: MedicineStatCard(
-              title: "Expiring",
-              value: expiring.toString(),
-              color: AppColors.pendingOrange,
-            ),
+              Expanded(
+                child: MedicineStatCard(
+                  title: "Total",
+                  value: totalMedicines.toString(),
+                  color: AppColors.tealGreen,
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: MedicineStatCard(
-              title: "Low",
-              value: lowStock.toString(),
-              color: AppColors.errorRed,
-            ),
-          ),
-
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: MedicineStatCard(
-              title: "Total",
-              value: totalMedicines.toString(),
-              color: AppColors.tealGreen,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

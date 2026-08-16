@@ -1,21 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../features/auth/data/models/supplier_model.dart';
 import '../../../features/auth/presentation/pages/supplier_details_page.dart';
+import '../../../features/suppliers/domain/supplier.dart';
 import '../../theme/app_colors.dart';
 
 class SupplierCard extends StatelessWidget {
-  final SupplierModel supplier;
+  final Supplier supplier;
 
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const SupplierCard({
-    super.key,
-    required this.supplier,
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const SupplierCard({super.key, required this.supplier});
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +47,6 @@ class SupplierCard extends StatelessWidget {
 
               const SizedBox(height: 10),
 
-              Text("Contact: ${supplier.contactPerson}"),
-
               Text("Phone: ${supplier.phone}"),
 
               Text("Email: ${supplier.email}"),
@@ -80,30 +70,12 @@ class SupplierCard extends StatelessWidget {
                 ),
 
                 child: Text(
-                  "${supplier.medicines.length} Medicines",
+                  "View medicines",
                   style: TextStyle(
                     color: Colors.green.shade700,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-
-                children: [
-                  IconButton(
-                    onPressed: onEdit,
-                    icon: const Icon(
-                      Icons.edit,
-                      color: AppColors.pendingOrange,
-                    ),
-                  ),
-
-                  IconButton(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete, color: AppColors.errorRed),
-                  ),
-                ],
               ),
             ],
           ),

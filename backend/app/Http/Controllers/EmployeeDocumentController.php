@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StorePrivateDocumentRequest;
+use App\Http\Resources\EmployeeDocumentVersionResource;
+use App\Models\EmployeeDocumentVersion;
+use App\Services\DocumentVersionService;
+use App\Services\PrivateDocumentService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+class EmployeeDocumentController extends Controller
+{
+    public function __construct(
+        private readonly DocumentVersionService $versions,
+        private readonly PrivateDocumentService $documents,
+    ) {}
+
+    public function index(Request $request): JsonResponse
+    {
+        $versions = $request->user()->documentVersions()->latest('version_number')->get();
+
+        return response()->json([
+            'data' => EmployeeDocumentVersionResource::collection($versions)->resolve($request),
+        ]);
+    }
+
+    public function store(StorePrivateDocumentRequest $request, string $type): JsonResponse
+    {
+        if (! in_array($type, EmployeeDocumentVersion::TYPES, true)) {
+            return response()->json(['message' => 'Unsupported document type.', 'code' => 'document_type_unsupported'], 422);
+        }
+
+        $version = $this->versions->uploadEmployeeDocument($request->user(), $type, $request->file('document'));
+
+        return response()->json([
+            'message' => 'The document was uploaded successfully.',
+            'code' => 'document_uploaded',
+            'data' => (new EmployeeDocumentVersionResource($version))->resolve($request),
+        ], 201);
+    }
+
+    public function download(Request $request, EmployeeDocumentVersion $document): StreamedResponse|JsonResponse
+    {
+        Gate::forUser($request->user())->authorize('view', $document);
+        $key = $document->storage_key;
+        if (! $this->documents->isOwnedStorageKey($key) || ! Storage::disk(PrivateDocumentService::DISK)->exists($key)) {
+            return response()->json(['message' => 'The document is unavailable.', 'code' => 'document_unavailable'], 404);
+        }
+
+        try {
+            $contents = Storage::disk(PrivateDocumentService::DISK)->get($key);
+        } catch (\Throwable) {
+            return response()->json(['message' => 'The document is unavailable.', 'code' => 'document_unavailable'], 404);
+        }
+        if (strlen($contents) !== $document->byte_size || ! hash_equals($document->sha256, hash('sha256', $contents))) {
+            return response()->json(['message' => 'The document is unavailable.', 'code' => 'document_unavailable'], 404);
+        }
+
+        $extension = $document->verified_mime_type === 'application/pdf' ? 'pdf' : ($document->verified_mime_type === 'image/png' ? 'png' : 'jpg');
+        $filename = sprintf('%s-v%d.%s', $document->document_type, $document->version_number, $extension);
+
+        return response()->streamDownload(function () use ($contents): void {
+            echo $contents;
+        }, $filename, [
+            'Content-Type' => $document->verified_mime_type,
+            'Content-Length' => (string) $document->byte_size,
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ]);
+    }
+}

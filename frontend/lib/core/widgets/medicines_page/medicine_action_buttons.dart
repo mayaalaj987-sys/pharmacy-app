@@ -3,12 +3,15 @@ import 'package:phamacy_managment/core/theme/app_colors.dart';
 
 class MedicineActionButtons extends StatelessWidget {
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
+
+  /// Optional: the backend exposes no medicine-delete contract, so callers that
+  /// cannot delete simply omit this and no delete affordance is rendered.
+  final VoidCallback? onDelete;
 
   const MedicineActionButtons({
     super.key,
     required this.onEdit,
-    required this.onDelete,
+    this.onDelete,
   });
 
   @override
@@ -23,13 +26,14 @@ class MedicineActionButtons extends StatelessWidget {
           ),
         ),
 
-        IconButton(
-          onPressed: onDelete,
-          icon: const Icon(
-            Icons.delete,
-            color: AppColors.errorRed,
+        if (onDelete != null)
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(
+              Icons.delete,
+              color: AppColors.errorRed,
+            ),
           ),
-        ),
       ],
     );
   }

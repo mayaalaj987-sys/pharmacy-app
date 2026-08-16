@@ -48,6 +48,37 @@ void main() {
     await cubit.close();
   });
 
+  test(
+    'restored me session keeps updated profile and pharmacy values',
+    () async {
+      final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+      final api = FakeAuthApi()
+        ..meResults.add(
+          _sessionResponse(
+            activeId: 1,
+            actorName: 'Updated Owner',
+            phone: '0999000000',
+            profileImageUrl: 'https://api.test/storage/profiles/updated.png',
+            pharmacyName: 'Updated Pharmacy',
+          ),
+        );
+      final cubit = AuthCubit(
+        AuthRepository(api, storage, storage, AuthSessionEvents()),
+      );
+
+      await cubit.restoreSession();
+
+      expect(cubit.session?.actor.name, 'Updated Owner');
+      expect(cubit.session?.actor.phone, '0999000000');
+      expect(
+        cubit.session?.actor.profileImageUrl,
+        'https://api.test/storage/profiles/updated.png',
+      );
+      expect(cubit.session?.activePharmacy?.name, 'Updated Pharmacy');
+      await cubit.close();
+    },
+  );
+
   test('clears stale active pharmacy and retries restoration once', () async {
     final storage = FakeSessionStorage(token: 'token', activePharmacyId: 99);
     final api = FakeAuthApi()
@@ -224,12 +255,16 @@ Response<dynamic> _sessionResponse({
   String code = 'ready',
   bool requiresActive = false,
   int pharmacyCount = 1,
+  String actorName = 'Owner',
+  String? phone,
+  String? profileImageUrl,
+  String pharmacyName = 'Pharmacy',
 }) {
   final pharmacies = List.generate(pharmacyCount, (index) {
     final id = index + 1;
     return {
       'id': id,
-      'name': 'Pharmacy $id',
+      'name': pharmacyCount == 1 ? pharmacyName : '$pharmacyName $id',
       'address': 'Address $id',
       'status': 'approved',
     };
@@ -246,9 +281,10 @@ Response<dynamic> _sessionResponse({
             'type': 'pharmacist',
             'role': 'owner',
             'status': null,
-            'name': 'Owner',
+            'name': actorName,
             'email': 'owner@example.test',
-            'profile_image': null,
+            'phone': phone,
+            'profile_image_url': profileImageUrl,
           },
           'available_pharmacies': pharmacies,
           'active_pharmacy': activeId == null

@@ -12,17 +12,19 @@ class Pharmacist extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'profile_image','created_at','updated_at'
+        'name', 'email', 'phone', 'password', 'profile_image', 'deactivated_at', 'created_at', 'updated_at',
     ];
 
     protected $hidden = [
         'password',
+        'profile_image',
     ];
 
     protected function casts(): array
     {
         return [
             'password' => 'hashed',
+            'deactivated_at' => 'datetime',
         ];
     }
 
@@ -39,6 +41,11 @@ class Pharmacist extends Authenticatable
     public function ratings()
     {
         return $this->hasMany(Rating::class);
+    }
+
+    public function uploadedPharmacyDocuments()
+    {
+        return $this->morphMany(PharmacyDocumentVersion::class, 'uploaded_by');
     }
 
     // pharmacist can login only if they have at least one approved pharmacy

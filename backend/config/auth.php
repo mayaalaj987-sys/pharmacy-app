@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Admin;
+use App\Models\Employee;
+use App\Models\Pharmacist;
+
 return [
 
     'defaults' => [
@@ -11,6 +15,11 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'pharmacists',
+        ],
+
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admins',
         ],
 
         'pharmacist' => [
@@ -27,12 +36,17 @@ return [
     'providers' => [
         'pharmacists' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Pharmacist::class,
+            'model' => Pharmacist::class,
         ],
 
         'employees' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Employee::class,
+            'model' => Employee::class,
+        ],
+
+        'admins' => [
+            'driver' => 'eloquent',
+            'model' => Admin::class,
         ],
     ],
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../features/auth/data/models/pos_cart_item_model.dart';
+import '../../../features/sales/domain/pos_cart_item.dart';
 
 class PosCartList extends StatelessWidget {
   final List<PosCartItem> items;

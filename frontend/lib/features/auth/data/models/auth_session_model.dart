@@ -7,7 +7,8 @@ class AuthActor {
   final String? status;
   final String name;
   final String email;
-  final String? profileImage;
+  final String? phone;
+  final String? profileImageUrl;
 
   const AuthActor({
     required this.id,
@@ -16,8 +17,11 @@ class AuthActor {
     required this.status,
     required this.name,
     required this.email,
-    required this.profileImage,
+    this.phone,
+    this.profileImageUrl,
   });
+
+  String? get profileImage => profileImageUrl;
 
   factory AuthActor.fromJson(Map<String, dynamic> json) {
     return AuthActor(
@@ -29,8 +33,16 @@ class AuthActor {
       status: json['status'] as String?,
       name: json['name'] as String,
       email: json['email'] as String,
-      profileImage: json['profile_image'] as String?,
+      phone: json['phone'] as String?,
+      profileImageUrl: _nonEmptyString(
+        json['profile_image_url'] ?? json['profile_image'],
+      ),
     );
+  }
+
+  static String? _nonEmptyString(dynamic value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
   }
 }
 
@@ -39,12 +51,20 @@ class SessionPharmacy {
   final String name;
   final String address;
   final String status;
+  final double? latitude;
+  final double? longitude;
+  final bool certificateOnFile;
+  final bool licenseOnFile;
 
   const SessionPharmacy({
     required this.id,
     required this.name,
     required this.address,
     required this.status,
+    this.latitude,
+    this.longitude,
+    this.certificateOnFile = false,
+    this.licenseOnFile = false,
   });
 
   bool get isApproved => status == 'approved';
@@ -55,6 +75,10 @@ class SessionPharmacy {
       name: json['name'] as String,
       address: json['address'] as String,
       status: json['status'] as String,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      certificateOnFile: json['certificate_on_file'] as bool? ?? false,
+      licenseOnFile: json['license_on_file'] as bool? ?? false,
     );
   }
 }
