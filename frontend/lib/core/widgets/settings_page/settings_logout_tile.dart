@@ -5,7 +5,9 @@ import '../../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../theme/app_colors.dart';
 
 class SettingsLogoutTile extends StatelessWidget {
-  const SettingsLogoutTile({super.key});
+  final Future<void> Function()? onLogout;
+
+  const SettingsLogoutTile({super.key, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -23,89 +25,68 @@ class SettingsLogoutTile extends StatelessWidget {
           size: 18,
           color: AppColors.tealGreen,
         ),
-        onTap: () {
-          showDialog(
-            context: context,
-            builder: (_) {
-              return AlertDialog(
-                backgroundColor: AppColors.white,
-
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-
-                title: const Text(
-                  "Logout",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-                ),
-
-                content: const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    "Are you sure you want to logout?",
-                    style: TextStyle(fontSize: 15),
-                  ),
-                ),
-
-                actionsPadding: const EdgeInsets.only(
-                  left: 16,
-                  right: 20,
-                  bottom: 16,
-                ),
-                actions: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.tealGreen,
-                            backgroundColor: AppColors.veryLightGreen,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            "Cancel",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.tealGreen,
-                            foregroundColor: AppColors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            context.read<AuthCubit>().logout();
-                          },
-                          child: const Text(
-                            "Logout",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          );
-        },
+        onTap: () => showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _LogoutDialog(
+            onLogout: onLogout ?? context.read<AuthCubit>().logout,
+          ),
+        ),
       ),
     );
+  }
+}
+
+class _LogoutDialog extends StatefulWidget {
+  final Future<void> Function() onLogout;
+
+  const _LogoutDialog({required this.onLogout});
+
+  @override
+  State<_LogoutDialog> createState() => _LogoutDialogState();
+}
+
+class _LogoutDialogState extends State<_LogoutDialog> {
+  bool _loading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text(
+        'Logout',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      content: const Text('Are you sure you want to logout?'),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const ValueKey('logout-confirm-button'),
+          onPressed: _loading ? null : _logout,
+          child: _loading
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Logout'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _logout() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    await widget.onLogout();
+    if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 }

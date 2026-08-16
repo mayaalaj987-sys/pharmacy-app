@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/data/purchase_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/purchases/purchase_card.dart';
 import '../../../../core/widgets/purchases/purchase_stat_card.dart';
-
+import '../../../../core/network/user_facing_error.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
+import '../../../orders/presentation/cubit/orders_state.dart';
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -16,15 +18,13 @@ class PurchasesPage extends StatefulWidget {
 
 class _PurchasesPageState extends State<PurchasesPage> {
   @override
+  void initState() {
+    super.initState();
+    context.read<OrdersCubit>().load();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final pendingCount = purchases.where((e) => e.status == "Pending").length;
-
-    final receivedCount = purchases.where((e) => e.status == "Received").length;
-
-    final cancelledCount = purchases
-        .where((e) => e.status == "Cancelled")
-        .length;
-
     return Scaffold(
       backgroundColor: AppColors.white,
 
@@ -34,68 +34,99 @@ class _PurchasesPageState extends State<PurchasesPage> {
         child: CustomAppBar(title: "Purchases"),
       ),
 
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
+      body: BlocBuilder<OrdersCubit, OrdersState>(
+        builder: (context, state) {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
 
-            child: Row(
-              children: [
-                Expanded(
-                  child: PurchaseStatCard(
-                    title: "Cancel",
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: PurchaseStatCard(
+                        title: "Cancel",
+                        value: state.countByStatus('cancelled').toString(),
+                        color: AppColors.errorRed,
+                      ),
+                    ),
 
-                    value: cancelledCount.toString(),
+                    const SizedBox(width: 10),
 
-                    color: AppColors.errorRed,
-                  ),
+                    Expanded(
+                      child: PurchaseStatCard(
+                        title: "Pending",
+                        value: state.countByStatus('pending').toString(),
+                        color: AppColors.pendingOrange,
+                      ),
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    Expanded(
+                      child: PurchaseStatCard(
+                        title: "Received",
+                        value: state.countByStatus('received').toString(),
+                        color: AppColors.lightGreen,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
 
-                const SizedBox(width: 10),
+              Expanded(child: _body(context, state)),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
-                Expanded(
-                  child: PurchaseStatCard(
-                    title: "Pending",
+  Widget _body(BuildContext context, OrdersState state) {
+    if (state.status == OrdersStatus.loading ||
+        state.status == OrdersStatus.initial) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-                    value: pendingCount.toString(),
-
-                    color: AppColors.pendingOrange,
-                  ),
+    if (state.status == OrdersStatus.failure) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                userFacingError(
+                  state.error,
+                  fallback: 'Unable to load orders.',
                 ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: PurchaseStatCard(
-                    title: "Received",
-
-                    value: receivedCount.toString(),
-
-                    color: AppColors.lightGreen,
-                  ),
-                ),
-              ],
-            ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.errorRed),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('orders-retry-button'),
+                onPressed: () => context.read<OrdersCubit>().load(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
           ),
+        ),
+      );
+    }
 
-          Expanded(
-            child: purchases.isEmpty
-                ? const Center(child: Text("No purchase orders"))
-                : ListView.builder(
-                    itemCount: purchases.length,
+    if (state.orders.isEmpty) {
+      return const Center(child: Text("No purchase orders"));
+    }
 
-                    itemBuilder: (context, index) {
-                      return PurchaseCard(
-                        purchase: purchases[index],
-
-                        onUpdate: () {
-                          setState(() {});
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
+    return RefreshIndicator(
+      onRefresh: () => context.read<OrdersCubit>().load(),
+      child: ListView.builder(
+        itemCount: state.orders.length,
+        itemBuilder: (context, index) {
+          return PurchaseCard(purchase: state.orders[index]);
+        },
       ),
     );
   }

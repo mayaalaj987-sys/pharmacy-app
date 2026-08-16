@@ -1,20 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../features/orders/domain/purchase_order.dart';
 import 'purchase_status_badge.dart';
 import 'purchase_action_buttons.dart';
 
 class PurchaseCard extends StatelessWidget {
-  final dynamic purchase;
+  final PurchaseOrder purchase;
 
-  final VoidCallback onUpdate;
-
-  const PurchaseCard({
-    super.key,
-
-    required this.purchase,
-
-    required this.onUpdate,
-  });
+  const PurchaseCard({super.key, required this.purchase});
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +43,7 @@ class PurchaseCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    purchase.medicineName,
+                    purchase.medicinesSummary,
 
                     style: const TextStyle(
                       fontSize: 18,
@@ -60,7 +53,7 @@ class PurchaseCard extends StatelessWidget {
                   ),
                 ),
 
-                PurchaseStatusBadge(status: purchase.status),
+                PurchaseStatusBadge(status: purchase.statusLabel),
               ],
             ),
 
@@ -79,15 +72,18 @@ class PurchaseCard extends StatelessWidget {
 
               "Quantity",
 
-              purchase.quantity.toString(),
+              purchase.totalQuantity.toString(),
             ),
 
-            _buildInfo(Icons.attach_money, "Price", "\$${purchase.price}"),
+            _buildInfo(
+              Icons.attach_money,
+              "Total",
+              "\$${purchase.totalPrice.toStringAsFixed(2)}",
+            ),
 
             const SizedBox(height: 14),
 
-            if (purchase.status == "Pending")
-              PurchaseActionButtons(purchase: purchase, onUpdate: onUpdate),
+            if (purchase.isPending) PurchaseActionButtons(purchase: purchase),
           ],
         ),
       ),

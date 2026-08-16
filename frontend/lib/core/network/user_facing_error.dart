@@ -1,0 +1,73 @@
+import '../../features/auth/data/models/auth_api_exception.dart';
+
+/// The app UI is English-only, but some backend operational messages are
+/// authored in Arabic. This maps a failure to English user-facing wording
+/// without altering the underlying error handling: the original
+/// [AuthApiException] (code, statusCode, fieldErrors) is untouched and still
+/// drives control flow.
+///
+/// Resolution order:
+///   1. a known machine-readable `code`
+///   2. a known HTTP status for the given [context]
+///   3. the backend message, but only when it is plain ASCII
+///   4. [fallback]
+String userFacingError(
+  AuthApiException? error, {
+  required String fallback,
+  ErrorContext context = ErrorContext.generic,
+}) {
+  if (error == null) return fallback;
+
+  final byCode = _messagesByCode[error.code];
+  if (byCode != null) return byCode;
+
+  final byStatus = _messageForStatus(error.statusCode, context);
+  if (byStatus != null) return byStatus;
+
+  final message = error.message.trim();
+  if (message.isNotEmpty && _isAscii(message)) return message;
+
+  return fallback;
+}
+
+/// Where the failure happened, so a bare HTTP status can be explained usefully.
+enum ErrorContext { generic, approveEmployee, dismissEmployee, sale, order }
+
+const _messagesByCode = <String, String>{
+  'employee_document_retention_required':
+      'This employee has recruitment documents on file and cannot be dismissed '
+          'until the document retention policy is defined.',
+  'validation_failed': 'Please check the highlighted fields and try again.',
+  'unauthenticated': 'Your session has expired. Please sign in again.',
+  'account_deactivated': 'This account has been deactivated.',
+  'forbidden': 'You are not authorized to perform this action.',
+  'active_pharmacy_required':
+      'Select an active pharmacy before performing this action.',
+  'active_pharmacy_forbidden':
+      'You do not have access to the selected pharmacy.',
+  'pharmacy_context_conflict':
+      'The selected pharmacy does not match your active pharmacy.',
+  'too_many_attempts': 'Too many attempts. Please wait a minute and try again.',
+};
+
+String? _messageForStatus(int? status, ErrorContext context) {
+  if (status == null) return null;
+
+  return switch ((status, context)) {
+    (400, ErrorContext.approveEmployee) =>
+      'This request could not be approved. The pharmacy may already have the '
+          'maximum of 2 employees, or the application was already processed.',
+    (400, ErrorContext.dismissEmployee) =>
+      'This employee is not an active member of your pharmacy.',
+    (400, ErrorContext.sale) =>
+      'One or more items do not have enough stock for this sale.',
+    (400, ErrorContext.order) =>
+      'This order cannot be updated in its current state.',
+    (404, _) => 'The requested record was not found.',
+    (409, _) => 'This action conflicts with the current state of the record.',
+    (500, _) => 'The server could not complete the request. Please try again.',
+    _ => null,
+  };
+}
+
+bool _isAscii(String value) => !value.runes.any((rune) => rune > 127);

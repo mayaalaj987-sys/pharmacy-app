@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:phamacy_managment/core/theme/app_colors.dart';
 import '../../../features/auth/presentation/pages/add_medicine_page.dart';
-import '../../data/medicine_data.dart';
-import '../../../features/auth/data/models/medicine_model.dart';
+import '../../../features/inventory/domain/medicine.dart';
 import 'medicine_action_buttons.dart';
 
 class MedicineCard extends StatelessWidget {
-  final MedicineModel medicine;
-  final int index;
+  final Medicine medicine;
   final VoidCallback onRefresh;
 
   const MedicineCard({
     super.key,
     required this.medicine,
-    required this.index,
     required this.onRefresh,
   });
 
@@ -58,23 +55,16 @@ class MedicineCard extends StatelessWidget {
                   ),
                 ),
 
+                // No delete: the backend exposes no medicine-delete contract,
+                // and medicines are referenced by sale history.
                 MedicineActionButtons(
                   onEdit: () async {
-
                     await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => AddMedicinePage(
-                          medicine: medicine,
-                          index: index,
-                        ),
+                        builder: (_) => AddMedicinePage(medicine: medicine),
                       ),
                     );
-
-                    onRefresh();
-                  },
-                  onDelete: () {
-                    medicines.removeAt(index);
 
                     onRefresh();
                   },
@@ -86,9 +76,11 @@ class MedicineCard extends StatelessWidget {
 
             Row(
               children: [
-                Expanded(child: infoTile("Quantity", medicine.quantity)),
+                Expanded(
+                  child: infoTile("Quantity", medicine.quantity.toString()),
+                ),
 
-                Expanded(child: infoTile("Expiry", medicine.expiryDate)),
+                Expanded(child: infoTile("Expiry", _expiry)),
               ],
             ),
 
@@ -96,25 +88,38 @@ class MedicineCard extends StatelessWidget {
 
             Row(
               children: [
-                Expanded(child: infoTile("Selling ", medicine.sellingPrice)),
+                Expanded(
+                  child: infoTile(
+                    "Selling ",
+                    medicine.sellingPrice.toStringAsFixed(2),
+                  ),
+                ),
 
-                Expanded(child: infoTile("Cost", medicine.costPrice)),
+                Expanded(
+                  child: infoTile(
+                    "Cost",
+                    medicine.costPrice.toStringAsFixed(2),
+                  ),
+                ),
               ],
             ),
 
-            const SizedBox(height: 10),
-
-            infoTile("Barcode", medicine.barcode),
-
-            if (medicine.notes.isNotEmpty) ...[
+            if ((medicine.qrCode ?? '').isNotEmpty) ...[
               const SizedBox(height: 10),
-
-              infoTile("Notes", medicine.notes),
+              infoTile("Barcode", medicine.qrCode!),
             ],
           ],
         ),
       ),
     );
+  }
+
+  String get _expiry {
+    final date = medicine.expireDate;
+    if (date == null) return '-';
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 
   Widget infoTile(String title, String value) {

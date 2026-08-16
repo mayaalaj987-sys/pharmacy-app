@@ -1,95 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../core/data/supplier_data.dart';
-import '../../../features/auth/data/models/supplier_model.dart';
-
-import '../../../features/auth/presentation/pages/add_supplier_page.dart';
+import '../../../features/suppliers/presentation/cubit/suppliers_cubit.dart';
+import '../../../features/suppliers/presentation/cubit/suppliers_state.dart';
+import '../../theme/app_colors.dart';
 import 'supplier_card.dart';
 
-class SupplierList extends StatefulWidget {
+class SupplierList extends StatelessWidget {
   const SupplierList({super.key});
 
-
-  @override
-  State<SupplierList> createState() => _SupplierListState();
-}
-
-class _SupplierListState extends State<SupplierList> {
   @override
   Widget build(BuildContext context) {
-    if (suppliers.isEmpty) {
-      return const Center(
-        child: Text(
-          "No suppliers added yet",
-          style: TextStyle(
-            fontSize: 16,
-          ),
-        ),
-      );
-    }
+    return BlocBuilder<SuppliersCubit, SuppliersState>(
+      builder: (context, state) {
+        if (state.status == SuppliersStatus.loading ||
+            state.status == SuppliersStatus.initial) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return ListView.builder(
-      itemCount: suppliers.length,
-
-      itemBuilder: (context, index) {
-        final SupplierModel supplier = suppliers[index];
-
-        return SupplierCard(
-          supplier: supplier,
-
-          onEdit: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AddSupplierPage(
-                  supplier: supplier,
-                  index: index,
-                ),
+        if (state.status == SuppliersStatus.failure) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    state.error?.message ?? 'Unable to load suppliers.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.errorRed),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    key: const ValueKey('suppliers-retry-button'),
+                    onPressed: () => context.read<SuppliersCubit>().load(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
               ),
-            );
+            ),
+          );
+        }
 
-            setState(() {});
-          },
+        if (state.suppliers.isEmpty) {
+          return const Center(
+            child: Text(
+              "No suppliers available",
+              style: TextStyle(fontSize: 16),
+            ),
+          );
+        }
 
-          onDelete: () {
-            showDialog(
-              context: context,
-
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text(
-                    "Delete Supplier",
-                  ),
-
-                  content: Text(
-                    "Are you sure you want to delete ${supplier.name} ?",
-                  ),
-
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-
-                      child: const Text("Cancel"),
-                    ),
-
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          suppliers.removeAt(index);
-                        });
-
-                        Navigator.pop(context);
-                      },
-
-                      child: const Text("Delete"),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
+        return RefreshIndicator(
+          onRefresh: () => context.read<SuppliersCubit>().load(),
+          child: ListView.builder(
+            itemCount: state.suppliers.length,
+            itemBuilder: (context, index) {
+              return SupplierCard(supplier: state.suppliers[index]);
+            },
+          ),
         );
       },
     );

@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterEmployeeRequest;
+use App\Http\Resources\SafeEmployeeResource;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Services\AuthSessionService;
+use App\Services\DocumentVersionService;
 use App\Services\PharmacyContextResolver;
+use App\Services\PrivateDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,53 +22,54 @@ class EmployeeController extends Controller
     public function __construct(
         private readonly PharmacyContextResolver $pharmacyContext,
         private readonly AuthSessionService $sessions,
+        private readonly PrivateDocumentService $documents,
+        private readonly DocumentVersionService $documentVersions,
     ) {}
 
     // ===== تسجيل الموظف — بدون اختيار صيدلية، الطلب يروح لكل الصيدليات =====
-    public function register(Request $request): JsonResponse
+    public function register(RegisterEmployeeRequest $request): JsonResponse
     {
-        $request->validate([
-            'name' => 'required|string',
-            'phone' => 'required|string',
-            'email' => 'required|email|unique:employees,email',
-            'password' => 'required|min:6',
-            'cv' => 'required|file|mimes:jpg,jpeg,png,pdf',   // ✅ CHANGE: certificate → cv
-            'experience_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf',
-            'role' => 'required|in:employee,trainee',
-            'pharmacy_id' => 'prohibited',
-            'status' => 'prohibited',
-            'salary' => 'prohibited',
-            'first_login' => 'prohibited',
-        ]);
-
-        // الموظف يجب يرفع experience_proof إذا كان employee
-        if ($request->role === 'employee' && ! $request->hasFile('experience_proof')) {
-            return response()->json([
-                'message' => 'Experience proof is required for employees.',
-                'code' => 'experience_proof_required',
-            ], 400);
-        }
-
-        // رفع الملفات
-        $cv = $request->file('cv')->store('cvs', 'public');
+        $validated = $request->validated();
+        $cv = null;
         $experienceProof = null;
-        if ($request->hasFile('experience_proof')) {
-            $experienceProof = $request->file('experience_proof')->store('experience', 'public');
-        }
+        try {
+            $cv = $this->documents->storeUpload($request->file('cv'), 'employee-documents', 'cv');
+            if ($request->hasFile('experience_proof')) {
+                $experienceProof = $this->documents->storeUpload(
+                    $request->file('experience_proof'),
+                    'employee-documents',
+                    'experience_proof',
+                );
+            }
 
-        // ✅ NEW: pharmacy_id = null لأنه ما اختار صيدلية، الطلب مفتوح لكل الصيدليات
-        $employee = Employee::create([
-            'pharmacy_id' => null,
-            'name' => $request->name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'cv' => $cv,
-            'experience_proof' => $experienceProof,
-            'role' => $request->role,
-            'status' => 'pending',
-            'first_login' => true,
-        ]);
+            $employee = DB::transaction(function () use ($validated, $cv, $experienceProof) {
+                $employee = Employee::create([
+                    'pharmacy_id' => null,
+                    'name' => $validated['name'],
+                    'phone' => $validated['phone'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                    'cv' => '',
+                    'experience_proof' => null,
+                    'role' => $validated['role'],
+                    'status' => 'pending',
+                    'first_login' => true,
+                ]);
+                $this->documentVersions->createEmployeeVersion($employee, 'cv', $cv, $employee);
+                if ($experienceProof !== null) {
+                    $this->documentVersions->createEmployeeVersion($employee, 'experience_proof', $experienceProof, $employee);
+                }
+
+                return $employee;
+            });
+        } catch (Throwable $exception) {
+            foreach ([$cv, $experienceProof] as $stored) {
+                if ($stored !== null) {
+                    $this->documents->delete($stored->storageKey);
+                }
+            }
+            throw $exception;
+        }
 
         return response()->json([
             'message' => 'Registration completed successfully. Your application is awaiting approval.',
@@ -128,7 +133,7 @@ class EmployeeController extends Controller
 
         return response()->json([
             'count' => $employees->count(),
-            'employees' => $employees,
+            'employees' => SafeEmployeeResource::collection($employees)->resolve($request),
         ]);
     }
 
@@ -182,7 +187,7 @@ class EmployeeController extends Controller
 
             return response()->json([
                 'message' => 'تم القبول بنجاح',
-                'employee' => $employee,
+                'employee' => (new SafeEmployeeResource($employee))->resolve($request),
             ]);
         } catch (Throwable $exception) {
             DB::rollBack();
@@ -203,6 +208,13 @@ class EmployeeController extends Controller
             return response()->json([
                 'message' => 'هذا الموظف ليس موظفاً نشطاً',
             ], 400);
+        }
+
+        if ($employee->documentVersions()->exists()) {
+            return response()->json([
+                'message' => 'This employee cannot be dismissed until the recruitment-document retention policy is defined.',
+                'code' => 'employee_document_retention_required',
+            ], 409);
         }
 
         $employeeName = $employee->name;
@@ -235,6 +247,6 @@ class EmployeeController extends Controller
             ->where('status', 'approved')
             ->get();
 
-        return response()->json(['employees' => $employees]);
+        return response()->json(['employees' => SafeEmployeeResource::collection($employees)->resolve($request)]);
     }
 }

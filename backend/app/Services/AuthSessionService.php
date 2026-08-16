@@ -7,10 +7,14 @@ use App\Models\Employee;
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class AuthSessionService
 {
+    public function __construct(
+        private readonly ProfileImageService $profileImages,
+        private readonly DocumentAvailabilityService $documentAvailability,
+    ) {}
+
     public function build(Request $request, bool $honorRequestedContext = true): array
     {
         $actor = $request->user();
@@ -74,7 +78,8 @@ class AuthSessionService
                 'status' => null,
                 'name' => $actor->name,
                 'email' => $actor->email,
-                'profile_image' => $this->profileImageUrl($actor->profile_image),
+                'phone' => $actor->phone,
+                'profile_image_url' => $this->profileImages->url($actor->profile_image),
             ],
             'available_pharmacies' => $pharmacies->map(fn (Pharmacy $pharmacy) => $this->pharmacy($pharmacy))->values()->all(),
             'active_pharmacy' => $active ? $this->pharmacy($active) : null,
@@ -123,7 +128,8 @@ class AuthSessionService
                 'status' => $actor->status,
                 'name' => $actor->name,
                 'email' => $actor->email,
-                'profile_image' => null,
+                'phone' => null,
+                'profile_image_url' => null,
             ],
             'available_pharmacies' => $assigned ? [$this->pharmacy($assigned)] : [],
             'active_pharmacy' => $active ? $this->pharmacy($active) : null,
@@ -160,27 +166,11 @@ class AuthSessionService
             'id' => $pharmacy->id,
             'name' => $pharmacy->pharmacy_name,
             'address' => $pharmacy->pharmacy_address,
+            'latitude' => $pharmacy->latitude === null ? null : (float) $pharmacy->latitude,
+            'longitude' => $pharmacy->longitude === null ? null : (float) $pharmacy->longitude,
             'status' => $pharmacy->status,
+            'certificate_on_file' => $this->documentAvailability->pharmacyHas($pharmacy, 'certificate'),
+            'license_on_file' => $this->documentAvailability->pharmacyHas($pharmacy, 'license'),
         ];
-    }
-
-    private function profileImageUrl(?string $stored): ?string
-    {
-        if (! $stored) {
-            return null;
-        }
-
-        $decoded = json_decode($stored, true);
-        $path = is_array($decoded) ? ($decoded[0] ?? null) : $stored;
-
-        if (! is_string($path) || $path === '') {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return url(Storage::disk('public')->url($path));
     }
 }

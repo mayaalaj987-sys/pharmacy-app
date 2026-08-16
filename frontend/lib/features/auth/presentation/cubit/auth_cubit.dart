@@ -14,6 +14,7 @@ class AuthCubit extends Cubit<AuthState> {
   late final StreamSubscription<void> _invalidatedSubscription;
   AuthSession? _session;
   RegistrationStatus? _registrationStatus;
+  bool _logoutInProgress = false;
 
   AuthCubit(this.repository) : super(const AuthInitial()) {
     _invalidatedSubscription = repository.sessionInvalidated.listen((_) {
@@ -147,13 +148,23 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> logout() async {
+    if (_logoutInProgress) return;
+    _logoutInProgress = true;
     emit(const AuthLoading());
     try {
       await repository.logout();
     } finally {
+      _logoutInProgress = false;
       _session = null;
       emit(const AuthUnauthenticated());
     }
+  }
+
+  void synchronizeSession(AuthSession session) => _routeSession(session);
+
+  void markUnauthenticated() {
+    _session = null;
+    emit(const AuthUnauthenticated());
   }
 
   void _routeSession(AuthSession session) {

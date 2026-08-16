@@ -15,6 +15,8 @@ class CustomTextField extends StatefulWidget {
 
   final int maxLines;
 
+  final ValueChanged<String>? onChanged;
+
   const CustomTextField({
     super.key,
     required this.controller,
@@ -23,6 +25,7 @@ class CustomTextField extends StatefulWidget {
     this.isPassword = false,
     this.keyboardType = TextInputType.text,
     this.maxLines = 1,
+    this.onChanged,
   });
 
   @override
@@ -36,6 +39,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: widget.controller,
+
+      onChanged: widget.onChanged,
 
       keyboardType: widget.keyboardType,
 

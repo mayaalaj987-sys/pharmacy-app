@@ -11,12 +11,33 @@ class Pharmacy extends Model
 
     protected $fillable = [
         'pharmacist_id', 'pharmacy_name', 'pharmacy_address',
-        'certificate', 'license', 'status','created_at','updated_at'
+        'certificate', 'license', 'status', 'latitude', 'longitude', 'created_at', 'updated_at',
     ];
+
+    protected $hidden = ['certificate', 'license'];
+
+    protected function casts(): array
+    {
+        return [
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'reviewed_at' => 'datetime',
+        ];
+    }
 
     public function pharmacist()
     {
         return $this->belongsTo(Pharmacist::class);
+    }
+
+    public function documentVersions()
+    {
+        return $this->hasMany(PharmacyDocumentVersion::class);
+    }
+
+    public function reviewedByAdmin()
+    {
+        return $this->belongsTo(Admin::class, 'reviewed_by_admin_id');
     }
 
     public function employees()

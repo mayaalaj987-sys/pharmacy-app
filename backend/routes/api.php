@@ -1,11 +1,15 @@
 <?php
 
-use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PharmacistController;
+use App\Http\Controllers\PharmacyDocumentController;
+use App\Http\Controllers\PharmacyProfileController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
@@ -26,12 +30,12 @@ Route::middleware(['auth:pharmacist,employee'])->group(function () {
 Route::get('/registration/status', [PharmacistController::class, 'registrationStatus'])
     ->middleware(['auth:pharmacist', 'abilities:registration-status']);
 
-Route::middleware(['auth:pharmacist,employee', 'abilities:app', 'approved.pharmacist'])->group(function () {
+Route::middleware(['auth:pharmacist,employee', 'abilities:app', 'active.account', 'approved.pharmacist'])->group(function () {
     Route::get('/me', [SessionController::class, 'me']);
 });
 
 // Operational endpoints shared by both actor types require an approved tenant.
-Route::middleware(['auth:pharmacist,employee', 'abilities:app', 'approved.pharmacist', 'active.pharmacy'])->group(function () {
+Route::middleware(['auth:pharmacist,employee', 'abilities:app', 'active.account', 'approved.pharmacist', 'active.pharmacy'])->group(function () {
     Route::get('/medicines', [MedicineController::class, 'getMedicines']);
     Route::get('/medicines/search', [MedicineController::class, 'searchMedicine']);
     Route::get('/medicines/low-stock', [MedicineController::class, 'getLowStockMedicines']);
@@ -49,16 +53,33 @@ Route::middleware(['auth:employee', 'abilities:app', 'active.pharmacy'])->group(
     Route::post('/tasks/{id}/done', [TaskController::class, 'markAsDone']);
 });
 
-Route::middleware(['auth:pharmacist', 'abilities:app', 'approved.pharmacist'])->group(function () {
-    Route::get('/test-auth', fn () => response()->json(['status' => 'auth ok']));
-    Route::delete('/delete-account', [PharmacistController::class, 'deleteAccount']);
-    Route::get('/profile', [PharmacistController::class, 'getProfile']);
-    Route::post('/profile/update', [PharmacistController::class, 'updateProfile']);
-    Route::post('/pharmacy/add', [PharmacistController::class, 'addPharmacy']);
-    Route::post('/pharmacy/{id}/update', [PharmacistController::class, 'updatePharmacy']);
+// Recruitment documents are strictly employee-self access until a recruitment
+// authorization model is introduced. Pharmacy owners and the legacy Admin key
+// intentionally have no route to these files.
+Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
+    Route::get('/employee/documents', [EmployeeDocumentController::class, 'index']);
+    Route::post('/employee/documents/{type}', [EmployeeDocumentController::class, 'store']);
+    Route::get('/employee/documents/{document}/download', [EmployeeDocumentController::class, 'download'])
+        ->name('employee-documents.download');
 });
 
-Route::middleware(['auth:pharmacist', 'abilities:app', 'approved.pharmacist', 'active.pharmacy'])->group(function () {
+Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approved.pharmacist'])->group(function () {
+    Route::get('/test-auth', fn () => response()->json(['status' => 'auth ok']));
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::post('/profile/update', [ProfileController::class, 'update']);
+    Route::post('/password/change', [AccountController::class, 'changePassword'])
+        ->middleware('throttle:account-security');
+    Route::post('/account/deactivate', [AccountController::class, 'deactivate'])
+        ->middleware('throttle:account-security');
+    Route::post('/pharmacy/add', [PharmacistController::class, 'addPharmacy']);
+});
+
+Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approved.pharmacist', 'active.pharmacy'])->group(function () {
+    Route::post('/pharmacy/profile/update', [PharmacyProfileController::class, 'update']);
+    Route::get('/pharmacy/documents', [PharmacyDocumentController::class, 'index']);
+    Route::post('/pharmacy/documents/{type}', [PharmacyDocumentController::class, 'store']);
+    Route::get('/pharmacy/documents/{document}/download', [PharmacyDocumentController::class, 'download'])
+        ->name('pharmacy-documents.download');
     Route::get('/employees/pending', [EmployeeController::class, 'getAllPendingEmployees']);
     Route::post('/employees/approve/{id}', [EmployeeController::class, 'approveEmployee']);
     Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees']);
@@ -94,12 +115,4 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'approved.pharmacist', 'a
     Route::post('/tasks', [TaskController::class, 'createTask']);
     Route::get('/tasks/pharmacy', [TaskController::class, 'getPharmacyTasks']);
     Route::delete('/tasks/{id}', [TaskController::class, 'deleteTask']);
-});
-
-// Temporary key-based containment. This is not the final admin identity architecture.
-Route::prefix('admin')->middleware(['admin', 'throttle:10,1'])->group(function () {
-    Route::get('/pharmacies', [AdminDashboardController::class, 'getAllPharmacies']);
-    Route::get('/pharmacies/pending', [AdminDashboardController::class, 'getPendingPharmacies']);
-    Route::post('/pharmacies/{id}/approve', [AdminDashboardController::class, 'approvePharmacy']);
-    Route::post('/pharmacies/{id}/reject', [AdminDashboardController::class, 'rejectPharmacy']);
 });

@@ -57,13 +57,68 @@ void main() {
     expect(invalidations, 0);
     await subscription.cancel();
   });
+
+  test(
+    'account_deactivated 403 clears every local credential and notifies',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = TokenStorage(secureStorage: FakeSecureValueStore());
+      await storage.saveToken('app-token');
+      await storage.saveActivePharmacyId(9);
+      await storage.saveRegistrationStatusToken('status-token');
+      final events = AuthSessionEvents();
+      var invalidations = 0;
+      final subscription = events.invalidated.listen((_) => invalidations++);
+      final dio = Dio()
+        ..httpClientAdapter = RecordingAdapter(
+          statusCode: 403,
+          responseBody:
+              '{"message":"This account has been deactivated.","code":"account_deactivated"}',
+        )
+        ..interceptors.add(AuthInterceptor(storage, events));
+
+      await expectLater(dio.get<dynamic>('/me'), throwsA(isA<DioException>()));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(await storage.getToken(), isNull);
+      expect(await storage.getActivePharmacyId(), isNull);
+      expect(await storage.getRegistrationStatusToken(), isNull);
+      expect(invalidations, 1);
+      await subscription.cancel();
+    },
+  );
+
+  test('a generic 403 does not broaden local session invalidation', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = TokenStorage(secureStorage: FakeSecureValueStore());
+    await storage.saveToken('app-token');
+    await storage.saveActivePharmacyId(9);
+    final events = AuthSessionEvents();
+    var invalidations = 0;
+    final subscription = events.invalidated.listen((_) => invalidations++);
+    final dio = Dio()
+      ..httpClientAdapter = RecordingAdapter(
+        statusCode: 403,
+        responseBody:
+            '{"message":"You cannot access this pharmacy.","code":"active_pharmacy_forbidden"}',
+      )
+      ..interceptors.add(AuthInterceptor(storage, events));
+
+    await expectLater(dio.get<dynamic>('/me'), throwsA(isA<DioException>()));
+
+    expect(await storage.getToken(), 'app-token');
+    expect(await storage.getActivePharmacyId(), 9);
+    expect(invalidations, 0);
+    await subscription.cancel();
+  });
 }
 
 class RecordingAdapter implements HttpClientAdapter {
   final int statusCode;
+  final String? responseBody;
   RequestOptions? lastRequest;
 
-  RecordingAdapter({this.statusCode = 200});
+  RecordingAdapter({this.statusCode = 200, this.responseBody});
 
   @override
   Future<ResponseBody> fetch(
@@ -73,7 +128,8 @@ class RecordingAdapter implements HttpClientAdapter {
   ) async {
     lastRequest = options;
     return ResponseBody.fromString(
-      statusCode == 200 ? '{}' : '{"message":"Unauthenticated."}',
+      responseBody ??
+          (statusCode == 200 ? '{}' : '{"message":"Unauthenticated."}'),
       statusCode,
       headers: {
         Headers.contentTypeHeader: ['application/json'],

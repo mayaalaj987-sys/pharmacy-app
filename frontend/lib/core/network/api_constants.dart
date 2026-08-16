@@ -11,4 +11,33 @@ class ApiConstants {
   static const String registrationStatus = "/registration/status";
   static const String me = "/me";
   static const String logout = "/logout";
+  static const String profileUpdate = "/profile/update";
+  static const String passwordChange = "/password/change";
+  static const String accountDeactivate = "/account/deactivate";
+  static const String pharmacyProfileUpdate = "/pharmacy/profile/update";
+
+  static const String medicines = "/medicines";
+  static const String medicineAdd = "/medicines/add";
+  static const String medicineEdit = "/medicines/edit";
+
+  static const String suppliers = "/suppliers";
+  static const String orders = "/orders";
+
+  static const String saleCreate = "/sale/create";
+  static const String saleAll = "/sale/all";
+  static const String saleDaily = "/sale/daily";
+
+  static const String reportsDashboard = "/reports/dashboard";
+  static const String reportsRevenue = "/reports/revenue";
+  static const String reportsProfits = "/reports/profits";
+  static const String reportsInventoryValue = "/reports/inventory-value";
+  static const String reportsMostSold = "/reports/most-sold";
+
+  static const String employees = "/employees";
+  static const String employeesPending = "/employees/pending";
+  static const String employeesApprove = "/employees/approve";
+
+  static const String tasks = "/tasks";
+  static const String tasksPharmacy = "/tasks/pharmacy";
+  static const String saleMySales = "/sale/my-sales";
 }

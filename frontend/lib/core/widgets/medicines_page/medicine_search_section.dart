@@ -8,10 +8,13 @@ class MedicineSearchSection extends StatelessWidget {
 
   final VoidCallback onAddMedicine;
 
+  final ValueChanged<String>? onQueryChanged;
+
   const MedicineSearchSection({
     super.key,
     required this.controller,
     required this.onAddMedicine,
+    this.onQueryChanged,
   });
 
   @override
@@ -63,6 +66,7 @@ class MedicineSearchSection extends StatelessWidget {
               controller: controller,
               hint: "Search medicine...",
               prefixIcon: Icons.search,
+              onChanged: onQueryChanged,
             ),
           ),
         ],

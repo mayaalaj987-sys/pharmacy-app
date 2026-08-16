@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/data/medicine_data.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
-import '../../data/models/medicine_model.dart';
+import '../../../inventory/domain/medicine.dart';
+import '../../../inventory/presentation/cubit/inventory_cubit.dart';
+import '../../../inventory/presentation/cubit/inventory_state.dart';
 
 class AddMedicinePage extends StatefulWidget {
-  final MedicineModel? medicine;
-  final int? index;
+  final Medicine? medicine;
 
-  const AddMedicinePage({super.key, this.medicine, this.index});
+  const AddMedicinePage({super.key, this.medicine});
 
   @override
   State<AddMedicinePage> createState() => _AddMedicinePageState();
@@ -29,8 +30,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
   final expiryDateController = TextEditingController();
 
   final barcodeController = TextEditingController();
-
-  final notesController = TextEditingController();
 
   String selectedCategory = "Antibiotics";
   final manufacturerController = TextEditingController();
@@ -54,23 +53,77 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
     if (widget.medicine != null) {
       nameController.text = widget.medicine!.name;
 
-      sellingPriceController.text = widget.medicine!.sellingPrice;
+      sellingPriceController.text = widget.medicine!.sellingPrice.toString();
 
-      costPriceController.text = widget.medicine!.costPrice;
+      costPriceController.text = widget.medicine!.costPrice.toString();
 
-      quantityController.text = widget.medicine!.quantity;
+      quantityController.text = widget.medicine!.quantity.toString();
 
-      expiryDateController.text = widget.medicine!.expiryDate;
+      final expiry = widget.medicine!.expireDate;
+      expiryDateController.text = expiry == null
+          ? ''
+          : '${expiry.year.toString().padLeft(4, '0')}-'
+              '${expiry.month.toString().padLeft(2, '0')}-'
+              '${expiry.day.toString().padLeft(2, '0')}';
 
-      barcodeController.text = widget.medicine!.barcode;
-
-      notesController.text = widget.medicine!.notes;
+      barcodeController.text = widget.medicine!.qrCode ?? '';
 
       selectedCategory = widget.medicine!.category;
       manufacturerController.text = widget.medicine!.manufacturer;
 
-      reorderLevelController.text = widget.medicine!.reorderLevel;
+      reorderLevelController.text =
+          widget.medicine!.reorderLevel?.toString() ?? '';
     }
+  }
+
+  Future<void> _save() async {
+    final name = nameController.text.trim();
+    final selling = double.tryParse(sellingPriceController.text.trim());
+    final cost = double.tryParse(costPriceController.text.trim());
+    final quantity = int.tryParse(quantityController.text.trim());
+    final expiry = expiryDateController.text.trim();
+    final manufacturer = manufacturerController.text.trim();
+    final barcode = barcodeController.text.trim();
+
+    // Mirrors the backend contract so obvious errors are caught before the call.
+    if (name.isEmpty ||
+        manufacturer.isEmpty ||
+        selling == null ||
+        cost == null ||
+        quantity == null ||
+        expiry.isEmpty ||
+        num.tryParse(barcode) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Name, manufacturer, numeric prices/quantity, expiry date and a '
+            'numeric barcode are required.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final payload = <String, dynamic>{
+      'name': name,
+      'category_medicine': selectedCategory,
+      'manufacturer': manufacturer,
+      'selling_price': selling,
+      'cost_price': cost,
+      'quantity': quantity,
+      'expire_date': expiry,
+      'qr_code': num.parse(barcode),
+      if (reorderLevelController.text.trim().isNotEmpty)
+        'reorder_level': int.tryParse(reorderLevelController.text.trim()),
+    };
+
+    final cubit = context.read<InventoryCubit>();
+    final existing = widget.medicine;
+    final success = existing == null
+        ? await cubit.addMedicine(payload)
+        : await cubit.editMedicine(existing.id, payload);
+
+    if (success && mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -204,44 +257,33 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
 
             CustomTextField(
               controller: barcodeController,
-              hint: "BT-2024-001",
+              hint: "Barcode (numeric)",
               prefixIcon: Icons.qr_code,
-            ),
-
-            const SizedBox(height: 16),
-
-            CustomTextField(
-              controller: notesController,
-              hint: "Notes",
-              prefixIcon: Icons.notes,
-              maxLines: 4,
             ),
 
             const SizedBox(height: 24),
 
-            CustomButton(
-              text: "Add Medicine",
-
-              onPressed: () {
-                final medicine = MedicineModel(
-                  name: nameController.text,
-                  category: selectedCategory,
-                  manufacturer: manufacturerController.text,
-                  sellingPrice: sellingPriceController.text,
-                  costPrice: costPriceController.text,
-                  quantity: quantityController.text,
-                  reorderLevel: reorderLevelController.text,
-                  expiryDate: expiryDateController.text,
-                  barcode: barcodeController.text,
-                  notes: notesController.text,
+            BlocBuilder<InventoryCubit, InventoryState>(
+              builder: (context, state) {
+                return Column(
+                  children: [
+                    if (state.error != null) ...[
+                      Text(
+                        state.error!.message,
+                        key: const ValueKey('medicine-error'),
+                        style: const TextStyle(color: AppColors.errorRed),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    CustomButton(
+                      text: widget.medicine == null
+                          ? "Add Medicine"
+                          : "Save Changes",
+                      isLoading: state.saving,
+                      onPressed: state.saving ? null : _save,
+                    ),
+                  ],
                 );
-                if (widget.index != null) {
-                  medicines[widget.index!] = medicine;
-                } else {
-                  medicines.add(medicine);
-                }
-
-                Navigator.pop(context);
               },
             ),
           ],

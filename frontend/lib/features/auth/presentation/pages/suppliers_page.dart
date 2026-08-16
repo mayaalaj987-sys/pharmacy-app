@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../suppliers/presentation/cubit/suppliers_cubit.dart';
 
 import '../../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/suppliers/supplier_list.dart';
-import 'add_supplier_page.dart';
 
 class SuppliersPage extends StatefulWidget {
   const SuppliersPage({super.key});
@@ -14,17 +16,11 @@ class SuppliersPage extends StatefulWidget {
 
 class _SuppliersPageState extends State<SuppliersPage> {
 
-  Future<void> onAddSupplierPage() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AddSupplierPage(),
-      ),
-    );
-
-    setState(() {});
+  @override
+  void initState() {
+    super.initState();
+    context.read<SuppliersCubit>().load();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -35,25 +31,6 @@ class _SuppliersPageState extends State<SuppliersPage> {
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(
           title: "Suppliers",
-        ),
-      ),
-
-      floatingActionButton: GestureDetector(
-        onTap: onAddSupplierPage,
-
-        child: Container(
-          width: 50,
-          height: 50,
-
-          decoration: BoxDecoration(
-            color: AppColors.darkGreen,
-            borderRadius: BorderRadius.circular(16),
-          ),
-
-          child: const Icon(
-            Icons.add,
-            color: Colors.white,
-          ),
         ),
       ),
 
