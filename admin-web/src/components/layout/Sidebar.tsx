@@ -3,6 +3,8 @@ import {
   ShieldCheck,
   Users,
   BarChart3,
+  LayoutDashboard,
+  Building2,
   LifeBuoy,
   Megaphone,
   ChevronsLeft,
@@ -19,7 +21,9 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const items = [
+    { to: "/dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
     { to: "/review" as const, label: "Verification", icon: ShieldCheck },
+    { to: "/pharmacies" as const, label: "Pharmacies", icon: Building2 },
     { to: "/reports" as const, label: "Analytics", icon: BarChart3 },
     { to: "/tickets" as const, label: "Support", icon: LifeBuoy },
     { to: "/announcements" as const, label: "Announcements", icon: Megaphone },

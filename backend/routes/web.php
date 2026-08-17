@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\AdminActivityController;
 use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminManagementController;
 use App\Http\Controllers\AdminNotificationController;
+use App\Http\Controllers\AdminPharmacyController;
 use App\Http\Controllers\AdminPharmacyDocumentController;
 use App\Http\Controllers\AdminPharmacyReviewController;
 use App\Http\Controllers\AdminSessionController;
@@ -31,6 +33,13 @@ Route::prefix('api/admin')->group(function (): void {
             Route::get('/support/tickets', [AdminSupportTicketController::class, 'index'])->name('admin.support.tickets.index');
             Route::post('/support/tickets/{ticket}/respond', [AdminSupportTicketController::class, 'respond'])->name('admin.support.tickets.respond');
 
+            Route::get('/pharmacies', [AdminPharmacyController::class, 'index'])->name('admin.pharmacies.index');
+            Route::post('/pharmacies/{pharmacy}/block', [AdminPharmacyController::class, 'block'])->name('admin.pharmacies.block');
+            Route::post('/pharmacies/{pharmacy}/unblock', [AdminPharmacyController::class, 'unblock'])->name('admin.pharmacies.unblock');
+
+            Route::get('/activity', [AdminActivityController::class, 'index'])->name('admin.activity.index');
+
+            Route::get('/analytics/overview', [AdminAnalyticsController::class, 'overview'])->name('admin.analytics.overview');
             Route::get('/analytics/pharmacies', [AdminAnalyticsController::class, 'pharmacies'])->name('admin.analytics.pharmacies');
             Route::get('/analytics/job-market', [AdminAnalyticsController::class, 'jobMarket'])->name('admin.analytics.job-market');
             Route::get('/analytics/onboarding', [AdminAnalyticsController::class, 'onboarding'])->name('admin.analytics.onboarding');

@@ -7,6 +7,6 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { status } = useAuth();
-  if (status === "authenticated") return <Navigate to="/review" replace />;
+  if (status === "authenticated") return <Navigate to="/dashboard" replace />;
   return <Navigate to="/login" replace />;
 }

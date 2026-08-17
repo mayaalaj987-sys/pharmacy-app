@@ -33,7 +33,9 @@ class AuthSessionService
     private function pharmacistSession(Request $request, Pharmacist $actor, bool $honorRequestedContext): array
     {
         $pharmacies = $actor->pharmacies()->orderBy('id')->get();
-        $approved = $pharmacies->where('status', 'approved')->values();
+        // A suspended pharmacy keeps its approval but cannot be operated,
+        // so it must not be offered as a selectable context.
+        $approved = $pharmacies->filter(fn (Pharmacy $pharmacy) => $pharmacy->isOperational())->values();
         $requested = $honorRequestedContext ? $this->sessionHeaderId($request) : null;
         $active = null;
         $stale = false;
@@ -49,7 +51,7 @@ class AuthSessionService
                 );
             }
 
-            if ($candidate && $candidate->status === 'approved') {
+            if ($candidate && $candidate->isOperational()) {
                 $active = $candidate;
             } else {
                 $stale = true;
@@ -108,7 +110,7 @@ class AuthSessionService
         $ready = ! $stale
             && $actor->status === 'approved'
             && $assigned
-            && $assigned->status === 'approved';
+            && $assigned->isOperational();
 
         $active = $ready ? $assigned : null;
         $code = match (true) {
@@ -116,7 +118,7 @@ class AuthSessionService
             $actor->status === 'pending' => 'account_pending',
             $actor->status === 'rejected' => 'account_rejected',
             ! $assigned => 'no_pharmacy',
-            $assigned->status !== 'approved' => 'assigned_pharmacy_unavailable',
+            ! $assigned->isOperational() => 'assigned_pharmacy_unavailable',
             default => 'ready',
         };
 
@@ -169,6 +171,7 @@ class AuthSessionService
             'latitude' => $pharmacy->latitude === null ? null : (float) $pharmacy->latitude,
             'longitude' => $pharmacy->longitude === null ? null : (float) $pharmacy->longitude,
             'status' => $pharmacy->status,
+            'is_blocked' => $pharmacy->isBlocked(),
             'certificate_on_file' => $this->documentAvailability->pharmacyHas($pharmacy, 'certificate'),
             'license_on_file' => $this->documentAvailability->pharmacyHas($pharmacy, 'license'),
         ];

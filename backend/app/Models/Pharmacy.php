@@ -22,7 +22,30 @@ class Pharmacy extends Model
             'latitude' => 'float',
             'longitude' => 'float',
             'reviewed_at' => 'datetime',
+            'blocked_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Suspended by an administrator.
+     *
+     * Independent of [status]: a suspended pharmacy keeps its approved review
+     * decision and regains it in full when the suspension is lifted.
+     */
+    public function isBlocked(): bool
+    {
+        return $this->blocked_at !== null;
+    }
+
+    /** Approved and not currently suspended. */
+    public function isOperational(): bool
+    {
+        return $this->status === 'approved' && ! $this->isBlocked();
+    }
+
+    public function blockedByAdmin()
+    {
+        return $this->belongsTo(Admin::class, 'blocked_by_admin_id');
     }
 
     public function pharmacist()

@@ -15,5 +15,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: true,
+    // Run files one at a time. Several suites drive real timers through
+    // userEvent, and once the suite grew past a handful of files they began
+    // timing out purely from competing for CPU rather than from any defect.
+    // Determinism is worth more here than the few seconds parallelism saves.
+    fileParallelism: false,
   },
 });

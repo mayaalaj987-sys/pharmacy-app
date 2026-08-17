@@ -152,3 +152,66 @@ export interface AnnouncementAudience {
 export interface AnnouncementResult {
   recipients: number;
 }
+
+export interface MetricChange {
+  from: number;
+  delta: number;
+  /** Null when the baseline was zero: growth from nothing has no percentage. */
+  percent: number | null;
+}
+
+export interface DashboardOverview {
+  compared_to: string;
+  totals: {
+    registered: { value: number; change: MetricChange };
+    approved: { value: number; change: MetricChange };
+    pending: { value: number; change: MetricChange };
+  };
+  pharmacies: {
+    id: number;
+    name: string;
+    address: string;
+    owner: string | null;
+    status: PharmacyStatus;
+  }[];
+}
+
+export interface ActivityEntry {
+  id: number;
+  actor: string;
+  action: string;
+  label: string;
+  outcome: string;
+  target: string | null;
+  reason: string | null;
+  logged_at: string | null;
+}
+
+export interface ControlledPharmacy {
+  id: number;
+  name: string;
+  address: string;
+  status: PharmacyStatus;
+  is_blocked: boolean;
+  blocked_reason: string | null;
+  blocked_at: string | null;
+  owner: {
+    id: number;
+    name: string | null;
+    email: string | null;
+    branches: number;
+    /** The owner's rating of the app, 1-5. Null when they never rated it. */
+    app_rating: number | null;
+  };
+}
+
+export interface PharmacyControlPage {
+  data: ControlledPharmacy[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    blocked_total: number;
+  };
+}

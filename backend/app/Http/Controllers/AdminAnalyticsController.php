@@ -29,6 +29,62 @@ class AdminAnalyticsController extends Controller
      */
     private const EMPLOYEE_CAP = 2;
 
+    /**
+     * Headline figures for the console dashboard.
+     *
+     * The month-over-month deltas are genuine, not estimates: a pharmacy's
+     * `created_at` and `reviewed_at` let the same counts be reconstructed for
+     * any past date. Metrics without that history (employee status, which
+     * carries no timestamp) are deliberately absent rather than guessed.
+     */
+    public function overview(Request $request): JsonResponse
+    {
+        $this->authorizeAnalytics($request);
+
+        $lastMonthEnd = now()->subMonthNoOverflow()->endOfMonth();
+
+        $total = Pharmacy::count();
+        $approved = Pharmacy::where('status', 'approved')->count();
+        $pending = Pharmacy::where('status', 'pending')->count();
+
+        // As of the end of last month. Status never flips back, so filtering on
+        // the current status plus the review timestamp reconstructs the past.
+        $totalThen = Pharmacy::where('created_at', '<=', $lastMonthEnd)->count();
+        $approvedThen = Pharmacy::where('status', 'approved')
+            ->whereNotNull('reviewed_at')
+            ->where('reviewed_at', '<=', $lastMonthEnd)
+            ->count();
+        $pendingThen = Pharmacy::where('created_at', '<=', $lastMonthEnd)
+            ->where(fn ($query) => $query
+                ->whereNull('reviewed_at')
+                ->orWhere('reviewed_at', '>', $lastMonthEnd))
+            ->count();
+
+        return response()->json([
+            'data' => [
+                'compared_to' => $lastMonthEnd->toDateString(),
+                'totals' => [
+                    'registered' => ['value' => $total, 'change' => $this->change($total, $totalThen)],
+                    'approved' => ['value' => $approved, 'change' => $this->change($approved, $approvedThen)],
+                    'pending' => ['value' => $pending, 'change' => $this->change($pending, $pendingThen)],
+                ],
+                'pharmacies' => Pharmacy::query()
+                    ->with('pharmacist:id,name')
+                    ->orderByRaw("case status when 'pending' then 0 when 'approved' then 1 else 2 end")
+                    ->orderByDesc('created_at')
+                    ->limit(8)
+                    ->get()
+                    ->map(fn (Pharmacy $pharmacy) => [
+                        'id' => $pharmacy->id,
+                        'name' => $pharmacy->pharmacy_name,
+                        'address' => $pharmacy->pharmacy_address,
+                        'owner' => $pharmacy->pharmacist?->name,
+                        'status' => $pharmacy->status,
+                    ]),
+            ],
+        ]);
+    }
+
     /** Pharmacy ownership and how the fleet is distributed across owners. */
     public function pharmacies(Request $request): JsonResponse
     {
@@ -182,5 +238,22 @@ class AdminAnalyticsController extends Controller
     private function percentage(int $part, int $whole): float
     {
         return $whole > 0 ? round(($part / $whole) * 100, 1) : 0.0;
+    }
+
+    /**
+     * Movement since a past figure.
+     *
+     * `percent` is null when the baseline was zero: growth from nothing has no
+     * meaningful percentage, and "+100%" would overstate a single new row.
+     *
+     * @return array{from:int, delta:int, percent:float|null}
+     */
+    private function change(int $now, int $then): array
+    {
+        return [
+            'from' => $then,
+            'delta' => $now - $then,
+            'percent' => $then > 0 ? round((($now - $then) / $then) * 100, 1) : null,
+        ];
     }
 }

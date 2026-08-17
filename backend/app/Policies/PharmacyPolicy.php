@@ -19,9 +19,13 @@ class PharmacyPolicy
             && (int) $user->pharmacy_id === (int) $pharmacy->id;
     }
 
+    /**
+     * A suspended pharmacy cannot trade, even though its approval stands.
+     * Every operational request resolves its tenant through this gate.
+     */
     public function operate(Pharmacist|Employee $user, Pharmacy $pharmacy): bool
     {
-        return $pharmacy->status === 'approved' && $this->view($user, $pharmacy);
+        return $pharmacy->isOperational() && $this->view($user, $pharmacy);
     }
 
     public function update(Pharmacist|Employee $user, Pharmacy $pharmacy): bool
