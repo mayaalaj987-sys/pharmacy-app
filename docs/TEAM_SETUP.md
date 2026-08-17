@@ -30,7 +30,7 @@ How they talk to each other:
    └──────────┬───────────┘         └──────────┬───────────┘
               │                                │
    Sanctum Bearer token             Session cookie + CSRF
-   http://10.0.2.2:8000/api         http://localhost:8000/api/admin
+   API_BASE_URL (see §5.3)          http://localhost:8000/api/admin
               │                                │
               └───────────────┬────────────────┘
                               ▼
@@ -219,16 +219,47 @@ php artisan migrate:status
 
 Every migration should read **Ran**, with none Pending.
 
-### 4.7 (Optional) Seed supplier catalogue data
+### 4.7 Seed the supplier catalogue (needed for a working demo)
 
 `DatabaseSeeder` is intentionally **empty**, so `php artisan db:seed` alone
-does nothing. The supplier catalogue seeders must be called by class:
+does nothing. Run the four seeders by class, **in this order** — the catalogue
+rows reference supplier ids, so `SupplierSeeder` must go first:
 
 ```bash
 php artisan db:seed --class=SupplierSeeder
+php artisan db:seed --class=MedicalPharma
+php artisan db:seed --class=DrPharma
+php artisan db:seed --class=MedCorePharma
 ```
 
-Without this, the Suppliers screen will legitimately show an empty list.
+This creates **3 demo suppliers** and **25 catalogue medicines** covering all
+8 categories.
+
+- The suppliers are fictional demo companies marked `(Demo)`, based in
+  Damascus, Rif Dimashq and Aleppo, with Syrian-format phone numbers.
+- Prices are demo values in **Syrian Pounds (SYP)** — not real market prices.
+- Expiry dates are generated **relative to the day you seed**
+  (`CatalogueSeeding` adds N months to `now()`), so seeded stock is never
+  already expired, no matter how old your checkout is.
+
+`CatalogueSeeding` is a shared helper, **not** a seeder — don't call it
+directly.
+
+Without these, Suppliers and Purchases will legitimately show empty lists.
+
+> **Re-running is safe.** All four use `updateOrCreate`, so they refresh the
+> demo rows instead of duplicating them.
+
+#### What the seeders do *not* create
+
+Catalogue rows are the **global supplier catalogue** (`pharmacy_id = null`) —
+they are what you order *from*. Your pharmacy starts with **zero stock of its
+own**, which is correct. To get sellable inventory, walk the real flow:
+
+**Suppliers → Purchases (create order) → Receive → Medicines → POS → Reports**
+
+Receiving an order is what copies catalogue items into your pharmacy's own
+inventory.
 
 ### 4.8 Start the API
 
@@ -293,23 +324,37 @@ This is the single most common setup mistake.
 | Host browser / curl | `http://127.0.0.1:8000` | direct loopback |
 | Physical device (same Wi-Fi) | `http://<your-LAN-IP>:8000/api` | requires `php artisan serve --host=0.0.0.0` |
 
-The app already defaults to the emulator address, defined in
-`lib/core/network/api_constants.dart`:
+> ⚠️ **Changed — read this even if you set the project up before.**
+> The committed default is **no longer the emulator address**. It is now a
+> LAN IP, because the app is being developed against a physical device:
+>
+> ```dart
+> static const String baseUrl = String.fromEnvironment(
+>   'API_BASE_URL',
+>   defaultValue: 'http://192.168.1.8:8000/api',
+> );
+> ```
+>
+> `192.168.1.8` is **one specific machine on one specific network** — it will
+> not work for you. Every developer must override it.
 
-```dart
-static const String baseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:8000/api',
-);
-```
-
-So for a normal emulator run you need **no configuration at all**.
-
-To override it (physical device, or a different port):
+Override it with `--dart-define` (no file edit, nothing to accidentally
+commit):
 
 ```bash
+# Android Emulator
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+
+# Physical device on the same Wi-Fi — use YOUR machine's LAN IP
 flutter run --dart-define=API_BASE_URL=http://192.168.1.50:8000/api
 ```
+
+Find your LAN IP with `ipconfig` (Windows) or `ifconfig | grep inet`
+(macOS/Linux), and remember the API must be started with
+`php artisan serve --host=0.0.0.0` for a physical device to reach it.
+
+> Please **don't** commit a change to the `defaultValue` just to match your
+> own machine — it breaks everyone else. Use `--dart-define`.
 
 > The base URL **must include the `/api` suffix**, and must **not** have a
 > trailing slash.
@@ -406,6 +451,12 @@ From `backend/`:
 php artisan test
 ```
 
+Current expected result: **172 passed, 1 skipped** (1073 assertions).
+
+The single skip is environmental, not a failure —
+`LegacyDocumentMigrationCommandTest` needs file symlinks, which this Windows
+runtime does not allow.
+
 Tests run against an **isolated in-memory SQLite database** (configured in
 `phpunit.xml`), so your local development data is never touched.
 
@@ -432,17 +483,27 @@ flutter analyze
 Expected: **0 errors** (a number of pre-existing `info`/`warning` items are
 known and tracked).
 
-Run the repository/cubit test suites:
+Expected: **0 errors, 0 warnings**, and 18 pre-existing `info` items (mostly
+`withOpacity` deprecations).
+
+Run the test suite. **Use this command, not a bare `flutter test`:**
 
 ```bash
-flutter test test/features/inventory/ test/features/suppliers/ test/features/orders/ test/features/sales/ test/features/reports/ test/features/employees/ test/features/employee_workspace/ test/features/tasks/
+flutter test --timeout=30s test/core test/features/auth test/features/employee_workspace test/features/employees test/features/inventory test/features/notifications test/features/orders test/features/reports test/features/sales test/features/suppliers test/features/tasks test/features/account/account_cubit_test.dart test/features/account/account_repository_test.dart test/features/account/pharmacy_location_controller_test.dart test/features/account/pharmacy_location_picker_page_test.dart test/features/account/settings_widgets_test.dart
 ```
 
-> ⚠️ **Known issue — do not run `flutter test` across everything.**
-> The widget tests under `test/features/account/` currently **hang** in this
-> environment (each test times out after 10 minutes). This is an environmental
-> test-runner problem, not an application bug. Run the folder list above
-> instead. See §9 for details.
+Expected: **125 passed**, in roughly 15–20 seconds.
+
+> ⚠️ **Known issue — a bare `flutter test` will hang forever.**
+> Exactly **three** files hang and never finish:
+>
+> - `test/features/account/settings_change_password_page_test.dart`
+> - `test/features/account/settings_edit_pharmacy_page_test.dart`
+> - `test/features/account/settings_edit_profile_page_test.dart`
+>
+> Everything else in `test/features/account/` passes normally, so exclude the
+> three files — **not** the whole folder. `--timeout` does **not** rescue you
+> here; the stall happens outside the per-test clock. See §12.
 
 ### 7.3 admin-web
 
@@ -517,6 +578,22 @@ profit, or permissions locally.
 > A `registration-status` token can never be used as a general app token —
 > this is enforced on both the server and the client.
 
+**Owning more than one pharmacy.** A pharmacist can register additional
+pharmacies from **Settings → PHARMACY → Add Pharmacy** (`POST /pharmacy/add`:
+name, address, certificate file, license file). The new pharmacy is created
+**pending** and goes into the same admin review queue as a first-time
+applicant — it does *not* become active, and your current pharmacy and its
+data are untouched.
+
+Once an admin approves it, tap **Settings → Check for Approvals** (this calls
+`GET /api/me` on demand — nothing polls) and the pharmacy becomes selectable
+in the **Active Pharmacy** tile. That tile only becomes tappable once you have
+**2 or more approved** pharmacies.
+
+> Switching the active pharmacy re-scopes every screen server-side. A request
+> for a record belonging to a different pharmacy is rejected with
+> `403 active_pharmacy_mismatch`, even when you own both.
+
 ### 9.2 Employee
 
 1. `POST /api/employee/register` — uploads CV / experience proof, status
@@ -524,8 +601,27 @@ profit, or permissions locally.
 2. A pharmacist approves the application from **More → Employees**
    (max **2** approved employees per pharmacy — enforced by the backend).
 3. `POST /api/employee/login` — returns a token once approved.
-4. The employee sees their own sales and assigned tasks. Employee recruitment
-   documents are **self-access only**; pharmacists have no route to them.
+4. Employee recruitment documents are **self-access only**; pharmacists have
+   no route to them.
+
+The employee app is a **3-tab shell** exposing only what the backend
+authorises for the `employee` guard:
+
+| Tab | Contents |
+| --- | --- |
+| **Home** | own sales, assigned tasks, notifications, My Account |
+| **Medicines** | read-only catalogue (no add/edit) |
+| **POS** | record a sale (`POST /sale/create`) |
+
+From **Home → My Account** an employee can edit their **name and phone** and
+change their **password** (`/employee/profile`, `/employee/profile/update`,
+`/employee/password/change`). Everything else — email, role, salary, status,
+pharmacy — is rejected server-side as a prohibited field.
+
+Pharmacist-only areas are deliberately absent from the employee shell:
+employees management, pharmacy profile, suppliers, purchases, reports, and
+task creation. The backend is the source of truth; hiding them in the UI is
+convenience, not the security boundary.
 
 ### 9.3 Administrator (admin-web)
 
@@ -551,21 +647,47 @@ Work top to bottom:
 - [ ] `php artisan key:generate`
 - [ ] `database/database.sqlite` file created
 - [ ] `php artisan migrate` → `migrate:status` shows **no Pending**
-- [ ] *(optional)* `php artisan db:seed --class=SupplierSeeder`
+- [ ] All 4 seeders run in order (§4.7) → 3 suppliers, 25 catalogue medicines
 - [ ] `php artisan serve` running → `/api/admin/csrf` responds
 - [ ] `cd frontend && flutter pub get`
 - [ ] *(optional)* `android/secrets.properties` created for Maps
-- [ ] Emulator running → `flutter run` connects to the API
+- [ ] `flutter run --dart-define=API_BASE_URL=...` with **your** address (§5.3)
 - [ ] `cd admin-web && npm install`
 - [ ] admin-web `.env` created
 - [ ] `npm run dev` → `http://localhost:5173` loads
 - [ ] `php artisan admin:provision-super ...` → can sign in to admin-web
-- [ ] `php artisan test` passes
-- [ ] `flutter analyze` reports 0 errors
+- [ ] `php artisan test` → 172 passed, 1 skipped
+- [ ] `flutter analyze` → 0 errors, 0 warnings
+- [ ] Flutter tests via the §7.2 command → 125 passed
 
 ---
 
-## 11. Troubleshooting
+## 11. First Demo Run
+
+Fresh database + seeders gives you suppliers and a catalogue, but **no
+sellable stock and no sales history** — that is correct, not a bug. Walk the
+chain once and every screen fills with real data:
+
+1. **Register** a pharmacist in the app → pharmacy is created `pending`.
+2. **Approve it** in admin-web (Review → Applications).
+3. **Log in** to the app.
+4. **More → Suppliers** → pick a supplier → see its catalogue.
+5. **More → Purchases → create an order** against that supplier.
+6. **Receive** the order → catalogue items are copied into *your* inventory.
+7. **Medicines** now lists your stock; **POS** can sell it.
+8. **Make a sale** → Home dashboard and **Analytics** show revenue and profit.
+9. Sell an item below its reorder level → it appears under **low stock**.
+
+Amounts display in **SYP** throughout.
+
+To demo **multi-pharmacy switching** you need **two approved** pharmacies on
+the *same* pharmacist: add a second via Settings → Add Pharmacy, approve it in
+admin-web, then Settings → Check for Approvals. With only one approved
+pharmacy the switcher stays inert by design.
+
+---
+
+## 12. Troubleshooting
 
 ### Database
 
@@ -644,29 +766,44 @@ Delete `admin-web/node_modules` and retry. Do **not** commit `node_modules`.
 
 ### Known Flutter test-runner issue
 
-Widget tests under `frontend/test/features/account/` **hang** and time out
-after 10 minutes each. Evidence gathered so far:
+Three widget-test files hang and never complete (listed in §7.2). This is a
+**test-runner problem, not an application bug** — the screens themselves work,
+and their logic is covered by cubit and repository tests.
 
-- Reproduces with a single file and `--concurrency=1`
-- The process sits at ~0 % CPU with no output
-- The only trace is `TimeoutException ... dart:isolate _RawReceivePort._handleMessage`
-  with **no application stack frames**
+What is actually known, so nobody re-derives it:
 
-It is treated as an **environment / test-runner problem, not an app bug**.
-Repository and cubit tests are unaffected — run the folder list in §7.2. A
-suspected contributor is stale VS Code Dart daemons (Dart Tooling Daemon /
-DevTools) holding ports; closing VS Code and retrying is worth a try.
+- It is **file-specific**, not folder-wide. `settings_widgets_test.dart` and
+  `pharmacy_location_picker_page_test.dart` live in the same folder and pass.
+- The rest of the suite completes in ~16 s; the run then sits with no output
+  and no CPU. A bare `flutter test` reaches 125 passing tests and stops there.
+- `--timeout=30s` does **not** bound it — the stall is outside the per-test
+  clock.
+- Two earlier theories were **tested and disproved**: it is not
+  `pumpAndSettle` against the loading spinner, and it is not a pending
+  `SnackBar` timer. The true cause is still open.
 
-If a test run appears stuck, stop it and clean up any orphaned processes:
+**Related, and worth knowing before you write new widget tests:** any page
+that imports `file_picker` (`add_pharmacy_page.dart`, `signup_page2.dart`,
+`employee_signup_page.dart`) hangs the runner **just by being mounted** — no
+interaction needed. The plugin's platform singleton does not initialise under
+`flutter_tester`. No widget test currently covers those pages; test them at
+the cubit level instead until someone stubs the plugin.
+
+If a run appears stuck, stop it and clean up orphaned processes — but **do not
+kill the VS Code Dart daemons** (`language-server`, `tooling-daemon`,
+`devtools`), or you will break your editor's analysis until you restart it:
 
 ```powershell
-Get-CimInstance Win32_Process -Filter "Name='dart.exe'" |
-  Select-Object ProcessId, CommandLine
+Get-CimInstance Win32_Process -Filter "Name='dart.exe' OR Name='flutter_tester.exe'" |
+  Select-Object ProcessId, ParentProcessId, CommandLine
 ```
+
+Kill only the `flutter_tester.exe` processes and the `dart.exe` ones whose
+command line contains `flutter_tools`.
 
 ---
 
-## 12. Do Not Commit
+## 13. Do Not Commit
 
 These are already git-ignored — keep it that way.
 
@@ -696,7 +833,7 @@ Rules of thumb:
 
 ---
 
-## 13. Daily Workflow
+## 14. Daily Workflow
 
 ```bash
 # terminal 1 — API
@@ -714,5 +851,5 @@ Before pushing:
 ```bash
 cd backend  && php artisan test && ./vendor/bin/pint --test
 cd frontend && flutter analyze
-git status          # verify nothing from §12 is staged
+git status          # verify nothing from §13 is staged
 ```
