@@ -85,16 +85,12 @@ class _PaymentButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           elevation: 0,
 
-          backgroundColor:
-          selected ? AppColors.lightGreen : Colors.white,
+          backgroundColor: selected ? AppColors.lightGreen : Colors.white,
 
-          foregroundColor:
-          selected ? Colors.white : Colors.black87,
+          foregroundColor: selected ? Colors.white : Colors.black87,
 
           side: BorderSide(
-            color: selected
-                ? AppColors.lightGreen
-                : Colors.grey.shade300,
+            color: selected ? AppColors.lightGreen : Colors.grey.shade300,
           ),
 
           shape: RoundedRectangleBorder(

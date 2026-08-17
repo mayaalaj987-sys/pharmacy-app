@@ -24,14 +24,18 @@ class SalesRepository {
 
   /// Creates a sale. [items] entries are `{medicine_id, quantity}`.
   /// Actor ids are never sent: the backend derives them from the token.
-  Future<void> createSale({
+  ///
+  /// Returns the total the backend actually charged, which is authoritative:
+  /// insurance payments are discounted server-side, so it can differ from the
+  /// cart total the client computed.
+  Future<double?> createSale({
     required List<Map<String, dynamic>> items,
     required String paymentMethod,
     String? customerName,
     String? cardNumber,
   }) async {
     try {
-      await api.createSale({
+      final response = await api.createSale({
         'payment_method': paymentMethod,
         'items': items,
         if (customerName != null && customerName.trim().isNotEmpty)
@@ -39,6 +43,14 @@ class SalesRepository {
         if (paymentMethod == 'card' && cardNumber != null)
           'card_number': cardNumber,
       });
+
+      final data = response.data;
+      if (data is! Map) return null;
+      final total = data['total_price'];
+
+      return total is num
+          ? total.toDouble()
+          : double.tryParse(total?.toString() ?? '');
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }
@@ -67,9 +79,10 @@ class SalesRepository {
     }
     final raw = data['sales'];
     final sales = raw is List
-        ? raw.whereType<Map<String, dynamic>>().map(Sale.fromJson).toList(
-            growable: false,
-          )
+        ? raw
+              .whereType<Map<String, dynamic>>()
+              .map(Sale.fromJson)
+              .toList(growable: false)
         : const <Sale>[];
 
     return SalesSummary(

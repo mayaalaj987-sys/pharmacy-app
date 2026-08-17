@@ -8,11 +8,7 @@ class MedicineActionButtons extends StatelessWidget {
   /// cannot delete simply omit this and no delete affordance is rendered.
   final VoidCallback? onDelete;
 
-  const MedicineActionButtons({
-    super.key,
-    this.onEdit,
-    this.onDelete,
-  });
+  const MedicineActionButtons({super.key, this.onEdit, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -21,19 +17,13 @@ class MedicineActionButtons extends StatelessWidget {
         if (onEdit != null)
           IconButton(
             onPressed: onEdit,
-            icon: const Icon(
-              Icons.edit,
-              color: AppColors.pendingOrange,
-            ),
+            icon: const Icon(Icons.edit, color: AppColors.pendingOrange),
           ),
 
         if (onDelete != null)
           IconButton(
             onPressed: onDelete,
-            icon: const Icon(
-              Icons.delete,
-              color: AppColors.errorRed,
-            ),
+            icon: const Icon(Icons.delete, color: AppColors.errorRed),
           ),
       ],
     );

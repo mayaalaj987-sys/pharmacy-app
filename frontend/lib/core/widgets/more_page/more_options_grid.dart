@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/suppliers_page.dart';
+import 'package:phamacy_managment/features/inventory/presentation/pages/inventory_page.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/sale_history_page.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/purchases_page.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/settings_page.dart';
@@ -26,18 +27,26 @@ class MoreOptionsGrid extends StatelessWidget {
       childAspectRatio: .95,
 
       children: [
-        // The obsolete "Inventory" entry was removed: it rendered a duplicate
-        // screen backed by the retired in-memory medicine list. Real, API-backed
-        // inventory management lives in the Medicines tab (MedicinesPage).
+        // Stock grouped by shelf status (valid / expiring / expired / reorder).
+        // Distinct from the Medicines tab, which is the catalogue editor.
+        MoreOptionCard(
+          icon: Icons.inventory_2,
+          title: "Inventory",
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const InventoryPage()),
+            );
+          },
+        ),
+
         MoreOptionCard(
           icon: Icons.history,
           title: "Sales History",
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const SaleHistoryPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const SaleHistoryPage()),
             );
           },
         ),
@@ -48,9 +57,7 @@ class MoreOptionsGrid extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const SuppliersPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const SuppliersPage()),
             );
           },
         ),
@@ -61,9 +68,7 @@ class MoreOptionsGrid extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const PurchasesPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const PurchasesPage()),
             );
           },
         ),
@@ -73,9 +78,7 @@ class MoreOptionsGrid extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const EmployeesPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const EmployeesPage()),
             );
           },
         ),
@@ -86,9 +89,7 @@ class MoreOptionsGrid extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const TasksPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const TasksPage()),
             );
           },
         ),
@@ -99,9 +100,7 @@ class MoreOptionsGrid extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const SettingsPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
             );
           },
         ),

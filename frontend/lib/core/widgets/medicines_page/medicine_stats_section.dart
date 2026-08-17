@@ -17,8 +17,9 @@ class MedicineStatsSection extends StatelessWidget {
 
         final totalMedicines = medicines.length;
 
-        final lowStock =
-            medicines.where((m) => m.isLowStock && m.quantity > 0).length;
+        final lowStock = medicines
+            .where((m) => m.isLowStock && m.quantity > 0)
+            .length;
 
         final expiring = medicines.where((m) {
           final expiry = m.expireDate;

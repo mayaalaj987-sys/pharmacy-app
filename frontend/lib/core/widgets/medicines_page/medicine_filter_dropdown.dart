@@ -25,18 +25,12 @@ class MedicineFilterDropdown extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: AppColors.lightGreen,
-            width: 1.5,
-          ),
+          border: Border.all(color: AppColors.lightGreen, width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -50,10 +44,7 @@ class MedicineFilterDropdown extends StatelessWidget {
 
           decoration: const InputDecoration(
             border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 14,
-            ),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
 
           icon: const Icon(
@@ -70,10 +61,7 @@ class MedicineFilterDropdown extends StatelessWidget {
           ),
 
           items: categories.map((category) {
-            return DropdownMenuItem(
-              value: category,
-              child: Text(category),
-            );
+            return DropdownMenuItem(value: category, child: Text(category));
           }).toList(),
 
           onChanged: (value) {

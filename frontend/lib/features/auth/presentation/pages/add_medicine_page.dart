@@ -29,8 +29,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
 
   final expiryDateController = TextEditingController();
 
-  final barcodeController = TextEditingController();
-
   String selectedCategory = "Antibiotics";
   final manufacturerController = TextEditingController();
 
@@ -63,10 +61,8 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
       expiryDateController.text = expiry == null
           ? ''
           : '${expiry.year.toString().padLeft(4, '0')}-'
-              '${expiry.month.toString().padLeft(2, '0')}-'
-              '${expiry.day.toString().padLeft(2, '0')}';
-
-      barcodeController.text = widget.medicine!.qrCode ?? '';
+                '${expiry.month.toString().padLeft(2, '0')}-'
+                '${expiry.day.toString().padLeft(2, '0')}';
 
       selectedCategory = widget.medicine!.category;
       manufacturerController.text = widget.medicine!.manufacturer;
@@ -83,7 +79,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
     final quantity = int.tryParse(quantityController.text.trim());
     final expiry = expiryDateController.text.trim();
     final manufacturer = manufacturerController.text.trim();
-    final barcode = barcodeController.text.trim();
 
     // Mirrors the backend contract so obvious errors are caught before the call.
     if (name.isEmpty ||
@@ -91,13 +86,11 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
         selling == null ||
         cost == null ||
         quantity == null ||
-        expiry.isEmpty ||
-        num.tryParse(barcode) == null) {
+        expiry.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Name, manufacturer, numeric prices/quantity, expiry date and a '
-            'numeric barcode are required.',
+            'Name, manufacturer, numeric prices/quantity and expiry date are required.',
           ),
         ),
       );
@@ -112,7 +105,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
       'cost_price': cost,
       'quantity': quantity,
       'expire_date': expiry,
-      'qr_code': num.parse(barcode),
       if (reorderLevelController.text.trim().isNotEmpty)
         'reorder_level': int.tryParse(reorderLevelController.text.trim()),
     };
@@ -163,7 +155,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
-
                 ],
               ),
 
@@ -182,7 +173,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
                 icon: const Icon(
                   Icons.keyboard_arrow_down_rounded,
                   color: AppColors.darkGreen,
-
                 ),
 
                 dropdownColor: Colors.white,
@@ -254,12 +244,6 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
             ),
 
             const SizedBox(height: 16),
-
-            CustomTextField(
-              controller: barcodeController,
-              hint: "Barcode (numeric)",
-              prefixIcon: Icons.qr_code,
-            ),
 
             const SizedBox(height: 24),
 

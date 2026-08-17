@@ -13,6 +13,13 @@ class SalesState {
   /// True while a sale is being submitted.
   final bool submitting;
 
+  /// Total the backend charged for the most recent sale in this session.
+  ///
+  /// Taken from the `POST /sale/create` response rather than from [sales],
+  /// because that list is only populated by the pharmacist-only sales report
+  /// and would otherwise be stale — or empty for an employee.
+  final double? lastSaleTotal;
+
   const SalesState({
     this.status = SalesStatus.initial,
     this.sales = const <Sale>[],
@@ -20,6 +27,7 @@ class SalesState {
     this.totalPrice = 0,
     this.error,
     this.submitting = false,
+    this.lastSaleTotal,
   });
 
   const SalesState.initial() : this();
@@ -31,6 +39,7 @@ class SalesState {
     double? totalPrice,
     AuthApiException? error,
     bool? submitting,
+    double? lastSaleTotal,
     bool clearError = false,
   }) {
     return SalesState(
@@ -40,6 +49,7 @@ class SalesState {
       totalPrice: totalPrice ?? this.totalPrice,
       error: clearError ? null : (error ?? this.error),
       submitting: submitting ?? this.submitting,
+      lastSaleTotal: lastSaleTotal ?? this.lastSaleTotal,
     );
   }
 }

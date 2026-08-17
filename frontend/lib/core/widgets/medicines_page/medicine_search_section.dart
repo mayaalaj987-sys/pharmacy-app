@@ -20,45 +20,26 @@ class MedicineSearchSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
 
       child: Row(
         children: [
           if (onAddMedicine != null)
-          GestureDetector(
-            onTap: onAddMedicine,
+            GestureDetector(
+              onTap: onAddMedicine,
 
-            child: Container(
-              width: 50,
-              height: 50,
+              child: Container(
+                width: 50,
+                height: 50,
 
-              decoration: BoxDecoration(
-                color: AppColors.darkGreen,
-                borderRadius: BorderRadius.circular(16),
-              ),
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreen,
+                  borderRadius: BorderRadius.circular(16),
+                ),
 
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
+                child: const Icon(Icons.add, color: Colors.white),
               ),
             ),
-          ),
-
-          const SizedBox(width: 10),
-
-          Container(
-            width: 50,
-            height: 50,
-
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-
-            child: const Icon(Icons.qr_code),
-          ),
 
           const SizedBox(width: 10),
 

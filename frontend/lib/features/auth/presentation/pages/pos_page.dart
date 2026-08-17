@@ -36,6 +36,15 @@ class _PosPageState extends State<PosPage> {
 
   List<PosCartItem> cartItems = [];
 
+  /// Ids the cashier already confirmed for this sale, so the expiry warning
+  /// appears once per medicine instead of on every tap.
+  final Set<int> _acknowledgedExpiry = <int>{};
+
+  static String _formatDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
   @override
   void initState() {
     super.initState();
@@ -60,10 +69,9 @@ class _PosPageState extends State<PosPage> {
     final query = searchController.text.trim().toLowerCase();
     if (query.isEmpty) return const <Medicine>[];
 
-    return stock.where((medicine) {
-      return medicine.name.toLowerCase().contains(query) ||
-          (medicine.qrCode ?? '').toLowerCase().contains(query);
-    }).toList();
+    return stock
+        .where((medicine) => medicine.name.toLowerCase().contains(query))
+        .toList();
   }
 
   double get total {
@@ -76,7 +84,62 @@ class _PosPageState extends State<PosPage> {
     return sum;
   }
 
-  void addToCart(Medicine medicine) {
+  Future<void> addToCart(Medicine medicine) async {
+    // Expired stock is refused outright — the backend rejects it too, so
+    // letting it into the cart would only fail later with a worse message.
+    if (medicine.isExpired) {
+      final days = medicine.daysUntilExpiry?.abs();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.errorRed,
+          content: Text(
+            '${medicine.name} expired'
+            '${days == null ? '' : ' $days day${days == 1 ? '' : 's'} ago'}'
+            ' and cannot be sold.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Close to expiry is still sellable, but never silently.
+    if (medicine.isExpiringSoon && !_acknowledgedExpiry.contains(medicine.id)) {
+      final days = medicine.daysUntilExpiry ?? 0;
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.pendingOrange,
+            size: 48,
+          ),
+          title: const Text('Expiring soon'),
+          content: Text(
+            '${medicine.name} expires in $days day${days == 1 ? '' : 's'}'
+            '${medicine.expireDate == null ? '' : ' (${_formatDate(medicine.expireDate!)})'}.'
+            '\n\nSell it anyway?',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey('pos-expiring-confirm'),
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Sell anyway'),
+            ),
+          ],
+        ),
+      );
+
+      if (proceed != true) return;
+      _acknowledgedExpiry.add(medicine.id);
+    }
+
+    if (!mounted) return;
+
     final stock = medicine.quantity;
 
     final existingIndex = cartItems.indexWhere(
@@ -174,9 +237,8 @@ class _PosPageState extends State<PosPage> {
 
     if (!mounted) return;
 
-    final completedTotal = salesCubit.state.sales.isNotEmpty
-        ? salesCubit.state.sales.first.totalPrice
-        : total;
+    // The backend's figure wins: insurance sales are discounted server-side.
+    final completedTotal = salesCubit.state.lastSaleTotal ?? total;
 
     await showDialog<void>(
       context: context,
@@ -208,6 +270,7 @@ class _PosPageState extends State<PosPage> {
       customerController.clear();
       searchController.clear();
       cardNumberController.clear();
+      _acknowledgedExpiry.clear();
     });
   }
 

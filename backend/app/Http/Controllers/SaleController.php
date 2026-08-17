@@ -55,6 +55,22 @@ class SaleController extends Controller
                     return response()->json(['message' => 'الكمية غير متوفرة: '.$medicine->name], 400);
                 }
 
+                // Expired stock must never leave the pharmacy. The client also
+                // blocks this, but the guarantee has to live on the server.
+                if ($medicine->expire_date !== null && $medicine->expire_date->isBefore(now()->startOfDay())) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'message' => $medicine->name.' has expired and cannot be sold.',
+                        'code' => 'medicine_expired',
+                        'medicine' => [
+                            'id' => $medicine->id,
+                            'name' => $medicine->name,
+                            'expire_date' => $medicine->expire_date->toDateString(),
+                        ],
+                    ], 400);
+                }
+
                 $totalPrice += $medicine->selling_price * $item['quantity'];
             }
 

@@ -24,10 +24,7 @@ class PosEmptyCart extends StatelessWidget {
             Text(
               'Search for a medicine to add',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
             ),
           ],
         ),

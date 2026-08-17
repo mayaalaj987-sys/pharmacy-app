@@ -37,10 +37,7 @@ class MedicineStatCard extends StatelessWidget {
 
           const SizedBox(height: 6),
 
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14),
-          ),
+          Text(title, style: const TextStyle(fontSize: 14)),
         ],
       ),
     );

@@ -69,6 +69,39 @@ void main() {
     await cubit.close();
   });
 
+  test('the requested quantity is sent, not a hardcoded one', () async {
+    final api = FakeOrdersApi();
+    final cubit = OrdersCubit(OrdersRepository(api));
+
+    await cubit.createOrder(supplierId: 3, medicineId: 11, quantity: 7);
+
+    final items = api.lastCreatePayload!['items'] as List;
+    expect(items.single, {'medicine_id': 11, 'quantity': 7});
+    await cubit.close();
+  });
+
+  test(
+    'a supplier stock rejection surfaces the real available figure',
+    () async {
+      // The catalogue is shared, so the figure the screen showed can be stale by
+      // the time the order lands. The backend answers with the truth.
+      final api = FakeOrdersApi()..supplierOutOfStock = true;
+      final cubit = OrdersCubit(OrdersRepository(api));
+
+      final ok = await cubit.createOrder(
+        supplierId: 3,
+        medicineId: 11,
+        quantity: 20,
+      );
+
+      expect(ok, isFalse);
+      expect(cubit.state.error, isNotNull);
+      expect(cubit.state.error!.code, 'supplier_stock_insufficient');
+      expect(cubit.state.error!.message, contains('Only 5 units'));
+      await cubit.close();
+    },
+  );
+
   test('a rejected cancel surfaces the backend message', () async {
     final api = FakeOrdersApi()..failMutation = true;
     final cubit = OrdersCubit(OrdersRepository(api));
@@ -87,6 +120,7 @@ class FakeOrdersApi implements OrdersRemoteDataSource {
   final List<int> receivedIds = [];
   bool failMutation = false;
   int listCalls = 0;
+  bool supplierOutOfStock = false;
 
   @override
   Future<Response<dynamic>> getOrders() async {
@@ -140,6 +174,28 @@ class FakeOrdersApi implements OrdersRemoteDataSource {
   @override
   Future<Response<dynamic>> createOrder(Map<String, dynamic> data) async {
     lastCreatePayload = data;
+    if (supplierOutOfStock) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/orders'),
+        response: Response<dynamic>(
+          requestOptions: RequestOptions(path: '/orders'),
+          statusCode: 400,
+          data: {
+            'message':
+                'Only 5 units of Amoxicillin 500mg are available from '
+                'this supplier.',
+            'code': 'supplier_stock_insufficient',
+            'medicine': {
+              'id': 11,
+              'name': 'Amoxicillin 500mg',
+              'available_quantity': 5,
+              'requested_quantity': 20,
+            },
+          },
+        ),
+        type: DioExceptionType.badResponse,
+      );
+    }
     return Response<dynamic>(
       requestOptions: RequestOptions(path: '/orders'),
       statusCode: 201,
@@ -167,12 +223,12 @@ class FakeOrdersApi implements OrdersRemoteDataSource {
   }
 
   DioException _error(String path) => DioException(
-        requestOptions: RequestOptions(path: path),
-        response: Response<dynamic>(
-          requestOptions: RequestOptions(path: path),
-          statusCode: 400,
-          data: {'message': 'Order cannot be changed in its current state.'},
-        ),
-        type: DioExceptionType.badResponse,
-      );
+    requestOptions: RequestOptions(path: path),
+    response: Response<dynamic>(
+      requestOptions: RequestOptions(path: path),
+      statusCode: 400,
+      data: {'message': 'Order cannot be changed in its current state.'},
+    ),
+    type: DioExceptionType.badResponse,
+  );
 }

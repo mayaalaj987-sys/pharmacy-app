@@ -26,7 +26,9 @@ class MedicineController extends Controller
             'expire_date' => 'required|date',
             'manufacturer' => 'required|string',
             'reorder_level' => 'nullable|integer',
-            'qr_code' => 'required|numeric',
+            // Barcodes were removed from the app. The column stays nullable so
+            // existing rows and the catalogue seeders keep working.
+            'qr_code' => 'nullable|numeric',
         ]);
 
         $pharmacy = $this->pharmacyContext->resolve($request);

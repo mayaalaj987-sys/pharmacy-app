@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\PharmacyContextException;
 use App\Models\Medicine;
 use App\Models\Notification;
 use App\Models\Order;
@@ -39,14 +40,32 @@ class OrderController extends Controller
 
             foreach ($request->input('items') as $item) {
                 // Orders may reference only the global supplier catalogue, never another tenant's stock row.
+                // Locked because the catalogue is shared: two pharmacies ordering
+                // the last units at once must not both succeed.
                 $medicine = Medicine::whereNull('pharmacy_id')
                     ->where('supplier_id', $request->supplier_id)
+                    ->lockForUpdate()
                     ->find($item['medicine_id']);
 
                 if (! $medicine) {
                     DB::rollBack();
 
                     return response()->json(['message' => 'الدواء غير متوفر عند هذا المورد'], 400);
+                }
+
+                if ($medicine->quantity < $item['quantity']) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'message' => 'Only '.$medicine->quantity.' units of '.$medicine->name.' are available from this supplier.',
+                        'code' => 'supplier_stock_insufficient',
+                        'medicine' => [
+                            'id' => $medicine->id,
+                            'name' => $medicine->name,
+                            'available_quantity' => $medicine->quantity,
+                            'requested_quantity' => (int) $item['quantity'],
+                        ],
+                    ], 400);
                 }
 
                 $medicines[$medicine->id] = $medicine;
@@ -70,6 +89,11 @@ class OrderController extends Controller
                     'quantity' => $item['quantity'],
                     'price' => $medicine->cost_price,
                 ]);
+
+                // Reserve the units against the supplier catalogue so the
+                // advertised availability stays truthful. Cancelling the order
+                // releases them again.
+                $medicine->decrement('quantity', (int) $item['quantity']);
             }
 
             Notification::create([
@@ -89,7 +113,7 @@ class OrderController extends Controller
                 'total_price' => $totalPrice,
                 'status' => 'pending',
             ], 201);
-        } catch (AuthorizationException|ModelNotFoundException $exception) {
+        } catch (AuthorizationException|ModelNotFoundException|PharmacyContextException $exception) {
             DB::rollBack();
 
             throw $exception;
@@ -158,7 +182,7 @@ class OrderController extends Controller
             DB::commit();
 
             return response()->json(['message' => 'تم استلام الطلب وتحديث المخزون بنجاح']);
-        } catch (AuthorizationException|ModelNotFoundException $exception) {
+        } catch (AuthorizationException|ModelNotFoundException|PharmacyContextException $exception) {
             DB::rollBack();
 
             throw $exception;
@@ -172,25 +196,50 @@ class OrderController extends Controller
 
     public function cancelOrder(Request $request, int $id): JsonResponse
     {
-        $order = Order::findOrFail($id);
-        $this->pharmacyContext->assertMatches($request, (int) $order->pharmacy_id);
-        Gate::forUser($request->user())->authorize('update', $order);
+        DB::beginTransaction();
 
-        if ($order->status !== 'pending') {
-            return response()->json(['message' => 'لا يمكن إلغاء الطلب، الحالة الحالية: '.$order->status], 400);
+        try {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($id);
+            $this->pharmacyContext->assertMatches($request, (int) $order->pharmacy_id);
+            Gate::forUser($request->user())->authorize('update', $order);
+
+            if ($order->status !== 'pending') {
+                DB::rollBack();
+
+                return response()->json(['message' => 'لا يمكن إلغاء الطلب، الحالة الحالية: '.$order->status], 400);
+            }
+
+            // Release the units reserved against the supplier catalogue when the
+            // order was placed, so cancelling never loses supplier stock.
+            foreach ($order->items as $item) {
+                Medicine::whereNull('pharmacy_id')
+                    ->where('id', $item->medicine_id)
+                    ->increment('quantity', (int) $item->quantity);
+            }
+
+            $order->update(['status' => 'cancelled']);
+            Notification::create([
+                'pharmacy_id' => $order->pharmacy_id,
+                'title' => 'تم إلغاء الطلب',
+                'message' => 'تم إلغاء الطلب رقم '.$order->id,
+                'type' => 'order',
+                'is_read' => false,
+                'date' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json(['message' => 'تم إلغاء الطلب بنجاح']);
+        } catch (AuthorizationException|ModelNotFoundException|PharmacyContextException $exception) {
+            DB::rollBack();
+
+            throw $exception;
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
+
+            return response()->json(['message' => 'تعذر إلغاء الطلب'], 500);
         }
-
-        $order->update(['status' => 'cancelled']);
-        Notification::create([
-            'pharmacy_id' => $order->pharmacy_id,
-            'title' => 'تم إلغاء الطلب',
-            'message' => 'تم إلغاء الطلب رقم '.$order->id,
-            'type' => 'order',
-            'is_read' => false,
-            'date' => now(),
-        ]);
-
-        return response()->json(['message' => 'تم إلغاء الطلب بنجاح']);
     }
 
     public function getOrders(Request $request): JsonResponse

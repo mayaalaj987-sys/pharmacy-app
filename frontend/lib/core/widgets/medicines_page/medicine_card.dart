@@ -111,11 +111,6 @@ class MedicineCard extends StatelessWidget {
                 ),
               ],
             ),
-
-            if ((medicine.qrCode ?? '').isNotEmpty) ...[
-              const SizedBox(height: 10),
-              infoTile("Barcode", medicine.qrCode!),
-            ],
           ],
         ),
       ),

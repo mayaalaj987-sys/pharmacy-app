@@ -18,11 +18,11 @@ class Sale {
   });
 
   String get paymentLabel => switch (paymentMethod) {
-        'cash' => 'Cash',
-        'card' => 'Card',
-        'insurance' => 'Insurance',
-        _ => paymentMethod,
-      };
+    'cash' => 'Cash',
+    'card' => 'Card',
+    'insurance' => 'Insurance',
+    _ => paymentMethod,
+  };
 
   int get totalQuantity => items.fold(0, (sum, item) => sum + item.quantity);
 
@@ -47,9 +47,9 @@ class Sale {
           : DateTime.tryParse(rawDate),
       items: rawItems is List
           ? rawItems
-              .whereType<Map<String, dynamic>>()
-              .map(SaleItem.fromJson)
-              .toList(growable: false)
+                .whereType<Map<String, dynamic>>()
+                .map(SaleItem.fromJson)
+                .toList(growable: false)
           : const <SaleItem>[],
     );
   }

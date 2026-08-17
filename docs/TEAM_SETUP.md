@@ -189,7 +189,6 @@ These already have working local defaults in `.env.example` — **do not change
 them unless you know why**:
 
 ```dotenv
-APP_URL=http://localhost
 SESSION_DRIVER=database
 SESSION_COOKIE=smart-pharmacy-admin-session
 SESSION_SECURE_COOKIE=false
@@ -200,6 +199,49 @@ ADMIN_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://127.0.0
 `ADMIN_ALLOWED_ORIGINS` is what allows `admin-web` (port **5173**) to call the
 admin API with credentials. If you run admin-web on a different port, add that
 exact origin here.
+
+#### `APP_URL` — the one you *must* change for the mobile app
+
+`.env.example` ships `APP_URL=http://localhost`. Leave it and **profile images
+will not load on the phone**.
+
+Laravel builds `filesystems.disks.public.url` from `APP_URL`, so an uploaded
+avatar is handed to the app as:
+
+```
+http://localhost/storage/profiles/<file>.jpg
+```
+
+On a phone or emulator `localhost` means *that device*, not your machine — and
+there is no port, so it points at port 80 while the API serves 8000. The
+request goes nowhere and the avatar silently stays blank.
+
+Set it to the same host:port the app talks to:
+
+```dotenv
+# Physical device — your machine's LAN IP, same value as API_BASE_URL
+APP_URL=http://192.168.1.8:8000
+
+# Android Emulator
+APP_URL=http://10.0.2.2:8000
+```
+
+Then clear the cached config:
+
+```bash
+php artisan config:clear
+```
+
+Verify the file is really served — expect `HTTP 200` and `image/jpeg`:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://192.168.1.8:8000/storage/profiles/<file>.jpg
+```
+
+> Two more things about avatars. `php artisan storage:link` must have run once
+> (check that `backend/public/storage` exists). And **employees have no avatar
+> at all** — there is no `profile_image` column on `employees` and the session
+> always reports `null` for them. A blank employee avatar is by design.
 
 ### 4.6 Run migrations
 
@@ -451,7 +493,7 @@ From `backend/`:
 php artisan test
 ```
 
-Current expected result: **172 passed, 1 skipped** (1073 assertions).
+Current expected result: **186 passed, 1 skipped** (1133 assertions).
 
 The single skip is environmental, not a failure —
 `LegacyDocumentMigrationCommandTest` needs file symlinks, which this Windows
@@ -483,7 +525,7 @@ flutter analyze
 Expected: **0 errors** (a number of pre-existing `info`/`warning` items are
 known and tracked).
 
-Expected: **0 errors, 0 warnings**, and 18 pre-existing `info` items (mostly
+Expected: **0 errors, 0 warnings**, and 14 pre-existing `info` items (mostly
 `withOpacity` deprecations).
 
 Run the test suite. **Use this command, not a bare `flutter test`:**
@@ -492,7 +534,7 @@ Run the test suite. **Use this command, not a bare `flutter test`:**
 flutter test --timeout=30s test/core test/features/auth test/features/employee_workspace test/features/employees test/features/inventory test/features/notifications test/features/orders test/features/reports test/features/sales test/features/suppliers test/features/tasks test/features/account/account_cubit_test.dart test/features/account/account_repository_test.dart test/features/account/pharmacy_location_controller_test.dart test/features/account/pharmacy_location_picker_page_test.dart test/features/account/settings_widgets_test.dart
 ```
 
-Expected: **125 passed**, in roughly 15–20 seconds.
+Expected: **145 passed**, in roughly 15–20 seconds.
 
 > ⚠️ **Known issue — a bare `flutter test` will hang forever.**
 > Exactly **three** files hang and never finish:
@@ -645,6 +687,7 @@ Work top to bottom:
 - [ ] `cd backend && composer install`
 - [ ] `.env` created from `.env.example`
 - [ ] `php artisan key:generate`
+- [ ] `APP_URL` set to **your** host:port, not `http://localhost` (§4.5)
 - [ ] `database/database.sqlite` file created
 - [ ] `php artisan migrate` → `migrate:status` shows **no Pending**
 - [ ] All 4 seeders run in order (§4.7) → 3 suppliers, 25 catalogue medicines
@@ -656,9 +699,9 @@ Work top to bottom:
 - [ ] admin-web `.env` created
 - [ ] `npm run dev` → `http://localhost:5173` loads
 - [ ] `php artisan admin:provision-super ...` → can sign in to admin-web
-- [ ] `php artisan test` → 172 passed, 1 skipped
+- [ ] `php artisan test` → 186 passed, 1 skipped
 - [ ] `flutter analyze` → 0 errors, 0 warnings
-- [ ] Flutter tests via the §7.2 command → 125 passed
+- [ ] Flutter tests via the §7.2 command → 145 passed
 
 ---
 
@@ -775,7 +818,7 @@ What is actually known, so nobody re-derives it:
 - It is **file-specific**, not folder-wide. `settings_widgets_test.dart` and
   `pharmacy_location_picker_page_test.dart` live in the same folder and pass.
 - The rest of the suite completes in ~16 s; the run then sits with no output
-  and no CPU. A bare `flutter test` reaches 125 passing tests and stops there.
+  and no CPU. A bare `flutter test` reaches 145 passing tests and stops there.
 - `--timeout=30s` does **not** bound it — the stall is outside the per-test
   clock.
 - Two earlier theories were **tested and disproved**: it is not

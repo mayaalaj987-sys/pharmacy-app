@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/network/user_facing_error.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../../../suppliers/domain/supplier.dart';
 import '../../../suppliers/presentation/cubit/suppliers_cubit.dart';
@@ -135,29 +136,18 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
                         width: double.infinity,
 
                         child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final ok = await context
-                                .read<OrdersCubit>()
-                                .createOrder(
-                                  supplierId: supplier.id,
-                                  medicineId: medicine.id,
-                                  quantity: 50,
-                                );
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  ok
-                                      ? "Order created for ${medicine.name}"
-                                      : "Could not create the order",
-                                ),
-                              ),
-                            );
-                          },
+                          key: ValueKey('supplier-buy-${medicine.id}'),
+                          onPressed: medicine.availableQuantity <= 0
+                              ? null
+                              : () => _order(supplier.id, medicine),
 
                           icon: const Icon(Icons.shopping_cart),
 
-                          label: const Text("Buy"),
+                          label: Text(
+                            medicine.availableQuantity <= 0
+                                ? "Out of stock"
+                                : "Order",
+                          ),
                         ),
                       ),
                     ],
@@ -167,6 +157,110 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
             },
           );
         },
+      ),
+    );
+  }
+
+  /// Asks how many units to order, then places the order.
+  ///
+  /// The supplier catalogue is shared between pharmacies, so the figure shown
+  /// here can already be stale by the time the request lands. The dialog caps
+  /// input at what we last saw, and the backend re-checks under a row lock and
+  /// answers with the real remaining amount if someone got there first.
+  Future<void> _order(int supplierId, SupplierMedicine medicine) async {
+    final available = medicine.availableQuantity;
+    final controller = TextEditingController(
+      text: (available < 10 ? available : 10).toString(),
+    );
+    String? error;
+
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Order ${medicine.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Available from this supplier: $available'),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('order-quantity-field'),
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Quantity',
+                  errorText: error,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Unit cost ${money(medicine.price)}',
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const ValueKey('order-confirm-button'),
+              onPressed: () {
+                final value = int.tryParse(controller.text.trim());
+                if (value == null || value < 1) {
+                  setDialogState(
+                    () => error = 'Enter a quantity of 1 or more.',
+                  );
+                  return;
+                }
+                if (value > available) {
+                  setDialogState(() => error = 'Only $available available.');
+                  return;
+                }
+                Navigator.pop(dialogContext, value);
+              },
+              child: const Text('Place order'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    controller.dispose();
+    if (quantity == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final orders = context.read<OrdersCubit>();
+    final suppliers = context.read<SuppliersCubit>();
+
+    final ok = await orders.createOrder(
+      supplierId: supplierId,
+      medicineId: medicine.id,
+      quantity: quantity,
+    );
+
+    if (!mounted) return;
+
+    // Availability changed either way: refresh so the next order sees the truth.
+    await suppliers.loadMedicines(supplierId);
+    if (!mounted) return;
+
+    messenger.showSnackBar(
+      SnackBar(
+        backgroundColor: ok ? null : AppColors.errorRed,
+        content: Text(
+          ok
+              ? 'Ordered $quantity x ${medicine.name}'
+              : userFacingError(
+                  orders.state.error,
+                  fallback: 'Could not create the order.',
+                ),
+        ),
       ),
     );
   }

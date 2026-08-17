@@ -49,8 +49,9 @@ class PharmacyOperationsFlowTest extends SecurityTestCase
 
         $orderId = $order->json('order_id');
 
-        // The catalogue row is untouched: ordering does not move global stock.
-        $this->assertSame(500, $catalogue->fresh()->quantity);
+        // Ordering reserves the units against the shared supplier catalogue, so
+        // the availability the next pharmacy sees stays truthful.
+        $this->assertSame(400, $catalogue->fresh()->quantity);
 
         // 3. Receiving the order creates the pharmacy's own stock row.
         $this->postJson('/api/orders/'.$orderId.'/receive', [], $headers)->assertOk();
@@ -207,6 +208,7 @@ class PharmacyOperationsFlowTest extends SecurityTestCase
 
         $this->assertSame(0, Order::where('pharmacy_id', $pharmacy->id)->count());
         $this->assertSame(500, $foreign->fresh()->quantity);
+        // A rejected order reserves nothing.
     }
 
     public function test_an_employee_sale_is_attributed_to_that_employee_in_their_own_report(): void

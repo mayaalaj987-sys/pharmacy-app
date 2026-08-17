@@ -55,8 +55,10 @@ class MedicineList extends StatelessWidget {
         final normalizedQuery = query.trim().toLowerCase();
         final filtered = state.medicines.where((medicine) {
           final matchesCategory =
-              selectedCategory == 'All' || medicine.category == selectedCategory;
-          final matchesQuery = normalizedQuery.isEmpty ||
+              selectedCategory == 'All' ||
+              medicine.category == selectedCategory;
+          final matchesQuery =
+              normalizedQuery.isEmpty ||
               medicine.name.toLowerCase().contains(normalizedQuery);
           return matchesCategory && matchesQuery;
         }).toList();

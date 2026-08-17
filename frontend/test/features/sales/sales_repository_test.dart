@@ -89,18 +89,71 @@ void main() {
     await cubit.close();
   });
 
-  test('a successful sale refetches authoritative sales state', () async {
-    final api = FakeSalesApi();
-    final cubit = SalesCubit(SalesRepository(api));
+  test(
+    'a successful sale never calls the pharmacist-only sales report',
+    () async {
+      // Regression guard. `GET /sale/all` is pharmacist-only, so calling it after
+      // a sale returned 401 for an employee at the point of sale; the auth
+      // interceptor read that as an expired session and signed them out — after
+      // the sale had already been committed.
+      final api = FakeSalesApi();
+      final cubit = SalesCubit(SalesRepository(api));
+
+      final ok = await cubit.createSale(
+        items: [
+          {'medicine_id': 11, 'quantity': 1},
+        ],
+        paymentMethod: 'cash',
+      );
+
+      expect(ok, isTrue);
+      expect(api.listCalls, 0);
+      expect(cubit.state.submitting, isFalse);
+      expect(cubit.state.error, isNull);
+      await cubit.close();
+    },
+  );
+
+  test('a successful sale records the total the backend charged', () async {
+    final cubit = SalesCubit(SalesRepository(FakeSalesApi()));
+
+    await cubit.createSale(
+      items: [
+        {'medicine_id': 11, 'quantity': 1},
+      ],
+      paymentMethod: 'insurance',
+    );
+
+    // The fake mirrors the backend contract: the discounted figure comes back
+    // on the create response, so the receipt never shows the raw cart total.
+    expect(cubit.state.lastSaleTotal, 20);
+    await cubit.close();
+  });
+
+  test('a failed sale leaves no stale total behind', () async {
+    final cubit = SalesCubit(SalesRepository(FakeSalesApi()..failSale = true));
 
     final ok = await cubit.createSale(
       items: [
-        {'medicine_id': 11, 'quantity': 1},
+        {'medicine_id': 11, 'quantity': 99},
       ],
       paymentMethod: 'cash',
     );
 
-    expect(ok, isTrue);
+    expect(ok, isFalse);
+    expect(cubit.state.lastSaleTotal, isNull);
+    expect(cubit.state.error, isNotNull);
+    await cubit.close();
+  });
+
+  test('loading the sales report still populates the list', () async {
+    // The report is pharmacist-only and loads from its own screen; removing the
+    // post-sale refetch must not break it.
+    final api = FakeSalesApi();
+    final cubit = SalesCubit(SalesRepository(api));
+
+    await cubit.load();
+
     expect(api.listCalls, 1);
     expect(cubit.state.status, SalesStatus.ready);
     expect(cubit.state.sales, hasLength(2));
