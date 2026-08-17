@@ -215,3 +215,17 @@ export interface PharmacyControlPage {
     blocked_total: number;
   };
 }
+
+export interface InboxItem {
+  id: string;
+  kind: "pharmacy_application" | "support_ticket";
+  title: string;
+  detail: string;
+  at: string | null;
+}
+
+export interface AdminInbox {
+  total: number;
+  groups: { pharmacy_applications: number; support_tickets: number };
+  items: InboxItem[];
+}

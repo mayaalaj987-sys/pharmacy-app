@@ -3,6 +3,7 @@ import { Sun, Moon, ChevronDown, LogOut } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUi } from "@/context/UiContext";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 export function Topbar({ title }: { title: string }) {
   const { admin, logout } = useAuth();
@@ -34,10 +35,14 @@ export function Topbar({ title }: { title: string }) {
         <p className="text-sm font-semibold tracking-tight">{title}</p>
       </div>
 
+      <div className="ml-auto" />
+
+      <NotificationBell />
+
       <button
         onClick={toggleTheme}
         aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-        className="ml-auto w-10 h-10 rounded-xl bg-sidebar-accent/60 hover:bg-sidebar-accent grid place-items-center transition"
+        className="w-10 h-10 rounded-xl bg-sidebar-accent/60 hover:bg-sidebar-accent grid place-items-center transition"
       >
         {theme === "light" ? (
           <Moon size={16} strokeWidth={1.75} />

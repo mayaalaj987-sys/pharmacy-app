@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminActivityController;
 use App\Http\Controllers\AdminAnalyticsController;
+use App\Http\Controllers\AdminInboxController;
 use App\Http\Controllers\AdminManagementController;
 use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPharmacyController;
@@ -32,6 +33,8 @@ Route::prefix('api/admin')->group(function (): void {
 
             Route::get('/support/tickets', [AdminSupportTicketController::class, 'index'])->name('admin.support.tickets.index');
             Route::post('/support/tickets/{ticket}/respond', [AdminSupportTicketController::class, 'respond'])->name('admin.support.tickets.respond');
+
+            Route::get('/inbox', [AdminInboxController::class, 'index'])->name('admin.inbox.index');
 
             Route::get('/pharmacies', [AdminPharmacyController::class, 'index'])->name('admin.pharmacies.index');
             Route::post('/pharmacies/{pharmacy}/block', [AdminPharmacyController::class, 'block'])->name('admin.pharmacies.block');
