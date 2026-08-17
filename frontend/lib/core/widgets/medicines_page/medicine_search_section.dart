@@ -6,14 +6,14 @@ import '../custom_text_field.dart';
 class MedicineSearchSection extends StatelessWidget {
   final TextEditingController controller;
 
-  final VoidCallback onAddMedicine;
+  final VoidCallback? onAddMedicine;
 
   final ValueChanged<String>? onQueryChanged;
 
   const MedicineSearchSection({
     super.key,
     required this.controller,
-    required this.onAddMedicine,
+    this.onAddMedicine,
     this.onQueryChanged,
   });
 
@@ -26,6 +26,7 @@ class MedicineSearchSection extends StatelessWidget {
 
       child: Row(
         children: [
+          if (onAddMedicine != null)
           GestureDetector(
             onTap: onAddMedicine,
 

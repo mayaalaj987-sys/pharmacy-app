@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../custom_button.dart';
+import '../../format/money.dart';
 
 class PosTotalSection extends StatelessWidget {
   final double total;
@@ -20,7 +21,7 @@ class PosTotalSection extends StatelessWidget {
         Row(
           children: [
             Text(
-              "\$${total.toStringAsFixed(2)}",
+              money(total),
               style: const TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
@@ -32,10 +33,7 @@ class PosTotalSection extends StatelessWidget {
 
             Text(
               'Total',
-              style: TextStyle(
-                fontSize: 22,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 22, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -43,7 +41,7 @@ class PosTotalSection extends StatelessWidget {
         const SizedBox(height: 20),
 
         CustomButton(
-          text: "Complete Sale - \$${total.toStringAsFixed(2)}",
+          text: "Complete Sale - ${money(total)}",
           onPressed: onCompleteSale,
         ),
       ],

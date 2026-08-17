@@ -47,6 +47,58 @@ class EmployeeWorkspaceCubit extends Cubit<EmployeeWorkspaceState> {
     }
   }
 
+  /// Updates the employee's own name/phone. Privileged fields are rejected
+  /// server-side; this only ever sends name and phone.
+  Future<bool> updateProfile({required String name, String? phone}) async {
+    if (state.savingAccount) return false;
+    emit(state.copyWith(savingAccount: true, clearError: true));
+    try {
+      await repository.updateProfile(name: name, phone: phone);
+      emit(state.copyWith(savingAccount: false));
+      return true;
+    } on AuthApiException catch (error) {
+      emit(state.copyWith(savingAccount: false, error: error));
+      return false;
+    } catch (_) {
+      emit(
+        state.copyWith(
+          savingAccount: false,
+          error: const AuthApiException(message: 'Unable to update profile.'),
+        ),
+      );
+      return false;
+    }
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmation,
+  }) async {
+    if (state.savingAccount) return false;
+    emit(state.copyWith(savingAccount: true, clearError: true));
+    try {
+      await repository.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        confirmation: confirmation,
+      );
+      emit(state.copyWith(savingAccount: false));
+      return true;
+    } on AuthApiException catch (error) {
+      emit(state.copyWith(savingAccount: false, error: error));
+      return false;
+    } catch (_) {
+      emit(
+        state.copyWith(
+          savingAccount: false,
+          error: const AuthApiException(message: 'Unable to change password.'),
+        ),
+      );
+      return false;
+    }
+  }
+
   /// Marks a task done, then refetches authoritative state. Nothing is changed
   /// locally when the API rejects the request.
   Future<bool> markTaskDone(int employeeId, int taskId) async {

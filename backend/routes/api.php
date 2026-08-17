@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\MedicineController;
@@ -57,6 +58,13 @@ Route::middleware(['auth:employee', 'abilities:app', 'active.pharmacy'])->group(
 // authorization model is introduced. Pharmacy owners and the legacy Admin key
 // intentionally have no route to these files.
 Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
+    // Employee self-service account management. Privileged fields are rejected
+    // by the Form Requests; the actor is always the authenticated employee.
+    Route::get('/employee/profile', [EmployeeAccountController::class, 'show']);
+    Route::post('/employee/profile/update', [EmployeeAccountController::class, 'update']);
+    Route::post('/employee/password/change', [EmployeeAccountController::class, 'changePassword'])
+        ->middleware('throttle:account-security');
+
     Route::get('/employee/documents', [EmployeeDocumentController::class, 'index']);
     Route::post('/employee/documents/{type}', [EmployeeDocumentController::class, 'store']);
     Route::get('/employee/documents/{document}/download', [EmployeeDocumentController::class, 'download'])
@@ -111,6 +119,7 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'deleteNotification']);
 
+    Route::get('/rating', [RatingController::class, 'myRating']);
     Route::post('/rating', [RatingController::class, 'submitRating']);
     Route::post('/tasks', [TaskController::class, 'createTask']);
     Route::get('/tasks/pharmacy', [TaskController::class, 'getPharmacyTasks']);

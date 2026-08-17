@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/inventory/domain/medicine.dart';
+import '../../format/money.dart';
 
 class PosSearchResults extends StatelessWidget {
   final List<Medicine> medicines;
@@ -49,7 +50,7 @@ class PosSearchResults extends StatelessWidget {
 
               children: [
                 Text(
-                  "\$${medicine.sellingPrice.toStringAsFixed(2)}",
+                  money(medicine.sellingPrice),
                   style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,

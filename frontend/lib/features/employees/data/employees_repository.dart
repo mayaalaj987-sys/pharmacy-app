@@ -31,9 +31,7 @@ class EmployeesRepository {
   /// null for trainees.
   Future<void> approveEmployee(int id, {double? salary}) async {
     try {
-      await api.approveEmployee(id, {
-        if (salary != null) 'salary': salary,
-      });
+      await api.approveEmployee(id, {'salary': ?salary});
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }

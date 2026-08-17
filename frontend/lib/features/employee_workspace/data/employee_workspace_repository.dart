@@ -90,6 +90,35 @@ class EmployeeWorkspaceRepository {
     }
   }
 
+  /// Only name and phone are accepted by the backend; every other field is
+  /// rejected server-side as a prohibited attribute.
+  Future<void> updateProfile({required String name, String? phone}) async {
+    try {
+      await api.updateProfile({
+        'name': name,
+        'phone': ?phone,
+      });
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmation,
+  }) async {
+    try {
+      await api.changePassword({
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'new_password_confirmation': confirmation,
+      });
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
   static int _toInt(dynamic v) =>
       v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
 

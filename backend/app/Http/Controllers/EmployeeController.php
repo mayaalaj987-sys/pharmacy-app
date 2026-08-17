@@ -183,6 +183,16 @@ class EmployeeController extends Controller
             $employee->status = 'approved';
             $employee->salary = $employee->role === 'employee' ? $request->salary : null;
             $employee->save();
+
+            Notification::create([
+                'pharmacy_id' => $pharmacy->id,
+                'title' => 'Employee approved',
+                'message' => $employee->name.' has been approved and added to your pharmacy.',
+                'type' => 'employee_approved',
+                'is_read' => false,
+                'date' => now(),
+            ]);
+
             DB::commit();
 
             return response()->json([

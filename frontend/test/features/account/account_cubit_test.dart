@@ -283,6 +283,10 @@ class EmptyAuthApi implements AuthRemoteDataSource {
   @override
   Future<Response<dynamic>> registrationStatus(String statusToken) =>
       throw UnimplementedError();
+
+  @override
+  Future<Response<dynamic>> addPharmacy(FormData data) =>
+      throw UnimplementedError();
 }
 
 class FakeCubitStorage implements SessionStorage, RegistrationStatusStorage {

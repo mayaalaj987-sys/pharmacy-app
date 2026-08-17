@@ -16,6 +16,7 @@ import '../../../inventory/presentation/cubit/inventory_cubit.dart';
 import '../../../inventory/presentation/cubit/inventory_state.dart';
 import '../../../sales/domain/pos_cart_item.dart';
 import '../../../sales/presentation/cubit/sales_cubit.dart';
+import '../../../../core/format/money.dart';
 
 class PosPage extends StatefulWidget {
   const PosPage({super.key});
@@ -79,7 +80,7 @@ class _PosPageState extends State<PosPage> {
     final stock = medicine.quantity;
 
     final existingIndex = cartItems.indexWhere(
-          (item) => item.medicine.id == medicine.id,
+      (item) => item.medicine.id == medicine.id,
     );
 
     if (existingIndex != -1) {
@@ -88,12 +89,7 @@ class _PosPageState extends State<PosPage> {
       }
     } else {
       if (stock > 0) {
-        cartItems.add(
-          PosCartItem(
-            medicine: medicine,
-            quantity: 1,
-          ),
-        );
+        cartItems.add(PosCartItem(medicine: medicine, quantity: 1));
       }
     }
 
@@ -192,7 +188,7 @@ class _PosPageState extends State<PosPage> {
             children: [
               const Icon(Icons.check_circle, color: Colors.green, size: 70),
               const SizedBox(height: 16),
-              Text("Total: \$${completedTotal.toStringAsFixed(2)}"),
+              Text("Total: ${money(completedTotal)}"),
               Text("Payment: $selectedPayment"),
             ],
           ),
@@ -222,206 +218,180 @@ class _PosPageState extends State<PosPage> {
 
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
-        child: CustomAppBar(
-          title: "Point of Sale",
-        ),
+        child: CustomAppBar(title: "Point of Sale"),
       ),
 
       body: SafeArea(
         child: BlocBuilder<InventoryCubit, InventoryState>(
           builder: (context, inventoryState) {
             return SingleChildScrollView(
-          child: Column(
-            children: [
-              const Divider(height: 1),
+              child: Column(
+                children: [
+                  const Divider(height: 1),
 
-              PosSearchSection(
-                controller: searchController,
-              ),
+                  PosSearchSection(controller: searchController),
 
-              if (inventoryState.status == InventoryStatus.loading)
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: LinearProgressIndicator(),
-                ),
-
-              if (inventoryState.status == InventoryStatus.failure)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          userFacingError(
-                            inventoryState.error,
-                            fallback: 'Unable to load stock.',
-                          ),
-                          style: const TextStyle(color: AppColors.errorRed),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () =>
-                            context.read<InventoryCubit>().load(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-
-              PosSearchResults(
-                medicines: filteredMedicines(inventoryState.medicines),
-                onAdd: addToCart,
-              ),
-
-              cartItems.isEmpty
-                  ? const PosEmptyCart()
-                  : ListView.builder(
-                shrinkWrap: true,
-                physics:
-                const NeverScrollableScrollPhysics(),
-                itemCount: cartItems.length,
-                itemBuilder: (context, index) {
-                  final item = cartItems[index];
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
+                  if (inventoryState.status == InventoryStatus.loading)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: LinearProgressIndicator(),
                     ),
-                    child: Padding(
-                      padding:
-                      const EdgeInsets.all(12),
-                      child: Column(
+
+                  if (inventoryState.status == InventoryStatus.failure)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item.medicine.name,
-                                  style:
-                                  const TextStyle(
-                                    fontWeight:
-                                    FontWeight.bold,
-                                  ),
-                                ),
+                          Expanded(
+                            child: Text(
+                              userFacingError(
+                                inventoryState.error,
+                                fallback: 'Unable to load stock.',
                               ),
-
-                              IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    cartItems.removeAt(
-                                        index);
-                                  });
-                                },
-                                icon: const Icon(
-                                  Icons.close,
-                                ),
-                              ),
-                            ],
+                              style: const TextStyle(color: AppColors.errorRed),
+                            ),
                           ),
-
-                          Row(
-                            children: [
-                              IconButton(
-                                onPressed: () {
-                                  decreaseQuantity(
-                                      index);
-                                },
-                                icon: const Icon(
-                                  Icons.remove,
-                                ),
-                              ),
-
-                              Text(
-                                item.quantity
-                                    .toString(),
-                              ),
-
-                              IconButton(
-                                onPressed: () {
-                                  increaseQuantity(
-                                      index);
-                                },
-                                icon: const Icon(
-                                  Icons.add,
-                                ),
-                              ),
-
-                              const Spacer(),
-
-                              Text(
-                                "\$${item.total.toStringAsFixed(2)}",
-                                style:
-                                const TextStyle(
-                                  color:
-                                  Colors.green,
-                                  fontWeight:
-                                  FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          TextButton(
+                            onPressed: () =>
+                                context.read<InventoryCubit>().load(),
+                            child: const Text('Retry'),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
 
-              Container(
-                padding: const EdgeInsets.all(20),
-
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius:
-                  const BorderRadius.vertical(
-                    top: Radius.circular(30),
+                  PosSearchResults(
+                    medicines: filteredMedicines(inventoryState.medicines),
+                    onAdd: addToCart,
                   ),
-                ),
 
-                child: Column(
-                  children: [
-                    CustomTextField(
-                      controller: customerController,
-                      hint: "Customer Name (Optional)",
-                      prefixIcon: Icons.person,
-                    ),
+                  cartItems.isEmpty
+                      ? const PosEmptyCart()
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: cartItems.length,
+                          itemBuilder: (context, index) {
+                            final item = cartItems[index];
 
-                    const SizedBox(height: 18),
+                            return Card(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            item.medicine.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
 
-                    PosPaymentMethods(
-                      selectedPayment:
-                      selectedPayment,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedPayment = value;
-                        });
-                      },
-                    ),
+                                        IconButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              cartItems.removeAt(index);
+                                            });
+                                          },
+                                          icon: const Icon(Icons.close),
+                                        ),
+                                      ],
+                                    ),
 
-                    if (selectedPayment == "Card") ...[
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                        controller: cardNumberController,
-                        hint: "Card Number (10 digits)",
-                        prefixIcon: Icons.credit_card,
-                        keyboardType: TextInputType.number,
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          onPressed: () {
+                                            decreaseQuantity(index);
+                                          },
+                                          icon: const Icon(Icons.remove),
+                                        ),
+
+                                        Text(item.quantity.toString()),
+
+                                        IconButton(
+                                          onPressed: () {
+                                            increaseQuantity(index);
+                                          },
+                                          icon: const Icon(Icons.add),
+                                        ),
+
+                                        const Spacer(),
+
+                                        Text(
+                                          money(item.total),
+                                          style: const TextStyle(
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                  Container(
+                    padding: const EdgeInsets.all(20),
+
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(30),
                       ),
-                    ],
-
-                    const SizedBox(height: 22),
-
-                    PosTotalSection(
-                      total: total,
-                      onCompleteSale:
-                      completeSale,
                     ),
-                  ],
-                ),
+
+                    child: Column(
+                      children: [
+                        CustomTextField(
+                          controller: customerController,
+                          hint: "Customer Name (Optional)",
+                          prefixIcon: Icons.person,
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        PosPaymentMethods(
+                          selectedPayment: selectedPayment,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedPayment = value;
+                            });
+                          },
+                        ),
+
+                        if (selectedPayment == "Card") ...[
+                          const SizedBox(height: 16),
+                          CustomTextField(
+                            controller: cardNumberController,
+                            hint: "Card Number (10 digits)",
+                            prefixIcon: Icons.credit_card,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ],
+
+                        const SizedBox(height: 22),
+
+                        PosTotalSection(
+                          total: total,
+                          onCompleteSale: completeSale,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
+            );
           },
         ),
       ),

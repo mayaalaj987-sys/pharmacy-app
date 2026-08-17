@@ -3,25 +3,37 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Medicine;
 
+/**
+ * Barada Pharma Distribution (Demo) catalogue — Al-Mazzeh, Damascus.
+ *
+ * Global supplier catalogue rows (pharmacy_id = null) that pharmacies order
+ * from. Manufacturer labels are Syrian place-derived demo names (Qasioun, the
+ * mountain above Damascus; Orontes, the river through Homs and Hama; Ugarit,
+ * the ancient site near Latakia; Palmyra in Homs governorate) and are not real
+ * registered manufacturers.
+ *
+ * Prices are demo values in Syrian Pounds (SYP), not official market prices.
+ * Expiry dates are generated relative to the seeding date, so seeded stock is
+ * never already expired.
+ */
 class MedicalPharma extends Seeder
 {
     public function run(): void
     {
         $data = [
-            ['name'=>'Amoxicillin 500mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>8,'selling_price'=>12.5,'manufacturer'=>'Pfizer','quantity'=>150,'reorder_level'=>20,'expire_date'=>'2025-08-15','category_medicine'=>'Antibiotics','qr_code'=>'1111'],
-            ['name'=>'Ciprofloxacin 500mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>10,'selling_price'=>15,'manufacturer'=>'Bayer','quantity'=>120,'reorder_level'=>20,'expire_date'=>'2026-01-10','category_medicine'=>'Antibiotics','qr_code'=>'1112'],
-            ['name'=>'Azithromycin 250mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>12,'selling_price'=>18.5,'manufacturer'=>'Pfizer','quantity'=>158,'reorder_level'=>30,'expire_date'=>'2025-05-25','category_medicine'=>'Antibiotics','qr_code'=>'1113'],
-            ['name'=>'Augmentin 625mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>14,'selling_price'=>20,'manufacturer'=>'GSK','quantity'=>90,'reorder_level'=>15,'expire_date'=>'2026-03-12','category_medicine'=>'Antibiotics','qr_code'=>'1114'],
-            ['name'=>'Ibuprofen 400mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>5.5,'selling_price'=>8.99,'manufacturer'=>'Abbott','quantity'=>199,'reorder_level'=>40,'expire_date'=>'2026-03-20','category_medicine'=>'Painkillers','qr_code'=>'1115'],
-            ['name'=>'Paracetamol 500mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>3,'selling_price'=>5.99,'manufacturer'=>'Sanofi','quantity'=>300,'reorder_level'=>50,'expire_date'=>'2027-01-15','category_medicine'=>'Painkillers','qr_code'=>'1116'],
-            ['name'=>'Diclofenac 50mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>4,'selling_price'=>7.5,'manufacturer'=>'Novartis','quantity'=>140,'reorder_level'=>25,'expire_date'=>'2026-06-10','category_medicine'=>'Painkillers','qr_code'=>'1117'],
-            ['name'=>'Aspirin 100mg','supplier_id'=>1,'pharmacy_id'=>null,'cost_price'=>2,'selling_price'=>4,'manufacturer'=>'Bayer','quantity'=>180,'reorder_level'=>30,'expire_date'=>'2027-02-01','category_medicine'=>'Painkillers','qr_code'=>'1118'],
+            ['name' => 'Amoxicillin 500mg', 'manufacturer' => 'Qasioun Labs', 'category_medicine' => 'Antibiotics', 'cost_price' => 8000, 'selling_price' => 12500, 'quantity' => 150, 'reorder_level' => 20, 'months' => 18, 'qr_code' => '1111'],
+            ['name' => 'Ciprofloxacin 500mg', 'manufacturer' => 'Orontes Labs', 'category_medicine' => 'Antibiotics', 'cost_price' => 10000, 'selling_price' => 15000, 'quantity' => 120, 'reorder_level' => 20, 'months' => 24, 'qr_code' => '1112'],
+            ['name' => 'Azithromycin 250mg', 'manufacturer' => 'Ugarit Pharma', 'category_medicine' => 'Antibiotics', 'cost_price' => 12000, 'selling_price' => 18500, 'quantity' => 158, 'reorder_level' => 30, 'months' => 15, 'qr_code' => '1113'],
+            ['name' => 'Augmentin 625mg', 'manufacturer' => 'Palmyra Labs', 'category_medicine' => 'Antibiotics', 'cost_price' => 14000, 'selling_price' => 20000, 'quantity' => 90, 'reorder_level' => 15, 'months' => 20, 'qr_code' => '1114'],
+            ['name' => 'Ibuprofen 400mg', 'manufacturer' => 'Qasioun Labs', 'category_medicine' => 'Painkillers', 'cost_price' => 5500, 'selling_price' => 9000, 'quantity' => 199, 'reorder_level' => 40, 'months' => 22, 'qr_code' => '1115'],
+            ['name' => 'Paracetamol 500mg', 'manufacturer' => 'Orontes Labs', 'category_medicine' => 'Painkillers', 'cost_price' => 3000, 'selling_price' => 6000, 'quantity' => 300, 'reorder_level' => 50, 'months' => 30, 'qr_code' => '1116'],
+            ['name' => 'Diclofenac 50mg', 'manufacturer' => 'Ugarit Pharma', 'category_medicine' => 'Painkillers', 'cost_price' => 4000, 'selling_price' => 7500, 'quantity' => 140, 'reorder_level' => 25, 'months' => 26, 'qr_code' => '1117'],
+            ['name' => 'Aspirin 100mg', 'manufacturer' => 'Palmyra Labs', 'category_medicine' => 'Painkillers', 'cost_price' => 2000, 'selling_price' => 4000, 'quantity' => 180, 'reorder_level' => 30, 'months' => 28, 'qr_code' => '1118'],
         ];
 
         foreach ($data as $item) {
-            Medicine::create($item);
+            CatalogueSeeding::upsert($item, supplierId: 1);
         }
     }
 }

@@ -38,6 +38,12 @@ import 'features/employee_workspace/presentation/cubit/employee_workspace_cubit.
 import 'features/tasks/data/tasks_api.dart';
 import 'features/tasks/data/tasks_repository.dart';
 import 'features/tasks/presentation/cubit/tasks_cubit.dart';
+import 'features/notifications/data/notifications_api.dart';
+import 'features/notifications/data/notifications_repository.dart';
+import 'features/notifications/presentation/cubit/notifications_cubit.dart';
+import 'features/rating/data/rating_api.dart';
+import 'features/rating/data/rating_repository.dart';
+import 'features/rating/presentation/cubit/rating_cubit.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,6 +91,13 @@ void main() {
         ),
         BlocProvider(
           create: (_) => TasksCubit(TasksRepository(TasksApi())),
+        ),
+        BlocProvider(
+          create: (_) =>
+              NotificationsCubit(NotificationsRepository(NotificationsApi())),
+        ),
+        BlocProvider(
+          create: (_) => RatingCubit(RatingRepository(RatingApi())),
         ),
       ],
       child: const MyApp(),

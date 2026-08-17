@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../notifications/presentation/cubit/notifications_cubit.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/pos_page.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -17,6 +20,13 @@ class MainNavigationPage extends StatefulWidget {
 }
 
 class _MainNavigationPageState extends State<MainNavigationPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Populates the app-bar badge; refreshed again when the screen opens.
+    context.read<NotificationsCubit>().refreshQuietly();
+  }
+
   int currentIndex = 0;
 
   final List<Widget> pages = [

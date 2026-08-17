@@ -7,8 +7,9 @@ import 'package:phamacy_managment/features/employee_workspace/presentation/cubit
 
 void main() {
   test('fetchMyTasks parses counts and task rows', () async {
-    final result =
-        await EmployeeWorkspaceRepository(FakeWorkspaceApi()).fetchMyTasks();
+    final result = await EmployeeWorkspaceRepository(
+      FakeWorkspaceApi(),
+    ).fetchMyTasks();
 
     expect(result.pendingCount, 1);
     expect(result.doneCount, 1);
@@ -34,8 +35,9 @@ void main() {
   });
 
   test('load populates tasks and sales together', () async {
-    final cubit =
-        EmployeeWorkspaceCubit(EmployeeWorkspaceRepository(FakeWorkspaceApi()));
+    final cubit = EmployeeWorkspaceCubit(
+      EmployeeWorkspaceRepository(FakeWorkspaceApi()),
+    );
 
     await cubit.load(9);
 
@@ -45,18 +47,21 @@ void main() {
     await cubit.close();
   });
 
-  test('marking a task done refetches tasks and clears the busy flag', () async {
-    final api = FakeWorkspaceApi();
-    final cubit = EmployeeWorkspaceCubit(EmployeeWorkspaceRepository(api));
-    await cubit.load(9);
+  test(
+    'marking a task done refetches tasks and clears the busy flag',
+    () async {
+      final api = FakeWorkspaceApi();
+      final cubit = EmployeeWorkspaceCubit(EmployeeWorkspaceRepository(api));
+      await cubit.load(9);
 
-    final ok = await cubit.markTaskDone(9, 1);
+      final ok = await cubit.markTaskDone(9, 1);
 
-    expect(ok, isTrue);
-    expect(api.doneTaskIds, [1]);
-    expect(cubit.state.mutatingTaskId, isNull);
-    await cubit.close();
-  });
+      expect(ok, isTrue);
+      expect(api.doneTaskIds, [1]);
+      expect(cubit.state.mutatingTaskId, isNull);
+      await cubit.close();
+    },
+  );
 
   test('an already-done rejection is surfaced and changes nothing', () async {
     final api = FakeWorkspaceApi()..failMarkDone = true;
@@ -83,6 +88,63 @@ void main() {
     expect(cubit.state.error, isNotNull);
     await cubit.close();
   });
+
+  test('updateProfile only sends the fields the backend accepts', () async {
+    final api = FakeWorkspaceApi();
+
+    await EmployeeWorkspaceRepository(
+      api,
+    ).updateProfile(name: 'Lina Haddad', phone: '0930111222');
+
+    expect(api.lastProfilePayload, {
+      'name': 'Lina Haddad',
+      'phone': '0930111222',
+    });
+  });
+
+  test('updateProfile omits an absent phone instead of sending null', () async {
+    final api = FakeWorkspaceApi();
+
+    await EmployeeWorkspaceRepository(api).updateProfile(name: 'Lina Haddad');
+
+    expect(api.lastProfilePayload, {'name': 'Lina Haddad'});
+    expect(api.lastProfilePayload!.containsKey('phone'), isFalse);
+  });
+
+  test(
+    'changePassword forwards the confirmation the backend requires',
+    () async {
+      final api = FakeWorkspaceApi();
+
+      await EmployeeWorkspaceRepository(api).changePassword(
+        currentPassword: 'old-secret-1',
+        newPassword: 'new-secret-1',
+        confirmation: 'new-secret-1',
+      );
+
+      expect(api.lastPasswordPayload, {
+        'current_password': 'old-secret-1',
+        'new_password': 'new-secret-1',
+        'new_password_confirmation': 'new-secret-1',
+      });
+    },
+  );
+
+  test('changePassword surfaces the backend rejection code', () async {
+    final api = FakeWorkspaceApi()..failPasswordChange = true;
+    final cubit = EmployeeWorkspaceCubit(EmployeeWorkspaceRepository(api));
+
+    final ok = await cubit.changePassword(
+      currentPassword: 'wrong',
+      newPassword: 'new-secret-1',
+      confirmation: 'new-secret-1',
+    );
+
+    expect(ok, isFalse);
+    expect(cubit.state.error?.code, 'current_password_incorrect');
+    expect(cubit.state.savingAccount, isFalse);
+    await cubit.close();
+  });
 }
 
 class FakeWorkspaceApi implements EmployeeWorkspaceRemoteDataSource {
@@ -90,6 +152,9 @@ class FakeWorkspaceApi implements EmployeeWorkspaceRemoteDataSource {
   final List<int> doneTaskIds = [];
   bool failMarkDone = false;
   bool failLoad = false;
+  Map<String, dynamic>? lastProfilePayload;
+  Map<String, dynamic>? lastPasswordPayload;
+  bool failPasswordChange = false;
 
   @override
   Future<Response<dynamic>> getMyTasks() async {
@@ -167,6 +232,38 @@ class FakeWorkspaceApi implements EmployeeWorkspaceRemoteDataSource {
           },
         ],
       },
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> updateProfile(Map<String, dynamic> data) async {
+    lastProfilePayload = data;
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/employee/profile/update'),
+      data: {'code': 'employee_profile_updated'},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> changePassword(Map<String, dynamic> data) async {
+    lastPasswordPayload = data;
+    if (failPasswordChange) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/employee/password/change'),
+        response: Response<dynamic>(
+          requestOptions: RequestOptions(path: '/employee/password/change'),
+          statusCode: 422,
+          data: {
+            'code': 'current_password_incorrect',
+            'message': 'Current password is incorrect.',
+          },
+        ),
+        type: DioExceptionType.badResponse,
+      );
+    }
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/employee/password/change'),
+      data: {'code': 'password_changed'},
     );
   }
 }
