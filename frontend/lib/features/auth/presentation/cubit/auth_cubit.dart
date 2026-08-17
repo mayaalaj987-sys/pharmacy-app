@@ -131,6 +131,40 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  /// Registers an additional pharmacy and reloads the session in place.
+  ///
+  /// Returns `null` on success, otherwise the failure to display. Unlike the
+  /// other flows this never emits [AuthLoading]: the caller is a pushed page,
+  /// and tearing the shell down underneath it would reset the navigation
+  /// stack. [_routeSession] re-emits the authenticated state directly, so the
+  /// active pharmacy is whatever the server still reports it to be — the new
+  /// pharmacy is pending and cannot take its place.
+  Future<AuthApiException?> addPharmacy(FormData data) async {
+    try {
+      _routeSession(await repository.addPharmacy(data));
+      return null;
+    } on AuthApiException catch (error) {
+      return error;
+    } catch (_) {
+      return const AuthApiException(message: 'Unable to add the pharmacy.');
+    }
+  }
+
+  /// Re-reads the session without tearing down the widget tree.
+  ///
+  /// Used by Settings so an owner can pick up a pharmacy an admin has just
+  /// approved without restarting the app. No polling: it runs on demand.
+  Future<AuthApiException?> reloadSession() async {
+    try {
+      _routeSession(await repository.refreshSession());
+      return null;
+    } on AuthApiException catch (error) {
+      return error;
+    } catch (_) {
+      return const AuthApiException(message: 'Unable to refresh your session.');
+    }
+  }
+
   Future<void> refreshSession() async {
     emit(const AuthLoading());
     try {

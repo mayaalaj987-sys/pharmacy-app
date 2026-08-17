@@ -7,7 +7,6 @@ import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../employees/domain/employee.dart';
 import '../../../employees/presentation/cubit/employees_cubit.dart';
-import '../../../employees/presentation/cubit/employees_state.dart';
 import '../../domain/pharmacy_task.dart';
 import '../cubit/tasks_cubit.dart';
 import '../cubit/tasks_state.dart';
@@ -21,6 +20,9 @@ class TasksPage extends StatefulWidget {
 
 class _TasksPageState extends State<TasksPage> {
   int? _pharmacyId;
+
+  /// Client-side view filter over the server-provided task list.
+  String _statusFilter = 'all';
 
   @override
   void initState() {
@@ -91,6 +93,9 @@ class _TasksPageState extends State<TasksPage> {
     }
 
     final tasks = state.tasks;
+    final visibleTasks = _statusFilter == 'all'
+        ? tasks.tasks
+        : tasks.tasks.where((t) => t.status == _statusFilter).toList();
 
     return RefreshIndicator(
       onRefresh: () => context.read<TasksCubit>().load(),
@@ -116,15 +121,45 @@ class _TasksPageState extends State<TasksPage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          if (tasks.tasks.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(child: Text("No tasks created yet")),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final entry in const [
+                  ['all', 'All'],
+                  ['pending', 'Pending'],
+                  ['done', 'Completed'],
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(entry[1]),
+                      selected: _statusFilter == entry[0],
+                      onSelected: (_) =>
+                          setState(() => _statusFilter = entry[0]),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          if (visibleTasks.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text(
+                  _statusFilter == 'all'
+                      ? "No tasks created yet"
+                      : "No ${_statusFilter == 'done' ? 'completed' : 'pending'} tasks",
+                ),
+              ),
             )
           else
-            ...tasks.tasks.map((task) => _taskCard(context, state, task)),
+            ...visibleTasks.map((task) => _taskCard(context, state, task)),
         ],
       ),
     );
@@ -173,8 +208,9 @@ class _TasksPageState extends State<TasksPage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      decoration:
-                          task.isDone ? TextDecoration.lineThrough : null,
+                      decoration: task.isDone
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                 ),
@@ -184,10 +220,11 @@ class _TasksPageState extends State<TasksPage> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: (task.isDone
-                            ? AppColors.lightGreen
-                            : AppColors.pendingOrange)
-                        .withValues(alpha: .15),
+                    color:
+                        (task.isDone
+                                ? AppColors.lightGreen
+                                : AppColors.pendingOrange)
+                            .withValues(alpha: .15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -215,6 +252,14 @@ class _TasksPageState extends State<TasksPage> {
                     style: const TextStyle(fontSize: 13),
                   ),
                 ),
+                if (task.createdAt != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Text(
+                      _formatDate(task.createdAt!),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
                 TextButton.icon(
                   onPressed: state.busy
                       ? null
@@ -236,6 +281,12 @@ class _TasksPageState extends State<TasksPage> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _createTaskFlow(BuildContext context) async {

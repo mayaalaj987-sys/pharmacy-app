@@ -12,7 +12,10 @@ import '../../../../core/widgets/medicines_page/medicine_stats_section.dart';
 import 'add_medicine_page.dart';
 
 class MedicinesPage extends StatefulWidget {
-  const MedicinesPage({super.key});
+  /// Employees may view stock but cannot add or edit medicines.
+  final bool readOnly;
+
+  const MedicinesPage({super.key, this.readOnly = false});
 
   @override
   State<MedicinesPage> createState() => _MedicinesPageState();
@@ -49,7 +52,9 @@ class _MedicinesPageState extends State<MedicinesPage> {
             controller: searchController,
             onQueryChanged: (value) => setState(() => query = value),
 
-            onAddMedicine: () async {
+            onAddMedicine: widget.readOnly
+                ? null
+                : () async {
               final cubit = context.read<InventoryCubit>();
               await Navigator.push(
                 context,
@@ -74,6 +79,7 @@ class _MedicinesPageState extends State<MedicinesPage> {
             child: MedicineList(
               selectedCategory: selectedCategory,
               query: query,
+              readOnly: widget.readOnly,
             ),
           ),
         ],

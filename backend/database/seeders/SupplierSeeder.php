@@ -2,35 +2,50 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Supplier;
+use Illuminate\Database\Seeder;
 
+/**
+ * Demo supplier catalogue for the Syrian market.
+ *
+ * Names are drawn from Syrian geography and heritage (Barada, the river of
+ * Damascus; Saidnaya in Rif Dimashq; Al-Shahba, the historic name of Aleppo)
+ * so the demo reads as Syrian rather than generic. They are fictional demo
+ * records marked "(Demo)" and do not represent real registered businesses.
+ *
+ * Phone numbers use the Syrian mobile format (09XXXXXXXX) and are not real
+ * subscriber numbers; the `.demo` email domain is deliberately unroutable.
+ */
 class SupplierSeeder extends Seeder
 {
     public function run(): void
     {
-        Supplier::create([
-            'id'      => 1,
-            'name'    => 'Medical Pharma',
-            'phone'   => '0501111111',
-            'address' => 'الرياض',
-            'email'   => 'medical@pharma.com',
-        ]);
+        $suppliers = [
+            [
+                'id' => 1,
+                'name' => 'Barada Pharma Distribution (Demo)',
+                'phone' => '0930111222',
+                'email' => 'orders@barada-pharma.demo',
+                'address' => 'Al-Mazzeh, Damascus',
+            ],
+            [
+                'id' => 2,
+                'name' => 'Saidnaya Medical Supplies (Demo)',
+                'phone' => '0931222333',
+                'email' => 'sales@saidnaya-medical.demo',
+                'address' => 'Jaramana, Rif Dimashq',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Al-Shahba Pharmaceutical Trading (Demo)',
+                'phone' => '0932333444',
+                'email' => 'contact@alshahba-pharma.demo',
+                'address' => 'Al-Furqan, Aleppo',
+            ],
+        ];
 
-        Supplier::create([
-            'id'      => 2,
-            'name'    => 'Dr Pharma',
-            'phone'   => '0502222222',
-            'address' => 'جدة',
-            'email'   => 'dr@pharma.com',
-        ]);
-
-        Supplier::create([
-            'id'      => 3,
-            'name'    => 'Med Core',
-            'phone'   => '0503333333',
-            'address' => 'الدمام',
-            'email'   => 'medcore@pharma.com',
-        ]);
+        foreach ($suppliers as $supplier) {
+            Supplier::updateOrCreate(['id' => $supplier['id']], $supplier);
+        }
     }
 }

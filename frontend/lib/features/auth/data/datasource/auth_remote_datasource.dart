@@ -13,6 +13,9 @@ abstract class AuthRemoteDataSource {
 
   Future<Response<dynamic>> me({int? activePharmacyId});
 
+  /// Multipart submission of an additional pharmacy for the signed-in owner.
+  Future<Response<dynamic>> addPharmacy(FormData data);
+
   Future<Response<dynamic>> logout();
 
   Future<Response<dynamic>> logoutRegistrationStatus(String statusToken);

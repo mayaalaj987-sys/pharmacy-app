@@ -12,12 +12,16 @@ class EmployeeWorkspaceState {
   /// Id of the task currently being marked done.
   final int? mutatingTaskId;
 
+  /// True while a profile or password update is in flight.
+  final bool savingAccount;
+
   const EmployeeWorkspaceState({
     this.status = EmployeeWorkspaceStatus.initial,
     this.tasks = MyTasks.empty,
     this.sales = MySales.empty,
     this.error,
     this.mutatingTaskId,
+    this.savingAccount = false,
   });
 
   const EmployeeWorkspaceState.initial() : this();
@@ -28,6 +32,7 @@ class EmployeeWorkspaceState {
     MySales? sales,
     AuthApiException? error,
     int? mutatingTaskId,
+    bool? savingAccount,
     bool clearError = false,
     bool clearMutating = false,
   }) {
@@ -38,6 +43,7 @@ class EmployeeWorkspaceState {
       error: clearError ? null : (error ?? this.error),
       mutatingTaskId:
           clearMutating ? null : (mutatingTaskId ?? this.mutatingTaskId),
+      savingAccount: savingAccount ?? this.savingAccount,
     );
   }
 }

@@ -8,10 +8,15 @@ class MedicineCard extends StatelessWidget {
   final Medicine medicine;
   final VoidCallback onRefresh;
 
+  /// Employees may read stock but cannot add or edit medicines
+  /// (backend exposes /medicines/add and /medicines/edit to pharmacists only).
+  final bool readOnly;
+
   const MedicineCard({
     super.key,
     required this.medicine,
     required this.onRefresh,
+    this.readOnly = false,
   });
 
   @override
@@ -58,16 +63,19 @@ class MedicineCard extends StatelessWidget {
                 // No delete: the backend exposes no medicine-delete contract,
                 // and medicines are referenced by sale history.
                 MedicineActionButtons(
-                  onEdit: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => AddMedicinePage(medicine: medicine),
-                      ),
-                    );
+                  onEdit: readOnly
+                      ? null
+                      : () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AddMedicinePage(medicine: medicine),
+                            ),
+                          );
 
-                    onRefresh();
-                  },
+                          onRefresh();
+                        },
                 ),
               ],
             ),

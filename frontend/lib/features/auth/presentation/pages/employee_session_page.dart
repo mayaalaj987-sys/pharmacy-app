@@ -6,8 +6,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../employee_workspace/domain/employee_task.dart';
 import '../../../employee_workspace/presentation/cubit/employee_workspace_cubit.dart';
 import '../../../employee_workspace/presentation/cubit/employee_workspace_state.dart';
+import '../../../employee_workspace/presentation/pages/employee_account_page.dart';
+import '../../../notifications/presentation/cubit/notifications_cubit.dart';
+import '../../../notifications/presentation/cubit/notifications_state.dart';
+import '../../../notifications/presentation/pages/notifications_page.dart';
 import '../../data/models/auth_session_model.dart';
 import '../cubit/auth_cubit.dart';
+import '../../../../core/format/money.dart';
 
 class EmployeeSessionPage extends StatefulWidget {
   final AuthSession session;
@@ -35,6 +40,58 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
       appBar: AppBar(
         title: const Text('Employee Session'),
         actions: [
+          BlocBuilder<NotificationsCubit, NotificationsState>(
+            builder: (context, notifications) {
+              final unread = notifications.unreadCount;
+              return IconButton(
+                tooltip: 'Notifications',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                ),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications),
+                    if (unread > 0)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.errorRed,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            notifications.badgeLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'My account',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    EmployeeAccountPage(actor: widget.session.actor),
+              ),
+            ),
+            icon: const Icon(Icons.manage_accounts),
+          ),
           IconButton(
             tooltip: 'Logout',
             onPressed: () => context.read<AuthCubit>().logout(),
@@ -123,9 +180,8 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   key: const ValueKey('employee-workspace-retry-button'),
-                  onPressed: () => context
-                      .read<EmployeeWorkspaceCubit>()
-                      .load(employeeId),
+                  onPressed: () =>
+                      context.read<EmployeeWorkspaceCubit>().load(employeeId),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Retry'),
                 ),
@@ -170,7 +226,7 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
                 Expanded(
                   child: _metric(
                     'Revenue',
-                    '\$${sales.totalPrice.toStringAsFixed(2)}',
+                    money(sales.totalPrice),
                     AppColors.lightGreen,
                   ),
                 ),
@@ -193,7 +249,7 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
                         children: [
                           Text('Invoice #${sale.id}'),
                           Text(
-                            '\$${sale.totalPrice.toStringAsFixed(2)}',
+                            money(sale.totalPrice),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
@@ -273,7 +329,7 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
           decoration: task.isDone ? TextDecoration.lineThrough : null,
         ),
       ),
-      subtitle: task.description == null ? null : Text(task.description!),
+      subtitle: _taskSubtitle(task),
       trailing: task.isDone
           ? Text(task.statusLabel, style: const TextStyle(fontSize: 12))
           : TextButton(
@@ -288,6 +344,19 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
                   : const Text('Mark done'),
             ),
     );
+  }
+
+  Widget? _taskSubtitle(EmployeeTask task) {
+    final created = task.createdAt;
+    final parts = <String>[
+      if (task.description != null) task.description!,
+      if (created != null)
+        'Assigned ${created.year.toString().padLeft(4, '0')}-'
+            '${created.month.toString().padLeft(2, '0')}-'
+            '${created.day.toString().padLeft(2, '0')}',
+    ];
+    if (parts.isEmpty) return null;
+    return Text(parts.join(' - '), style: const TextStyle(fontSize: 12));
   }
 
   Future<void> _markDone(

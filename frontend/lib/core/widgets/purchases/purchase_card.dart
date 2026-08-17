@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../features/orders/domain/purchase_order.dart';
 import 'purchase_status_badge.dart';
 import 'purchase_action_buttons.dart';
+import '../../format/money.dart';
 
 class PurchaseCard extends StatelessWidget {
   final PurchaseOrder purchase;
@@ -75,11 +76,7 @@ class PurchaseCard extends StatelessWidget {
               purchase.totalQuantity.toString(),
             ),
 
-            _buildInfo(
-              Icons.attach_money,
-              "Total",
-              "\$${purchase.totalPrice.toStringAsFixed(2)}",
-            ),
+            _buildInfo(Icons.attach_money, "Total", money(purchase.totalPrice)),
 
             const SizedBox(height: 14),
 

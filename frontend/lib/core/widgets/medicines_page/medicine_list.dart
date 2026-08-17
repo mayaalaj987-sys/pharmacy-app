@@ -9,11 +9,13 @@ import 'medicine_card.dart';
 class MedicineList extends StatelessWidget {
   final String selectedCategory;
   final String query;
+  final bool readOnly;
 
   const MedicineList({
     super.key,
     required this.selectedCategory,
     this.query = '',
+    this.readOnly = false,
   });
 
   @override
@@ -70,6 +72,7 @@ class MedicineList extends StatelessWidget {
             itemBuilder: (context, index) {
               return MedicineCard(
                 medicine: filtered[index],
+                readOnly: readOnly,
                 onRefresh: () => context.read<InventoryCubit>().load(),
               );
             },

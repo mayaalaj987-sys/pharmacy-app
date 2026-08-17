@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../features/notifications/presentation/cubit/notifications_cubit.dart';
+import '../../features/notifications/presentation/cubit/notifications_state.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../theme/app_colors.dart';
 
 class CustomAppBar extends StatelessWidget {
   final String title;
 
-  // final VoidCallback? onBack;
+  /// Hidden on the notifications screen itself.
+  final bool showNotificationBell;
 
-  const CustomAppBar({super.key, required this.title});
+  const CustomAppBar({
+    super.key,
+    required this.title,
+    this.showNotificationBell = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,25 +48,59 @@ class CustomAppBar extends StatelessWidget {
                 ),
               ),
 
-              Stack(
-                children: [
-                  const Icon(Icons.notifications, color: AppColors.white),
-                  Positioned(
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.errorRed,
-                        shape: BoxShape.circle,
+              if (showNotificationBell)
+                BlocBuilder<NotificationsCubit, NotificationsState>(
+                  builder: (context, state) {
+                    final unread = state.unreadCount;
+                    return InkWell(
+                      key: const ValueKey('notification-bell'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsPage(),
+                        ),
                       ),
-                      child: const Text(
-                        "3",
-                        style: TextStyle(color: AppColors.white, fontSize: 10),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.notifications,
+                              color: AppColors.white,
+                            ),
+                          ),
+                          if (unread > 0)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.errorRed,
+                                  shape: BoxShape.rectangle,
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(10),
+                                  ),
+                                ),
+                                child: Text(
+                                  state.badgeLabel,
+                                  style: const TextStyle(
+                                    color: AppColors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
+                    );
+                  },
+                ),
             ],
           ),
         ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:phamacy_managment/features/auth/presentation/pages/inventory_page.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/suppliers_page.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/sale_history_page.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/purchases_page.dart';
@@ -27,20 +26,9 @@ class MoreOptionsGrid extends StatelessWidget {
       childAspectRatio: .95,
 
       children: [
-        MoreOptionCard(
-          icon: Icons.inventory_2,
-
-          title: "Inventory",
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const InventoryPage(),
-              ),
-            );
-          },
-        ),
-
+        // The obsolete "Inventory" entry was removed: it rendered a duplicate
+        // screen backed by the retired in-memory medicine list. Real, API-backed
+        // inventory management lives in the Medicines tab (MedicinesPage).
         MoreOptionCard(
           icon: Icons.history,
           title: "Sales History",

@@ -8,6 +8,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/employee.dart';
 import '../cubit/employees_cubit.dart';
 import '../cubit/employees_state.dart';
+import '../../../../core/format/money.dart';
 
 class EmployeesPage extends StatefulWidget {
   const EmployeesPage({super.key});
@@ -198,7 +199,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             Text(employee.phone, style: const TextStyle(fontSize: 13)),
             if (employee.salary != null)
               Text(
-                "Salary: \$${employee.salary!.toStringAsFixed(2)}",
+                "Salary: ${money(employee.salary!)}",
                 style: const TextStyle(fontSize: 13),
               ),
             const SizedBox(height: 8),

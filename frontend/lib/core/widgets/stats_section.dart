@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/reports/presentation/cubit/reports_cubit.dart';
 import '../../features/reports/presentation/cubit/reports_state.dart';
 import '../theme/app_colors.dart';
+import '../format/money.dart';
 
 class StatsSection extends StatelessWidget {
   const StatsSection({super.key});
@@ -63,7 +64,7 @@ class StatsSection extends StatelessWidget {
 
             _StatCard(
               title: "Revenue",
-              value: "\$${dashboard.todayRevenue.toStringAsFixed(2)}",
+              value: money(dashboard.todayRevenue),
               icon: Icons.attach_money,
               color: Colors.blue,
               percent: "Today",

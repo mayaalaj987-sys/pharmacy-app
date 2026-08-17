@@ -28,4 +28,14 @@ class EmployeeWorkspaceApi implements EmployeeWorkspaceRemoteDataSource {
       queryParameters: {'employee_id': employeeId},
     );
   }
+
+  @override
+  Future<Response<dynamic>> updateProfile(Map<String, dynamic> data) {
+    return dio.post(ApiConstants.employeeProfileUpdate, data: data);
+  }
+
+  @override
+  Future<Response<dynamic>> changePassword(Map<String, dynamic> data) {
+    return dio.post(ApiConstants.employeePasswordChange, data: data);
+  }
 }

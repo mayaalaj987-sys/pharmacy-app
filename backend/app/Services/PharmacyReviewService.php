@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\AdminWorkflowException;
 use App\Models\Admin;
+use App\Models\Notification;
 use App\Models\Pharmacy;
 use App\Models\PharmacyDocumentVersion;
 use Illuminate\Http\Request;
@@ -132,6 +133,19 @@ class PharmacyReviewService
                 $before,
                 ['status' => $decision, 'review_version' => (int) $locked->review_version],
             );
+
+            // In-app notification for the pharmacy owner. Recipient is derived
+            // from the locked pharmacy row, never from client input.
+            Notification::create([
+                'pharmacy_id' => $locked->id,
+                'title' => $decision === 'approved' ? 'Pharmacy approved' : 'Pharmacy rejected',
+                'message' => $decision === 'approved'
+                    ? 'Your pharmacy registration has been approved.'
+                    : 'Your pharmacy registration was rejected.'.($reason ? ' Reason: '.$reason : ''),
+                'type' => $decision === 'approved' ? 'pharmacy_approved' : 'pharmacy_rejected',
+                'is_read' => false,
+                'date' => now(),
+            ]);
 
             return ['pharmacy' => $locked->load(['pharmacist', 'documentVersions']), 'idempotent' => false];
         });

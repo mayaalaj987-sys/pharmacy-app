@@ -4,8 +4,6 @@ import '../../../../core/widgets/account_type/account_type_card_widget.dart';
 import '../../../../core/widgets/account_type/auth_header_widget.dart';
 import '../../../../core/widgets/account_type/continue_button_widget.dart';
 import 'auth_options_page.dart';
-import 'employee_signup_page.dart';
-import 'signup_page1.dart';
 
 enum AccountType { pharmacist, employee }
 

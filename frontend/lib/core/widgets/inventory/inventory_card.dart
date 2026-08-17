@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../features/auth/data/models/medicine_model.dart';
+import '../../format/money.dart';
 
 class InventoryCard extends StatelessWidget {
   final MedicineModel medicine;
@@ -90,7 +91,8 @@ class InventoryCard extends StatelessWidget {
                 Expanded(
                   child: _infoCard(
                     "Price",
-                    "\$${medicine.sellingPrice}",
+                    // The legacy MedicineModel carries prices as strings.
+                    money(double.tryParse(medicine.sellingPrice)),
                     Colors.green,
                   ),
                 ),

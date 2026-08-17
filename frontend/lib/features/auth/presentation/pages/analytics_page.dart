@@ -6,6 +6,7 @@ import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/network/user_facing_error.dart';
 import '../../../reports/presentation/cubit/reports_cubit.dart';
 import '../../../reports/presentation/cubit/reports_state.dart';
+import '../../../../core/format/money.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -171,7 +172,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: TextStyle(fontSize: bold ? 16 : 14)),
-          Text("\$${value.toStringAsFixed(2)}", style: style),
+          Text(money(value), style: style),
         ],
       ),
     );

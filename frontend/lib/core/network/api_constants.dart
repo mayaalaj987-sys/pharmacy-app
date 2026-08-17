@@ -1,7 +1,7 @@
 class ApiConstants {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api',
+    defaultValue: 'http://192.168.1.8:8000/api',
   );
 
   static const String login = "/login";
@@ -15,6 +15,7 @@ class ApiConstants {
   static const String passwordChange = "/password/change";
   static const String accountDeactivate = "/account/deactivate";
   static const String pharmacyProfileUpdate = "/pharmacy/profile/update";
+  static const String pharmacyAdd = "/pharmacy/add";
 
   static const String medicines = "/medicines";
   static const String medicineAdd = "/medicines/add";
@@ -39,5 +40,14 @@ class ApiConstants {
 
   static const String tasks = "/tasks";
   static const String tasksPharmacy = "/tasks/pharmacy";
+
+  static const String notifications = "/notifications";
+  static const String notificationsReadAll = "/notifications/read-all";
   static const String saleMySales = "/sale/my-sales";
+
+  static const String employeeProfile = "/employee/profile";
+  static const String employeeProfileUpdate = "/employee/profile/update";
+  static const String employeePasswordChange = "/employee/password/change";
+
+  static const String rating = "/rating";
 }

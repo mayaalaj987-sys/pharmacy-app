@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../features/sales/domain/pos_cart_item.dart';
+import '../../format/money.dart';
 
 class PosCartList extends StatelessWidget {
   final List<PosCartItem> items;
@@ -28,20 +29,15 @@ class PosCartList extends StatelessWidget {
         final item = items[index];
 
         return Card(
-          margin: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
 
           child: Padding(
             padding: const EdgeInsets.all(16),
 
             child: Column(
               children: [
-
                 Row(
                   children: [
-
                     Expanded(
                       child: Text(
                         item.medicine.name,
@@ -56,10 +52,7 @@ class PosCartList extends StatelessWidget {
                       onPressed: () {
                         onDelete(index);
                       },
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.red,
-                      ),
+                      icon: const Icon(Icons.close, color: Colors.red),
                     ),
                   ],
                 ),
@@ -68,7 +61,6 @@ class PosCartList extends StatelessWidget {
 
                 Row(
                   children: [
-
                     IconButton(
                       onPressed: () {
                         onDecrease(index);
@@ -88,16 +80,13 @@ class PosCartList extends StatelessWidget {
                       onPressed: () {
                         onIncrease(index);
                       },
-                      icon: const Icon(
-                        Icons.add_circle,
-                        color: Colors.green,
-                      ),
+                      icon: const Icon(Icons.add_circle, color: Colors.green),
                     ),
 
                     const Spacer(),
 
                     Text(
-                      "\$${item.total.toStringAsFixed(2)}",
+                      money(item.total),
                       style: const TextStyle(
                         fontSize: 18,
                         color: Colors.green,

@@ -1,27 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/data/supplier_data.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
-import '../../../../core/widgets/custom_button.dart';
-import '../../../../core/widgets/custom_text_field.dart';
 import '../../data/models/supplier_model.dart';
 
 class AddSupplierPage extends StatefulWidget {
   final SupplierModel? supplier;
   final int? index;
 
-  const AddSupplierPage({
-    super.key,
-    this.supplier,
-    this.index,
-  });
+  const AddSupplierPage({super.key, this.supplier, this.index});
 
   @override
   State<AddSupplierPage> createState() => _AddSupplierPageState();
 }
 
 class _AddSupplierPageState extends State<AddSupplierPage> {
-
   final nameController = TextEditingController();
 
   final contactPersonController = TextEditingController();
@@ -37,34 +29,26 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
     super.initState();
 
     if (widget.supplier != null) {
-
       nameController.text = widget.supplier!.name;
 
-      contactPersonController.text =
-          widget.supplier!.contactPerson;
+      contactPersonController.text = widget.supplier!.contactPerson;
 
-      phoneController.text =
-          widget.supplier!.phone;
+      phoneController.text = widget.supplier!.phone;
 
-      emailController.text =
-          widget.supplier!.email;
+      emailController.text = widget.supplier!.email;
 
-      addressController.text =
-          widget.supplier!.address;
+      addressController.text = widget.supplier!.address;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
 
         child: CustomAppBar(
-          title: widget.supplier == null
-              ? "Add Supplier"
-              : "Edit Supplier",
+          title: widget.supplier == null ? "Add Supplier" : "Edit Supplier",
         ),
       ),
 
@@ -73,8 +57,7 @@ class _AddSupplierPageState extends State<AddSupplierPage> {
 
         child: Column(
           children: [
-
-           /* CustomTextField(
+            /* CustomTextField(
               controller: nameController,
               hint: "Supplier Name",
               prefixIcon: Icons.business,

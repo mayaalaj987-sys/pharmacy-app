@@ -68,6 +68,18 @@ class AuthApi implements AuthRemoteDataSource {
     );
   }
 
+  /// The owner is derived from the bearer token server-side, so no actor or
+  /// status field is ever sent. `skipActivePharmacy` keeps the currently
+  /// selected pharmacy out of the request: this creates a new one.
+  @override
+  Future<Response<dynamic>> addPharmacy(FormData data) {
+    return dio.post(
+      ApiConstants.pharmacyAdd,
+      data: data,
+      options: Options(extra: {'skipActivePharmacy': true}),
+    );
+  }
+
   @override
   Future<Response<dynamic>> logout() {
     return dio.post(

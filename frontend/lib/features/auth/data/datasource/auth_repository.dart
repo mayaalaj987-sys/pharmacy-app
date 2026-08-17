@@ -67,6 +67,23 @@ class AuthRepository {
 
   Future<AuthSession> refreshSession() => _loadRecoverableSession();
 
+  /// Registers an additional pharmacy for the signed-in owner.
+  ///
+  /// The backend forces `status = pending` and derives the owner from the
+  /// token, so the new pharmacy is never approved and never becomes the active
+  /// one. Reloading the session afterwards is what makes it show up in
+  /// `available_pharmacies` without an app restart; because it is pending,
+  /// [_persistActivePharmacy] leaves the stored active pharmacy untouched.
+  Future<AuthSession> addPharmacy(FormData data) async {
+    try {
+      await api.addPharmacy(data);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+
+    return _loadRecoverableSession();
+  }
+
   Future<AuthSession> selectActivePharmacy(int pharmacyId) async {
     try {
       final session = await _requestSession(activePharmacyId: pharmacyId);

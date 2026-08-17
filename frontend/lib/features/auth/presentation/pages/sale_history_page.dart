@@ -7,6 +7,7 @@ import '../../../../core/network/user_facing_error.dart';
 import '../../../sales/domain/sale.dart';
 import '../../../sales/presentation/cubit/sales_cubit.dart';
 import '../../../sales/presentation/cubit/sales_state.dart';
+import '../../../../core/format/money.dart';
 
 class SaleHistoryPage extends StatefulWidget {
   const SaleHistoryPage({super.key});
@@ -91,7 +92,7 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
                     Expanded(
                       child: _buildCard(
                         "Revenue",
-                        "\$${state.totalPrice.toStringAsFixed(2)}",
+                        money(state.totalPrice),
                         Colors.green,
                       ),
                     ),
@@ -123,10 +124,7 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                userFacingError(
-                  state.error,
-                  fallback: 'Unable to load sales.',
-                ),
+                userFacingError(state.error, fallback: 'Unable to load sales.'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.errorRed),
               ),
@@ -174,7 +172,7 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
               ),
 
               trailing: Text(
-                "\$${sale.totalPrice.toStringAsFixed(2)}",
+                money(sale.totalPrice),
                 style: const TextStyle(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
@@ -216,7 +214,7 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     "${item.medicineName} x${item.quantity} - "
-                    "\$${item.lineTotal.toStringAsFixed(2)}",
+                    "${money(item.lineTotal)}",
                   ),
                 ),
               ),
@@ -224,7 +222,7 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
               const Divider(height: 20),
 
               Text(
-                "Total: \$${sale.totalPrice.toStringAsFixed(2)}",
+                "Total: ${money(sale.totalPrice)}",
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],

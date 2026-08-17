@@ -6,6 +6,7 @@ import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../../../suppliers/domain/supplier.dart';
 import '../../../suppliers/presentation/cubit/suppliers_cubit.dart';
 import '../../../suppliers/presentation/cubit/suppliers_state.dart';
+import '../../../../core/format/money.dart';
 
 class SupplierDetailsPage extends StatefulWidget {
   final Supplier supplier;
@@ -62,108 +63,109 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
             );
           }
           final medicines =
-              state.medicinesBySupplier[supplier.id] ?? const <SupplierMedicine>[];
+              state.medicinesBySupplier[supplier.id] ??
+              const <SupplierMedicine>[];
           if (medicines.isEmpty) {
             return const Center(child: Text("No medicines available"));
           }
           return ListView.builder(
-              padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
 
-              itemCount: medicines.length,
+            itemCount: medicines.length,
 
-              itemBuilder: (context, index) {
-                final medicine = medicines[index];
+            itemBuilder: (context, index) {
+              final medicine = medicines[index];
 
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
 
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
 
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
 
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                          children: [
-                            Expanded(
-                              child: Text(
-                                medicine.name,
-
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-
-                            Text(
-                              "\$${medicine.price}",
+                        children: [
+                          Expanded(
+                            child: Text(
+                              medicine.name,
 
                               style: const TextStyle(
-                                color: Colors.green,
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
                               ),
                             ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        Text(
-                          medicine.category,
-
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-
-                        const SizedBox(height: 4),
-
-                        Text("Available: ${medicine.availableQuantity}"),
-
-                        const SizedBox(height: 16),
-
-                        SizedBox(
-                          width: double.infinity,
-
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              final ok = await context
-                                  .read<OrdersCubit>()
-                                  .createOrder(
-                                    supplierId: supplier.id,
-                                    medicineId: medicine.id,
-                                    quantity: 50,
-                                  );
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    ok
-                                        ? "Order created for ${medicine.name}"
-                                        : "Could not create the order",
-                                  ),
-                                ),
-                              );
-                            },
-
-                            icon: const Icon(Icons.shopping_cart),
-
-                            label: const Text("Buy"),
                           ),
+
+                          Text(
+                            money(medicine.price),
+
+                            style: const TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        medicine.category,
+
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      Text("Available: ${medicine.availableQuantity}"),
+
+                      const SizedBox(height: 16),
+
+                      SizedBox(
+                        width: double.infinity,
+
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final ok = await context
+                                .read<OrdersCubit>()
+                                .createOrder(
+                                  supplierId: supplier.id,
+                                  medicineId: medicine.id,
+                                  quantity: 50,
+                                );
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? "Order created for ${medicine.name}"
+                                      : "Could not create the order",
+                                ),
+                              ),
+                            );
+                          },
+
+                          icon: const Icon(Icons.shopping_cart),
+
+                          label: const Text("Buy"),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            );
+                ),
+              );
+            },
+          );
         },
       ),
     );

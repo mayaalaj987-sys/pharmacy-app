@@ -248,6 +248,214 @@ void main() {
       await cubit.close();
     },
   );
+
+  group('addPharmacy', () {
+    test('submits multipart and never sends owner or status fields', () async {
+      final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+      final api = FakeAuthApi()..meResults.add(_sessionWithPending());
+      final cubit = AuthCubit(
+        AuthRepository(api, storage, storage, AuthSessionEvents()),
+      );
+
+      final error = await cubit.addPharmacy(_addPharmacyForm());
+
+      expect(error, isNull);
+      expect(api.addPharmacyCalls, 1);
+
+      final sent = api.lastAddPharmacyData!;
+      final fieldNames = sent.fields.map((entry) => entry.key).toList();
+      final fileNames = sent.files.map((entry) => entry.key).toList();
+
+      expect(fieldNames, ['pharmacy_name', 'pharmacy_address']);
+      expect(fileNames, ['certificate', 'license']);
+      expect(fieldNames, isNot(contains('pharmacist_id')));
+      expect(fieldNames, isNot(contains('owner_id')));
+      expect(fieldNames, isNot(contains('status')));
+      await cubit.close();
+    });
+
+    test(
+      'refreshes the session so the pending pharmacy appears immediately',
+      () async {
+        final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+        final api = FakeAuthApi()..meResults.add(_sessionWithPending());
+        final cubit = AuthCubit(
+          AuthRepository(api, storage, storage, AuthSessionEvents()),
+        );
+
+        final error = await cubit.addPharmacy(_addPharmacyForm());
+
+        expect(error, isNull);
+        // The submit is followed by exactly one /me reload — no polling.
+        expect(api.meCalls, 1);
+        expect(cubit.session!.availablePharmacies, hasLength(2));
+        expect(
+          cubit.session!.availablePharmacies.map((p) => p.status),
+          containsAll(<String>['approved', 'pending']),
+        );
+        await cubit.close();
+      },
+    );
+
+    test('leaves the active pharmacy and its stored id unchanged', () async {
+      final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+      final api = FakeAuthApi()..meResults.add(_sessionWithPending());
+      final cubit = AuthCubit(
+        AuthRepository(api, storage, storage, AuthSessionEvents()),
+      );
+
+      await cubit.addPharmacy(_addPharmacyForm());
+
+      expect(cubit.state, isA<AuthAuthenticated>());
+      expect(cubit.session!.activePharmacy!.id, 1);
+      expect(cubit.session!.activePharmacy!.status, 'approved');
+      // The pending pharmacy is not selectable and was not auto-selected.
+      expect(cubit.session!.approvedPharmacies, hasLength(1));
+      expect(storage.activePharmacyId, 1);
+      await cubit.close();
+    });
+
+    test('returns the failure and does not disturb the session', () async {
+      final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+      final api = FakeAuthApi()
+        ..meResults.add(_sessionResponse(activeId: 1))
+        ..addPharmacyError = DioException(
+          requestOptions: RequestOptions(path: '/pharmacy/add'),
+          response: Response<dynamic>(
+            requestOptions: RequestOptions(path: '/pharmacy/add'),
+            statusCode: 422,
+            data: {
+              'message': 'The given data was invalid.',
+              'code': 'validation_failed',
+              'errors': {
+                'license': ['The license field is required.'],
+              },
+            },
+          ),
+          type: DioExceptionType.badResponse,
+        );
+      final cubit = AuthCubit(
+        AuthRepository(api, storage, storage, AuthSessionEvents()),
+      );
+      await cubit.restoreSession();
+
+      final error = await cubit.addPharmacy(_addPharmacyForm());
+
+      expect(error, isNotNull);
+      expect(error!.statusCode, 422);
+      expect(error.fieldErrors['license'], isNotEmpty);
+      // Failure must not trigger a reload or move the active pharmacy.
+      expect(api.meCalls, 1);
+      expect(cubit.session!.activePharmacy!.id, 1);
+      expect(storage.activePharmacyId, 1);
+      await cubit.close();
+    });
+  });
+
+  group('reloadSession', () {
+    test('exposes a newly approved pharmacy without a restart', () async {
+      final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+      final api = FakeAuthApi()
+        ..meResults.add(_sessionWithPending())
+        ..meResults.add(_sessionResponse(activeId: 1, pharmacyCount: 2));
+      final cubit = AuthCubit(
+        AuthRepository(api, storage, storage, AuthSessionEvents()),
+      );
+
+      await cubit.restoreSession();
+      expect(cubit.session!.approvedPharmacies, hasLength(1));
+
+      // The admin approves the second pharmacy, then the owner taps refresh.
+      final error = await cubit.reloadSession();
+
+      expect(error, isNull);
+      expect(cubit.session!.approvedPharmacies, hasLength(2));
+      expect(cubit.state, isA<AuthAuthenticated>());
+      expect(cubit.session!.activePharmacy!.id, 1);
+      await cubit.close();
+    });
+
+    test('surfaces a refresh failure without clearing the session', () async {
+      final storage = FakeSessionStorage(token: 'token', activePharmacyId: 1);
+      final api = FakeAuthApi()
+        ..meResults.add(_sessionResponse(activeId: 1))
+        ..meResults.add(
+          DioException(
+            requestOptions: RequestOptions(path: '/me'),
+            type: DioExceptionType.connectionError,
+          ),
+        );
+      final cubit = AuthCubit(
+        AuthRepository(api, storage, storage, AuthSessionEvents()),
+      );
+      await cubit.restoreSession();
+
+      final error = await cubit.reloadSession();
+
+      expect(error, isNotNull);
+      expect(cubit.session!.activePharmacy!.id, 1);
+      expect(storage.token, 'token');
+      await cubit.close();
+    });
+  });
+}
+
+FormData _addPharmacyForm() {
+  return FormData.fromMap({
+    'pharmacy_name': 'Barada Branch',
+    'pharmacy_address': 'Al-Mazzeh, Damascus',
+    'certificate': MultipartFile.fromString('%PDF-1.4', filename: 'cert.pdf'),
+    'license': MultipartFile.fromString('%PDF-1.4', filename: 'license.pdf'),
+  });
+}
+
+/// One approved pharmacy (the active one) plus a second awaiting review.
+Response<dynamic> _sessionWithPending() {
+  return Response<dynamic>(
+    requestOptions: RequestOptions(path: '/me'),
+    statusCode: 200,
+    data: {
+      'data': {
+        'session': {
+          'actor': {
+            'id': 1,
+            'type': 'pharmacist',
+            'role': 'owner',
+            'status': null,
+            'name': 'Owner',
+            'email': 'owner@example.test',
+            'phone': null,
+            'profile_image_url': null,
+          },
+          'available_pharmacies': [
+            {
+              'id': 1,
+              'name': 'Pharmacy',
+              'address': 'Address 1',
+              'status': 'approved',
+            },
+            {
+              'id': 2,
+              'name': 'Barada Branch',
+              'address': 'Al-Mazzeh, Damascus',
+              'status': 'pending',
+            },
+          ],
+          'active_pharmacy': {
+            'id': 1,
+            'name': 'Pharmacy',
+            'address': 'Address 1',
+            'status': 'approved',
+          },
+          'access': {
+            'operational': true,
+            'code': 'ready',
+            'requires_active_pharmacy': false,
+          },
+        },
+      },
+    },
+  );
 }
 
 Response<dynamic> _sessionResponse({
@@ -400,6 +608,23 @@ class FakeAuthApi implements AuthRemoteDataSource {
   Response<dynamic>? registerPharmacistResult;
   DioException? loginError;
   final List<Object> registrationStatusResults = [];
+  int addPharmacyCalls = 0;
+  FormData? lastAddPharmacyData;
+  DioException? addPharmacyError;
+
+  @override
+  Future<Response<dynamic>> addPharmacy(FormData data) async {
+    addPharmacyCalls++;
+    lastAddPharmacyData = data;
+    if (addPharmacyError != null) throw addPharmacyError!;
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/pharmacy/add'),
+      statusCode: 201,
+      data: {
+        'message': 'Pharmacy added successfully, waiting for admin approval',
+      },
+    );
+  }
 
   @override
   Future<Response<dynamic>> me({int? activePharmacyId}) async {

@@ -5,7 +5,7 @@ import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
 import 'account_type_page.dart';
 import 'active_pharmacy_selection_page.dart';
-import 'employee_session_page.dart';
+import 'employee_navigation_page.dart';
 import 'main_navigation_page.dart';
 import 'session_status_page.dart';
 
@@ -24,7 +24,7 @@ class AuthGate extends StatelessWidget {
 
         if (state is AuthAuthenticated) {
           return state.session.actor.type.name == 'employee'
-              ? EmployeeSessionPage(session: state.session)
+              ? EmployeeNavigationPage(session: state.session)
               : const MainNavigationPage();
         }
 
