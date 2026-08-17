@@ -28,3 +28,6 @@ src/routeTree.gen.ts
 *.sw?
 
 coverage
+
+# TanStack Router build cache
+.tanstack

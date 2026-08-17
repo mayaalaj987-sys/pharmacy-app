@@ -67,8 +67,53 @@ export interface PaginatedResponse<T> {
   };
 }
 
+/** Read endpoints that always return a payload, with no message/code pair. */
+export interface DataEnvelope<T> {
+  data: T;
+}
+
 export interface ApiEnvelope<T> {
   message: string;
   code: string;
   data?: T;
+}
+
+export interface PharmacyFleetAnalytics {
+  total_owners: number;
+  owners_operating: number;
+  owners_without_an_approved_pharmacy: number;
+  branches: { approved: number; pending: number; rejected: number };
+  distribution: {
+    single_branch_owners: number;
+    multi_branch_owners: number;
+    single_branch_percentage: number;
+    multi_branch_percentage: number;
+  };
+}
+
+export interface JobMarketAnalytics {
+  open_positions: number;
+  active_seekers: number;
+  total_applicants: number;
+  hired: number;
+  rejected: number;
+  hire_rate_percentage: number;
+  capacity: {
+    employees_per_pharmacy: number;
+    total_slots: number;
+    filled_slots: number;
+  };
+}
+
+export interface OnboardingPoint {
+  month: string;
+  label: string;
+  registrations: number;
+}
+
+export interface OnboardingAnalytics {
+  from: string;
+  to: string;
+  total: number;
+  points: OnboardingPoint[];
 }

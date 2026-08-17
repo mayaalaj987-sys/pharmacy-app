@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminAnalyticsController;
 use App\Http\Controllers\AdminManagementController;
 use App\Http\Controllers\AdminPharmacyDocumentController;
 use App\Http\Controllers\AdminPharmacyReviewController;
@@ -21,6 +22,10 @@ Route::prefix('api/admin')->group(function (): void {
 
         Route::middleware(['admin.active', 'admin.audit'])->group(function (): void {
             Route::get('/session', [AdminSessionController::class, 'current'])->name('admin.session.current');
+
+            Route::get('/analytics/pharmacies', [AdminAnalyticsController::class, 'pharmacies'])->name('admin.analytics.pharmacies');
+            Route::get('/analytics/job-market', [AdminAnalyticsController::class, 'jobMarket'])->name('admin.analytics.job-market');
+            Route::get('/analytics/onboarding', [AdminAnalyticsController::class, 'onboarding'])->name('admin.analytics.onboarding');
 
             Route::get('/review/applications', [AdminPharmacyReviewController::class, 'index'])->name('admin.review.applications.index');
             Route::get('/review/applications/{pharmacy}', [AdminPharmacyReviewController::class, 'show'])->name('admin.review.applications.show');
