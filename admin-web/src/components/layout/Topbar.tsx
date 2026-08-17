@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUi } from "@/context/UiContext";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 
 export function Topbar({ title }: { title: string }) {
   const { admin, logout } = useAuth();
@@ -36,6 +37,8 @@ export function Topbar({ title }: { title: string }) {
       </div>
 
       <div className="ml-auto" />
+
+      <CommandPalette />
 
       <NotificationBell />
 

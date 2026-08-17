@@ -7,6 +7,7 @@ import {
   Building2,
   LifeBuoy,
   Megaphone,
+  Settings,
   ChevronsLeft,
   LogOut,
 } from "lucide-react";
@@ -30,6 +31,7 @@ export function Sidebar() {
     ...(navigation?.manage_admins
       ? [{ to: "/admins" as const, label: "Administrators", icon: Users }]
       : []),
+    { to: "/settings" as const, label: "Settings", icon: Settings },
   ];
 
   return (

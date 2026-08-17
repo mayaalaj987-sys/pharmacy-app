@@ -17,6 +17,8 @@ interface AuthState {
   status: AuthStatus;
   admin: AdminAccount | null;
   navigation: Navigation | null;
+  /** Inactivity window enforced by the server, in minutes. */
+  sessionLifetimeMinutes: number | null;
 }
 
 interface AuthContextValue extends AuthState {
@@ -31,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     status: "resolving",
     admin: null,
     navigation: null,
+    sessionLifetimeMinutes: null,
   });
   const bootAbortRef = useRef<AbortController | null>(null);
   const logoutInFlightRef = useRef<Promise<void> | null>(null);
@@ -44,18 +47,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           status: "authenticated",
           admin: res.data!.admin,
           navigation: res.data!.navigation,
+          sessionLifetimeMinutes: res.data!.session_lifetime_minutes,
         });
       })
       .catch((error) => {
         if (error instanceof AdminApiAbortError) return;
-        setState({ status: "unauthenticated", admin: null, navigation: null });
+        setState({
+          status: "unauthenticated",
+          admin: null,
+          navigation: null,
+          sessionLifetimeMinutes: null,
+        });
       });
     return () => controller.abort();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await loginRequest(email, password);
-    setState({ status: "authenticated", admin: res.data!.admin, navigation: res.data!.navigation });
+    setState({
+      status: "authenticated",
+      admin: res.data!.admin,
+      navigation: res.data!.navigation,
+      sessionLifetimeMinutes: res.data!.session_lifetime_minutes,
+    });
   }, []);
 
   const logout = useCallback(async () => {
@@ -69,7 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // so the UI reliably returns to a logged-out view rather than getting stuck.
         if (!(error instanceof AdminApiError)) throw error;
       } finally {
-        setState({ status: "unauthenticated", admin: null, navigation: null });
+        setState({
+          status: "unauthenticated",
+          admin: null,
+          navigation: null,
+          sessionLifetimeMinutes: null,
+        });
         logoutInFlightRef.current = null;
       }
     })();

@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminPharmacyController;
 use App\Http\Controllers\AdminPharmacyDocumentController;
 use App\Http\Controllers\AdminPharmacyReviewController;
+use App\Http\Controllers\AdminSearchController;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Controllers\AdminSupportTicketController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,8 @@ Route::prefix('api/admin')->group(function (): void {
 
             Route::get('/support/tickets', [AdminSupportTicketController::class, 'index'])->name('admin.support.tickets.index');
             Route::post('/support/tickets/{ticket}/respond', [AdminSupportTicketController::class, 'respond'])->name('admin.support.tickets.respond');
+
+            Route::get('/search', [AdminSearchController::class, 'index'])->name('admin.search.index');
 
             Route::get('/inbox', [AdminInboxController::class, 'index'])->name('admin.inbox.index');
 

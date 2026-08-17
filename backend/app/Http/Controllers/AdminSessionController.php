@@ -107,6 +107,9 @@ class AdminSessionController extends Controller
                 'review_pharmacies' => $admin->canReviewPharmacies(),
                 'manage_admins' => $admin->is_active && $admin->isSuperAdmin(),
             ],
+            // Read from config rather than hardcoded in the console, so the
+            // figure shown to an administrator is the one actually enforced.
+            'session_lifetime_minutes' => (int) config('session.lifetime'),
         ];
     }
 }

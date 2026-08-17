@@ -17,9 +17,24 @@ export interface Navigation {
   manage_admins: boolean;
 }
 
+export interface SearchHit {
+  id: number;
+  title: string;
+  detail: string;
+  status: string;
+}
+
+export interface AdminSearchResults {
+  query: string;
+  pharmacies: SearchHit[];
+  tickets: SearchHit[];
+}
+
 export interface SessionData {
   admin: AdminAccount;
   navigation: Navigation;
+  /** Enforced by the server; the console only reports it. */
+  session_lifetime_minutes: number;
 }
 
 export type PharmacyStatus = "pending" | "approved" | "rejected";
