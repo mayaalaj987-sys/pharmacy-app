@@ -7,6 +7,7 @@ import { AdminApiError } from "@/lib/adminApi";
 import { fetchApplications } from "@/lib/reviewApi";
 import type { PharmacyApplication } from "@/lib/types";
 import { ReviewDrawer } from "@/components/review/ReviewDrawer";
+import { shortDate } from "@/lib/relativeTime";
 
 const PER_PAGE = 20;
 
@@ -104,9 +105,7 @@ export function ReviewView() {
                     <p>{r.owner?.name ?? "—"}</p>
                     <p className="text-xs text-muted-foreground">{r.owner?.email ?? ""}</p>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : "—"}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{shortDate(r.submitted_at)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={statusLabel(r.status)} />
                   </td>

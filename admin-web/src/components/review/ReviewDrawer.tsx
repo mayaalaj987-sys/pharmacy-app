@@ -7,6 +7,7 @@ import { AdminApiError } from "@/lib/adminApi";
 import { downloadAdminDocument } from "@/lib/download";
 import { approveApplication, fetchApplication, rejectApplication } from "@/lib/reviewApi";
 import type { PharmacyApplication, PharmacyDocument } from "@/lib/types";
+import { exactTime } from "@/lib/relativeTime";
 
 type ToastPush = (t: {
   variant: "success" | "error" | "info";
@@ -191,12 +192,7 @@ export function ReviewDrawer({ application, onClose, onDecided, onToast }: Props
                 ["Contact email", application.owner?.email ?? "—"],
                 ["Contact phone", application.owner?.phone ?? "—"],
                 ["Address", application.address],
-                [
-                  "Submitted",
-                  application.submitted_at
-                    ? new Date(application.submitted_at).toLocaleString()
-                    : "—",
-                ],
+                ["Submitted", application.submitted_at ? exactTime(application.submitted_at) : "—"],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 py-2 border-b last:border-b-0">
                   <dt className="text-muted-foreground">{k}</dt>
@@ -253,10 +249,7 @@ export function ReviewDrawer({ application, onClose, onDecided, onToast }: Props
           {isFinalized && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg p-3">
               <AlertCircle size={14} /> This application was already {application.status}
-              {application.reviewed_at
-                ? ` on ${new Date(application.reviewed_at).toLocaleString()}`
-                : ""}
-              .
+              {application.reviewed_at ? ` on ${exactTime(application.reviewed_at)}` : ""}.
             </div>
           )}
 

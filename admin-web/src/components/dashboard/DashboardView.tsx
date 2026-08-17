@@ -10,6 +10,7 @@ import type {
   OnboardingAnalytics,
 } from "@/lib/types";
 import { StatusBadge } from "@/components/ui-custom/StatusBadge";
+import { exactTime, relativeTime } from "@/lib/relativeTime";
 
 /**
  * Console overview.
@@ -276,8 +277,8 @@ function ActivityFeed({
                   <span className="text-muted-foreground">{entry.label}</span>
                   {entry.target && <span className="text-muted-foreground"> · {entry.target}</span>}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {entry.logged_at ? new Date(entry.logged_at).toLocaleString() : "—"}
+                <p className="text-[11px] text-muted-foreground" title={exactTime(entry.logged_at)}>
+                  {relativeTime(entry.logged_at)}
                   {entry.reason ? ` · ${entry.reason}` : ""}
                 </p>
               </div>

@@ -104,19 +104,27 @@ class AdminDashboardTest extends AdminTestCase
         $labels = array_column($response->json('data'), 'label');
         $this->assertContains('approved a pharmacy', $labels);
 
-        // Reads are noise in a feed and must not appear.
+        // Every page load is audited, but none of it belongs in the feed.
         $actions = array_column($response->json('data'), 'action');
         $this->assertNotContains('admin.review.applications.index', $actions);
         $this->assertNotContains('admin.session.current', $actions);
+        $this->assertNotContains('admin.activity.index', $actions);
     }
 
     public function test_the_activity_feed_keeps_denied_attempts_visible(): void
     {
-        // A refused action is worth seeing precisely because it failed — even
-        // a read, which the feed would otherwise filter out as noise.
+        // A refused action is worth seeing precisely because it failed.
         $reviewer = $this->admin('denied-feed', Admin::ROLE_PHARMACY_REVIEWER);
 
-        $this->asAdmin($reviewer)->getJson('/api/admin/admins')->assertForbidden();
+        $this->asAdmin($reviewer)
+            ->postJson('/api/admin/admins', [
+                'name' => 'Sneaky',
+                'email' => 'sneaky@example.test',
+                'role' => Admin::ROLE_SUPER_ADMIN,
+                'password' => 'Strong!Password123',
+                'password_confirmation' => 'Strong!Password123',
+            ])
+            ->assertForbidden();
 
         $response = $this->asAdmin($reviewer)
             ->getJson('/api/admin/activity')
@@ -126,6 +134,32 @@ class AdminDashboardTest extends AdminTestCase
         $this->assertNotNull($denied, 'A refused attempt must reach the feed.');
         $this->assertStringContainsString('(denied)', $denied['label']);
         $this->assertSame($reviewer->name, $denied['actor']);
+    }
+
+    public function test_browsing_the_console_never_reaches_the_feed(): void
+    {
+        // Regression guard. A denylist of read suffixes let
+        // `admin.analytics.overview` through and the feed filled with page
+        // visits; the allowlist is what stops that.
+        $admin = $this->admin('browsing');
+
+        foreach ([
+            '/api/admin/analytics/overview',
+            '/api/admin/analytics/pharmacies',
+            '/api/admin/analytics/job-market',
+            '/api/admin/analytics/onboarding',
+            '/api/admin/pharmacies',
+            '/api/admin/support/tickets',
+            '/api/admin/announcements/audience',
+            '/api/admin/review/applications',
+        ] as $uri) {
+            $this->asAdmin($admin)->getJson($uri)->assertOk();
+        }
+
+        $this->asAdmin($admin)
+            ->getJson('/api/admin/activity')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_the_activity_feed_names_the_administrator(): void

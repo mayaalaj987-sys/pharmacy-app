@@ -11,21 +11,30 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Recent administrator activity, read out of the append-only audit log.
  *
- * The log records every admin request, including reads. Those are noise in a
- * feed, so only actions that changed something are surfaced — plus anything
- * that was denied, which is worth seeing precisely because it failed.
+ * The log records every admin request, including every page load. Those are
+ * noise in a feed, so this is an allowlist: an action appears only if it is
+ * listed in {@see self::LABELS}, which is by definition the set of things an
+ * administrator deliberately *did*.
  *
- * Nothing here can be edited or removed: database triggers make the underlying
- * table append-only.
+ * An allowlist rather than a denylist of read suffixes, because a denylist
+ * silently leaks: `admin.analytics.overview` ends in none of the usual read
+ * suffixes and flooded the feed with page visits until this was tightened.
+ *
+ * Denied attempts at these same actions are kept — a refused approval is worth
+ * seeing precisely because it failed.
+ *
+ * The audit log itself still records everything. This only decides what the
+ * feed shows; nothing is edited or removed, and database triggers make the
+ * underlying table append-only.
  */
 class AdminActivityController extends Controller
 {
-    /** Route names that only read; they never belong in an activity feed. */
-    private const READ_ONLY_SUFFIXES = [
-        '.index', '.show', '.current', '.audience', '.preview', '.csrf',
-    ];
-
-    /** Human phrasing for the actions worth reporting. */
+    /**
+     * The only actions the feed reports, with their phrasing.
+     *
+     * Adding a route does not add it here: a new entry is a deliberate decision
+     * that the action is worth an administrator's attention.
+     */
     private const LABELS = [
         'pharmacy.review.approved' => 'approved a pharmacy',
         'pharmacy.review.rejected' => 'rejected a pharmacy',
@@ -52,12 +61,7 @@ class AdminActivityController extends Controller
 
         $entries = AdminAuditLog::query()
             ->with('admin:id,name')
-            ->where(fn ($query) => $query
-                // Anything that changed something…
-                ->where(fn ($inner) => collect(self::READ_ONLY_SUFFIXES)
-                    ->each(fn (string $suffix) => $inner->where('action', 'not like', '%'.$suffix)))
-                // …or anything that was refused.
-                ->orWhere('outcome', '!=', 'success'))
+            ->whereIn('action', array_keys(self::LABELS))
             ->orderByDesc('logged_at')
             ->orderByDesc('id')
             ->limit($limit)
@@ -79,23 +83,9 @@ class AdminActivityController extends Controller
 
     private function label(AdminAuditLog $entry): string
     {
-        $label = self::LABELS[$entry->action] ?? $this->humanise($entry->action);
+        $label = self::LABELS[$entry->action];
 
         return $entry->outcome === 'success' ? $label : $label.' (denied)';
-    }
-
-    /**
-     * Fallback for an action with no phrasing yet: turn
-     * `admin.something.happened` into `something happened`.
-     */
-    private function humanise(string $action): string
-    {
-        $parts = explode('.', $action);
-        if ($parts[0] === 'admin' || $parts[0] === 'pharmacy') {
-            array_shift($parts);
-        }
-
-        return str_replace('_', ' ', implode(' ', $parts));
     }
 
     private function target(AdminAuditLog $entry): ?string

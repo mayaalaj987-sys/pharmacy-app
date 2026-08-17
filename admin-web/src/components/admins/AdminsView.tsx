@@ -23,6 +23,7 @@ import {
 import type { AdminAccount, AdminRole } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
 import { CreateAdminDialog } from "@/components/admins/CreateAdminDialog";
+import { exactTime } from "@/lib/relativeTime";
 
 function workflowMessage(error: unknown): string {
   if (error instanceof AdminApiError) {
@@ -165,7 +166,7 @@ export function AdminsView() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {a.last_login_at ? new Date(a.last_login_at).toLocaleString() : "Never"}
+                    {a.last_login_at ? exactTime(a.last_login_at) : "Never"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {a.is_active ? (
