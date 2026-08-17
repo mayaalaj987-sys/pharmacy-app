@@ -7,6 +7,7 @@ import '../../../employee_workspace/domain/employee_task.dart';
 import '../../../employee_workspace/presentation/cubit/employee_workspace_cubit.dart';
 import '../../../employee_workspace/presentation/cubit/employee_workspace_state.dart';
 import '../../../employee_workspace/presentation/pages/employee_account_page.dart';
+import '../../../support/presentation/pages/support_page.dart';
 import '../../../notifications/presentation/cubit/notifications_cubit.dart';
 import '../../../notifications/presentation/cubit/notifications_state.dart';
 import '../../../notifications/presentation/pages/notifications_page.dart';
@@ -91,6 +92,14 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
               ),
             ),
             icon: const Icon(Icons.manage_accounts),
+          ),
+          IconButton(
+            tooltip: 'Support',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SupportPage()),
+            ),
+            icon: const Icon(Icons.support_agent),
           ),
           IconButton(
             tooltip: 'Logout',

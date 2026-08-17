@@ -25,6 +25,7 @@ class AppNotification {
   });
 
   static const _titlesByType = <String, String>{
+    'admin_announcement': 'Announcement',
     'pharmacy_approved': 'Pharmacy approved',
     'pharmacy_rejected': 'Pharmacy rejected',
     'employee_approved': 'Employee approved',
@@ -39,6 +40,7 @@ class AppNotification {
   };
 
   static const _messagesByType = <String, String>{
+    'admin_announcement': 'The platform team sent an announcement.',
     'employee': 'An employee record in your pharmacy was updated.',
     'order': 'A purchase order status has changed.',
     'sale': 'A new sale was recorded.',

@@ -3,6 +3,7 @@ import 'package:phamacy_managment/core/theme/app_colors.dart';
 
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/settings_page/settings_about_tile.dart';
+import '../../../support/presentation/pages/support_page.dart';
 import '../../../../core/widgets/settings_page/settings_active_pharmacy_tile.dart';
 import '../../../../core/widgets/settings_page/settings_add_pharmacy_tile.dart';
 import '../../../../core/widgets/settings_page/settings_deactivate_account_tile.dart';
@@ -108,6 +109,27 @@ class SettingsPage extends StatelessWidget {
             const SettingsThemeTile(),
             const SizedBox(height: 12),
             const SettingsRateTile(),
+            const SizedBox(height: 12),
+            Card(
+              color: AppColors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ListTile(
+                key: const ValueKey('settings-support-tile'),
+                leading: const Icon(
+                  Icons.support_agent,
+                  color: AppColors.tealGreen,
+                ),
+                title: const Text('Contact Support'),
+                subtitle: const Text('Message an administrator'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupportPage()),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             const SettingsAboutTile(),
           ],

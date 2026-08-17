@@ -42,6 +42,9 @@ import 'features/notifications/data/notifications_api.dart';
 import 'features/notifications/data/notifications_repository.dart';
 import 'features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'features/rating/data/rating_api.dart';
+import 'features/support/data/support_api.dart';
+import 'features/support/data/support_repository.dart';
+import 'features/support/presentation/cubit/support_cubit.dart';
 import 'features/rating/data/rating_repository.dart';
 import 'features/rating/presentation/cubit/rating_cubit.dart';
 
@@ -72,12 +75,8 @@ void main() {
         BlocProvider(
           create: (_) => SuppliersCubit(SuppliersRepository(SuppliersApi())),
         ),
-        BlocProvider(
-          create: (_) => OrdersCubit(OrdersRepository(OrdersApi())),
-        ),
-        BlocProvider(
-          create: (_) => SalesCubit(SalesRepository(SalesApi())),
-        ),
+        BlocProvider(create: (_) => OrdersCubit(OrdersRepository(OrdersApi()))),
+        BlocProvider(create: (_) => SalesCubit(SalesRepository(SalesApi()))),
         BlocProvider(
           create: (_) => ReportsCubit(ReportsRepository(ReportsApi())),
         ),
@@ -89,16 +88,15 @@ void main() {
             EmployeeWorkspaceRepository(EmployeeWorkspaceApi()),
           ),
         ),
-        BlocProvider(
-          create: (_) => TasksCubit(TasksRepository(TasksApi())),
-        ),
+        BlocProvider(create: (_) => TasksCubit(TasksRepository(TasksApi()))),
         BlocProvider(
           create: (_) =>
               NotificationsCubit(NotificationsRepository(NotificationsApi())),
         ),
         BlocProvider(
-          create: (_) => RatingCubit(RatingRepository(RatingApi())),
+          create: (_) => SupportCubit(SupportRepository(SupportApi())),
         ),
+        BlocProvider(create: (_) => RatingCubit(RatingRepository(RatingApi()))),
       ],
       child: const MyApp(),
     ),

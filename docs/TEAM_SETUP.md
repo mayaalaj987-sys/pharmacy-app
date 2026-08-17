@@ -493,7 +493,7 @@ From `backend/`:
 php artisan test
 ```
 
-Current expected result: **186 passed, 1 skipped** (1133 assertions).
+Current expected result: **212 passed, 1 skipped** (1248 assertions).
 
 The single skip is environmental, not a failure —
 `LegacyDocumentMigrationCommandTest` needs file symlinks, which this Windows
@@ -534,7 +534,7 @@ Run the test suite. **Use this command, not a bare `flutter test`:**
 flutter test --timeout=30s test/core test/features/auth test/features/employee_workspace test/features/employees test/features/inventory test/features/notifications test/features/orders test/features/reports test/features/sales test/features/suppliers test/features/tasks test/features/account/account_cubit_test.dart test/features/account/account_repository_test.dart test/features/account/pharmacy_location_controller_test.dart test/features/account/pharmacy_location_picker_page_test.dart test/features/account/settings_widgets_test.dart
 ```
 
-Expected: **145 passed**, in roughly 15–20 seconds.
+Expected: **151 passed**, in roughly 15–20 seconds.
 
 > ⚠️ **Known issue — a bare `flutter test` will hang forever.**
 > Exactly **three** files hang and never finish:
@@ -699,9 +699,9 @@ Work top to bottom:
 - [ ] admin-web `.env` created
 - [ ] `npm run dev` → `http://localhost:5173` loads
 - [ ] `php artisan admin:provision-super ...` → can sign in to admin-web
-- [ ] `php artisan test` → 186 passed, 1 skipped
+- [ ] `php artisan test` → 212 passed, 1 skipped
 - [ ] `flutter analyze` → 0 errors, 0 warnings
-- [ ] Flutter tests via the §7.2 command → 145 passed
+- [ ] Flutter tests via the §7.2 command → 151 passed
 
 ---
 
@@ -818,7 +818,7 @@ What is actually known, so nobody re-derives it:
 - It is **file-specific**, not folder-wide. `settings_widgets_test.dart` and
   `pharmacy_location_picker_page_test.dart` live in the same folder and pass.
 - The rest of the suite completes in ~16 s; the run then sits with no output
-  and no CPU. A bare `flutter test` reaches 145 passing tests and stops there.
+  and no CPU. A bare `flutter test` reaches 151 passing tests and stops there.
 - `--timeout=30s` does **not** bound it — the stall is outside the per-test
   clock.
 - Two earlier theories were **tested and disproved**: it is not

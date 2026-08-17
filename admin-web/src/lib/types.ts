@@ -117,3 +117,38 @@ export interface OnboardingAnalytics {
   total: number;
   points: OnboardingPoint[];
 }
+
+export type SupportTicketStatus = "open" | "resolved";
+
+export interface SupportTicket {
+  id: number;
+  subject: string;
+  message: string;
+  status: SupportTicketStatus;
+  sender: { name: string; role: "pharmacist" | "employee"; email: string | null };
+  pharmacy: string | null;
+  admin_response: string | null;
+  responded_by: string | null;
+  responded_at: string | null;
+  created_at: string | null;
+}
+
+export interface SupportTicketPage {
+  data: SupportTicket[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    open_total: number;
+  };
+}
+
+export interface AnnouncementAudience {
+  recipients: number;
+  pharmacies: { id: number; name: string }[];
+}
+
+export interface AnnouncementResult {
+  recipients: number;
+}

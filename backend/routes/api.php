@@ -16,6 +16,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,12 @@ Route::get('/registration/status', [PharmacistController::class, 'registrationSt
 
 Route::middleware(['auth:pharmacist,employee', 'abilities:app', 'active.account', 'approved.pharmacist'])->group(function () {
     Route::get('/me', [SessionController::class, 'me']);
+
+    // Support deliberately sits outside the active-pharmacy group: someone
+    // whose pharmacy context is broken is exactly who needs to reach support.
+    Route::get('/support/tickets', [SupportTicketController::class, 'index']);
+    Route::post('/support/tickets', [SupportTicketController::class, 'store'])
+        ->middleware('throttle:account-security');
 });
 
 // Operational endpoints shared by both actor types require an approved tenant.

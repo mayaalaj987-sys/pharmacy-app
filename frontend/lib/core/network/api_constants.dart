@@ -16,6 +16,7 @@ class ApiConstants {
   static const String accountDeactivate = "/account/deactivate";
   static const String pharmacyProfileUpdate = "/pharmacy/profile/update";
   static const String pharmacyAdd = "/pharmacy/add";
+  static const String supportTickets = "/support/tickets";
 
   static const String medicines = "/medicines";
   static const String medicineAdd = "/medicines/add";

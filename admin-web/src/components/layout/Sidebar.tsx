@@ -1,5 +1,13 @@
 import { motion } from "framer-motion";
-import { ShieldCheck, Users, BarChart3, ChevronsLeft, LogOut } from "lucide-react";
+import {
+  ShieldCheck,
+  Users,
+  BarChart3,
+  LifeBuoy,
+  Megaphone,
+  ChevronsLeft,
+  LogOut,
+} from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import logo from "@/assets/logo.jpg";
 import { useAuth } from "@/context/AuthContext";
@@ -13,6 +21,8 @@ export function Sidebar() {
   const items = [
     { to: "/review" as const, label: "Verification", icon: ShieldCheck },
     { to: "/reports" as const, label: "Analytics", icon: BarChart3 },
+    { to: "/tickets" as const, label: "Support", icon: LifeBuoy },
+    { to: "/announcements" as const, label: "Announcements", icon: Megaphone },
     ...(navigation?.manage_admins
       ? [{ to: "/admins" as const, label: "Administrators", icon: Users }]
       : []),
