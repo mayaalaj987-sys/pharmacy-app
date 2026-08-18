@@ -287,10 +287,18 @@ class PrivateDocumentManagementTest extends TestCase
             ->withHeader('X-Pharmacy-Id', (string) $pharmacy->id)
             ->getJson('/api/employees/pending')
             ->assertOk();
-        $this->assertStringNotContainsString('confidential-original', $response->getContent());
-        $this->assertStringNotContainsString('confidential-proof', $response->getContent());
-        $this->assertStringNotContainsString('experience_proof', $response->getContent());
-        $this->assertStringNotContainsString('"cv"', $response->getContent());
+        $body = $response->getContent();
+        $this->assertStringNotContainsString('confidential-original', $body);
+        $this->assertStringNotContainsString('confidential-proof', $body);
+        // Key form, not value form. The pool now reports document availability,
+        // so a bare 'experience_proof' appears inside has_experience_proof; what
+        // must never appear is a field carrying the document itself.
+        $this->assertStringNotContainsString('"experience_proof":', $body);
+        $this->assertStringNotContainsString('"cv":', $body);
+        $this->assertStringNotContainsString('storage_key', $body);
+        // Contact details are no longer part of this listing at all.
+        $this->assertStringNotContainsString('"phone"', $body);
+        $this->assertStringNotContainsString('"email"', $body);
     }
 
     public function test_database_failure_removes_the_new_file_and_preserves_the_old_version(): void

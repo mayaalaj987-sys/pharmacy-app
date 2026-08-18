@@ -124,21 +124,6 @@ class EmployeeController extends Controller
         ]);
     }
 
-    // ===== NEW: الصيدلاني يشوف كل طلبات التوظيف المفتوحة (بغض النظر عن الصيدلية) =====
-    // الصيدلاني بيدخل على صيدلية معينة ويشوف الطلبات — لما يوافق بيوظفه بهي الصيدلية
-    public function getAllPendingEmployees(Request $request): JsonResponse
-    {
-        // يرجع كل الموظفين اللي حالتهم pending وما عندهم صيدلية بعد
-        $employees = Employee::whereNull('pharmacy_id')
-            ->where('status', Employee::STATUS_PENDING)
-            ->get();
-
-        return response()->json([
-            'count' => $employees->count(),
-            'employees' => SafeEmployeeResource::collection($employees)->resolve($request),
-        ]);
-    }
-
     // ===== UPDATED: الصيدلاني يوافق على موظف ويوظفه بصيدلية معينة =====
     public function approveEmployee(Request $request, $id): JsonResponse
     {

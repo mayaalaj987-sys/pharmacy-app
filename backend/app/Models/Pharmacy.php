@@ -62,6 +62,11 @@ class Pharmacy extends Model
         return array_values(array_diff(Employee::SHIFTS, $taken->filter()->all()));
     }
 
+    public function jobOffers()
+    {
+        return $this->hasMany(JobOffer::class);
+    }
+
     public function blockedByAdmin()
     {
         return $this->belongsTo(Admin::class, 'blocked_by_admin_id');

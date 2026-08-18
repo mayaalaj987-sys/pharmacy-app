@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Admin;
 use App\Models\Employee;
 use App\Models\EmployeeDocumentVersion;
+use App\Models\JobOffer;
 use App\Models\Medicine;
 use App\Models\Notification;
 use App\Models\Order;
@@ -14,6 +15,7 @@ use App\Models\Task;
 use App\Policies\AdminPolicy;
 use App\Policies\EmployeeDocumentVersionPolicy;
 use App\Policies\EmployeePolicy;
+use App\Policies\JobOfferPolicy;
 use App\Policies\MedicinePolicy;
 use App\Policies\NotificationPolicy;
 use App\Policies\OrderPolicy;
@@ -50,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(PharmacyDocumentVersion::class, PharmacyDocumentVersionPolicy::class);
         Gate::policy(EmployeeDocumentVersion::class, EmployeeDocumentVersionPolicy::class);
+        Gate::policy(JobOffer::class, JobOfferPolicy::class);
 
         RateLimiter::for('admin-login', function (Request $request): Limit {
             $email = Admin::normalizeEmail((string) $request->input('email', ''));

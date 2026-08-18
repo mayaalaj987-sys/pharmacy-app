@@ -256,9 +256,21 @@ class _EmployeesPageState extends State<EmployeesPage> {
                 _chip(employee.roleLabel),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(employee.email, style: const TextStyle(fontSize: 13)),
-            Text(employee.phone, style: const TextStyle(fontSize: 13)),
+            const SizedBox(height: 8),
+            // Contact details are withheld until this pharmacy hires them, so
+            // what is shown here is what a hiring decision rests on.
+            Wrap(
+              spacing: 6,
+              children: [
+                if (employee.hasCv) _chip('CV'),
+                if (employee.hasExperienceProof) _chip('Training certificate'),
+                if (!employee.hasCv && !employee.hasExperienceProof)
+                  const Text(
+                    'No documents uploaded',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+              ],
+            ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
@@ -272,7 +284,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check, size: 18),
-                label: const Text("Approve"),
+                label: const Text("Hire"),
               ),
             ),
           ],

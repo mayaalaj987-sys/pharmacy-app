@@ -4,8 +4,15 @@ class Employee {
   final int id;
   final int? pharmacyId;
   final String name;
+  /// Empty for anyone in the hiring pool: contact details are withheld until
+  /// this pharmacy has hired them. A CV is how you evaluate a stranger.
   final String phone;
   final String email;
+
+  /// Whether this applicant has uploaded each document. Availability only —
+  /// reading a file is a separate, logged request.
+  final bool hasCv;
+  final bool hasExperienceProof;
 
   /// Backend roles: employee | trainee
   final String role;
@@ -34,10 +41,16 @@ class Employee {
     this.pharmacyId,
     this.shift,
     this.salary,
+    this.hasCv = false,
+    this.hasExperienceProof = false,
     this.createdAt,
   });
 
   bool get isTrainee => role == 'trainee';
+
+  /// Whether the backend disclosed a way to reach this person. False for
+  /// anyone in the pool, true once they work here.
+  bool get hasContactDetails => phone.isNotEmpty || email.isNotEmpty;
 
   String get roleLabel => switch (role) {
         'employee' => 'Employee',
@@ -74,6 +87,8 @@ class Employee {
       role: json['role']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       shift: json['shift']?.toString(),
+      hasCv: json['has_cv'] == true,
+      hasExperienceProof: json['has_experience_proof'] == true,
       salary: rawSalary == null
           ? null
           : (rawSalary is num

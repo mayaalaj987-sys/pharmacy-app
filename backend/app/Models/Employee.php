@@ -123,4 +123,19 @@ class Employee extends Authenticatable
     {
         return $this->hasMany(EmployeeDocumentVersion::class);
     }
+
+    public function jobOffers()
+    {
+        return $this->hasMany(JobOffer::class);
+    }
+
+    /**
+     * Placeholder for the one offer the requesting pharmacy holds on this
+     * person, constrained per query. Nothing loads it by default — a pharmacy
+     * must never see what anyone else has offered.
+     */
+    public function offerFromActivePharmacy()
+    {
+        return $this->hasOne(JobOffer::class);
+    }
 }

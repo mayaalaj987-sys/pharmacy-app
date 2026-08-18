@@ -26,16 +26,24 @@ void main() {
     expect(e.isTrainee, isFalse);
   });
 
-  test('pending employees parse with null pharmacy and null salary', () async {
+  test('pool applicants parse without any way to contact them', () async {
     final pending =
         await EmployeesRepository(FakeEmployeesApi()).fetchPendingEmployees();
 
     expect(pending, hasLength(2));
+    expect(pending.first.name, 'Applicant One');
     expect(pending.first.pharmacyId, isNull);
-    expect(pending.first.status, 'pending');
-    // Trainees carry no salary.
-    expect(pending.last.isTrainee, isTrue);
-    expect(pending.last.salary, isNull);
+
+    // The listing carries no phone and no email at all, so a recruiter cannot
+    // scrape contact details off a page of strangers.
+    expect(pending.first.hasContactDetails, isFalse);
+    expect(pending.first.phone, isEmpty);
+    expect(pending.first.email, isEmpty);
+
+    // What a hiring decision actually rests on.
+    expect(pending.first.hasCv, isTrue);
+    expect(pending.first.hasExperienceProof, isTrue);
+    expect(pending.last.hasExperienceProof, isFalse);
     expect(pending.last.roleLabel, 'Trainee');
   });
 
@@ -189,23 +197,19 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
         'employees': [
           {
             'id': 2,
-            'pharmacy_id': null,
             'name': 'Applicant One',
-            'phone': '0999000002',
-            'email': 'a1@example.test',
             'role': 'employee',
-            'status': 'pending',
-            'salary': null,
+            'applied_at': '2026-08-10T00:00:00.000Z',
+            'has_cv': true,
+            'has_experience_proof': true,
           },
           {
             'id': 3,
-            'pharmacy_id': null,
             'name': 'Applicant Two',
-            'phone': '0999000003',
-            'email': 'a2@example.test',
             'role': 'trainee',
-            'status': 'pending',
-            'salary': null,
+            'applied_at': '2026-08-11T00:00:00.000Z',
+            'has_cv': true,
+            'has_experience_proof': false,
           },
         ],
       },

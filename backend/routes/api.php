@@ -12,6 +12,7 @@ use App\Http\Controllers\PharmacyDocumentController;
 use App\Http\Controllers\PharmacyProfileController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RatingController;
+use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SessionController;
@@ -102,7 +103,8 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     Route::post('/pharmacy/documents/{type}', [PharmacyDocumentController::class, 'store']);
     Route::get('/pharmacy/documents/{document}/download', [PharmacyDocumentController::class, 'download'])
         ->name('pharmacy-documents.download');
-    Route::get('/employees/pending', [EmployeeController::class, 'getAllPendingEmployees']);
+    Route::get('/employees/pending', [RecruitmentController::class, 'pool']);
+    Route::get('/recruitment/offers', [RecruitmentController::class, 'offers']);
     Route::post('/employees/approve/{id}', [EmployeeController::class, 'approveEmployee']);
     // Numeric only: this wildcard sits directly below literal siblings such as
     // /employees/pending and would otherwise swallow any word placed after it.
