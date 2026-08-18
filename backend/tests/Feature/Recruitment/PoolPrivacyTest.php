@@ -123,9 +123,7 @@ class PoolPrivacyTest extends SecurityTestCase
         $hired = $this->applicant('pool-hired-1');
         $stillLooking = $this->applicant('pool-hired-2');
 
-        $this->asOwner($owner)->postJson('/api/employees/approve/'.$hired->id, [
-            'pharmacy_id' => $pharmacy->id,
-        ])->assertOk();
+        $this->hire($owner, $pharmacy, $hired)->assertOk();
 
         $this->asOwner($owner)->getJson('/api/employees/pending')
             ->assertOk()

@@ -5,7 +5,9 @@ abstract class EmployeesRemoteDataSource {
 
   Future<Response<dynamic>> getPharmacyEmployees(int pharmacyId);
 
-  Future<Response<dynamic>> approveEmployee(int id, Map<String, dynamic> data);
+  /// Offers an applicant a shift. Hiring needs their answer now, so this
+  /// replaced the approve call that attached them outright.
+  Future<Response<dynamic>> sendOffer(Map<String, dynamic> data);
 
   Future<Response<dynamic>> dismissEmployee(int id);
 }

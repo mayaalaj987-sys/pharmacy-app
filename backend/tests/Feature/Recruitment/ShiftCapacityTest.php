@@ -28,22 +28,11 @@ class ShiftCapacityTest extends SecurityTestCase
         $first = $this->applicant('cap-both-1');
         $second = $this->applicant('cap-both-2');
 
-        $this->asOwner($owner)
-            ->postJson('/api/employees/approve/'.$first->id, [
-                'pharmacy_id' => $pharmacy->id,
-                'shift' => Employee::SHIFT_MORNING,
-                'salary' => 500000,
-            ])
-            ->assertOk()
-            ->assertJsonPath('employee.shift', 'morning');
+        $this->hire($owner, $pharmacy, $first, Employee::SHIFT_MORNING, 500000)->assertOk();
+        $this->hire($owner, $pharmacy, $second, Employee::SHIFT_EVENING)->assertOk();
 
-        $this->asOwner($owner)
-            ->postJson('/api/employees/approve/'.$second->id, [
-                'pharmacy_id' => $pharmacy->id,
-                'shift' => Employee::SHIFT_EVENING,
-            ])
-            ->assertOk()
-            ->assertJsonPath('employee.shift', 'evening');
+        $this->assertSame('morning', $first->fresh()->shift);
+        $this->assertSame('evening', $second->fresh()->shift);
 
         $this->assertSame([], $pharmacy->fresh()->freeShifts());
     }
@@ -54,20 +43,14 @@ class ShiftCapacityTest extends SecurityTestCase
         $held = $this->applicant('cap-clash-1');
         $rejected = $this->applicant('cap-clash-2');
 
-        $this->asOwner($owner)->postJson('/api/employees/approve/'.$held->id, [
-            'pharmacy_id' => $pharmacy->id,
-            'shift' => Employee::SHIFT_MORNING,
-        ])->assertOk();
+        $this->hire($owner, $pharmacy, $held, Employee::SHIFT_MORNING)->assertOk();
 
-        $this->asOwner($owner)
-            ->postJson('/api/employees/approve/'.$rejected->id, [
-                'pharmacy_id' => $pharmacy->id,
-                'shift' => Employee::SHIFT_MORNING,
-            ])
-            ->assertStatus(400)
+        // Refused at the offer step now, so an applicant is never shown terms
+        // the pharmacy could not honour. The refusal still names the shift that
+        // is open, so the pharmacist can act instead of guessing.
+        $this->hire($owner, $pharmacy, $rejected, Employee::SHIFT_MORNING)
+            ->assertStatus(409)
             ->assertJsonPath('code', 'shift_taken')
-            // The refusal says which shift is still open, so the pharmacist can
-            // act on it instead of guessing.
             ->assertJsonPath('free_shifts', ['evening']);
 
         $this->assertNull($rejected->fresh()->pharmacy_id);
@@ -77,51 +60,44 @@ class ShiftCapacityTest extends SecurityTestCase
     {
         [$owner, $pharmacy] = $this->hiringOwner('cap-third');
         foreach (['cap-third-1', 'cap-third-2'] as $suffix) {
-            $this->asOwner($owner)->postJson(
-                '/api/employees/approve/'.$this->applicant($suffix)->id,
-                ['pharmacy_id' => $pharmacy->id],
-            )->assertOk();
+            $this->hire($owner, $pharmacy, $this->applicant($suffix))->assertOk();
         }
 
         $third = $this->applicant('cap-third-3');
 
-        $this->asOwner($owner)
-            ->postJson('/api/employees/approve/'.$third->id, ['pharmacy_id' => $pharmacy->id])
-            ->assertStatus(400)
+        $this->hire($owner, $pharmacy, $third)
+            ->assertStatus(409)
             ->assertJsonPath('code', 'shift_taken')
             ->assertJsonPath('free_shifts', []);
 
         $this->assertSame(2, Employee::where('pharmacy_id', $pharmacy->id)->count());
     }
 
-    public function test_a_client_that_omits_the_shift_gets_the_first_free_one(): void
+    public function test_hiring_fills_the_free_shifts_in_order(): void
     {
-        // The app in the field does not know about shifts yet. It must keep
-        // hiring successfully, and must not be able to double-book by omission.
         [$owner, $pharmacy] = $this->hiringOwner('cap-implicit');
+        $first = $this->applicant('cap-implicit-1');
+        $second = $this->applicant('cap-implicit-2');
 
-        $this->asOwner($owner)->postJson(
-            '/api/employees/approve/'.$this->applicant('cap-implicit-1')->id,
-            ['pharmacy_id' => $pharmacy->id],
-        )->assertOk()->assertJsonPath('employee.shift', 'morning');
+        $this->hire($owner, $pharmacy, $first)->assertOk();
+        $this->hire($owner, $pharmacy, $second)->assertOk();
 
-        $this->asOwner($owner)->postJson(
-            '/api/employees/approve/'.$this->applicant('cap-implicit-2')->id,
-            ['pharmacy_id' => $pharmacy->id],
-        )->assertOk()->assertJsonPath('employee.shift', 'evening');
+        $this->assertSame('morning', $first->fresh()->shift);
+        $this->assertSame('evening', $second->fresh()->shift);
     }
 
-    public function test_an_unknown_shift_is_rejected(): void
+    public function test_nobody_can_be_hired_without_their_own_consent(): void
     {
-        [$owner, $pharmacy] = $this->hiringOwner('cap-bogus');
+        // The route that let one pharmacist attach a person outright is gone.
+        // That is the whole change, so it is asserted rather than assumed.
+        [$owner, $pharmacy] = $this->hiringOwner('cap-noconsent');
+        $applicant = $this->applicant('cap-noconsent-1');
 
         $this->asOwner($owner)
-            ->postJson('/api/employees/approve/'.$this->applicant('cap-bogus-1')->id, [
-                'pharmacy_id' => $pharmacy->id,
-                'shift' => 'graveyard',
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('shift');
+            ->postJson('/api/employees/approve/'.$applicant->id, ['pharmacy_id' => $pharmacy->id])
+            ->assertNotFound();
+
+        $this->assertFalse($applicant->fresh()->isEmployed());
     }
 
     public function test_a_trainee_may_be_paid(): void
@@ -131,12 +107,7 @@ class ShiftCapacityTest extends SecurityTestCase
         [$owner, $pharmacy] = $this->hiringOwner('cap-trainee');
         $trainee = $this->applicant('cap-trainee-1', Employee::ROLE_TRAINEE);
 
-        $this->asOwner($owner)
-            ->postJson('/api/employees/approve/'.$trainee->id, [
-                'pharmacy_id' => $pharmacy->id,
-                'salary' => 150000,
-            ])
-            ->assertOk();
+        $this->hire($owner, $pharmacy, $trainee, null, 150000)->assertOk();
 
         $this->assertSame(150000.0, (float) $trainee->fresh()->salary);
     }
@@ -148,10 +119,8 @@ class ShiftCapacityTest extends SecurityTestCase
         [$secondOwner, $secondPharmacy] = $this->hiringOwner('cap-b');
 
         foreach ([[$firstOwner, $firstPharmacy, 'cap-a-1'], [$secondOwner, $secondPharmacy, 'cap-b-1']] as [$owner, $pharmacy, $suffix]) {
-            $this->asOwner($owner)->postJson(
-                '/api/employees/approve/'.$this->applicant($suffix)->id,
-                ['pharmacy_id' => $pharmacy->id, 'shift' => Employee::SHIFT_MORNING],
-            )->assertOk();
+            $this->hire($owner, $pharmacy, $this->applicant($suffix), Employee::SHIFT_MORNING)
+                ->assertOk();
         }
 
         $this->assertSame(2, Employee::where('shift', Employee::SHIFT_MORNING)->count());

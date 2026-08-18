@@ -20,8 +20,8 @@ class EmployeesApi implements EmployeesRemoteDataSource {
   }
 
   @override
-  Future<Response<dynamic>> approveEmployee(int id, Map<String, dynamic> data) {
-    return dio.post('${ApiConstants.employeesApprove}/$id', data: data);
+  Future<Response<dynamic>> sendOffer(Map<String, dynamic> data) {
+    return dio.post(ApiConstants.recruitmentOffers, data: data);
   }
 
   @override

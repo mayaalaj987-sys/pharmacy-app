@@ -88,6 +88,9 @@ Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
     // behind active.pharmacy, which someone waiting on a job does not have.
     // Readable without a pharmacy, which is the whole point.
     Route::get('/employee/offers', [EmployeeOfferController::class, 'index']);
+    Route::post('/employee/offers/{offer}/accept', [EmployeeOfferController::class, 'accept'])
+        ->whereNumber('offer')
+        ->middleware('throttle:account-security');
 
     Route::get('/employee/notifications', [EmployeeNotificationController::class, 'index']);
     Route::post('/employee/notifications/{id}/read', [EmployeeNotificationController::class, 'markAsRead'])
@@ -139,7 +142,6 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
         ->whereNumber('employee')
         ->withoutScopedBindings()
         ->name('recruitment-documents.download');
-    Route::post('/employees/approve/{id}', [EmployeeController::class, 'approveEmployee']);
     // Numeric only: this wildcard sits directly below literal siblings such as
     // /employees/pending and would otherwise swallow any word placed after it.
     Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees'])

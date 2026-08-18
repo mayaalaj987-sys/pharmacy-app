@@ -20,4 +20,12 @@ class EmployeeOffersApi implements EmployeeOffersRemoteDataSource {
       options: Options(extra: {'skipActivePharmacy': true}),
     );
   }
+
+  @override
+  Future<Response<dynamic>> acceptOffer(int id) {
+    return dio.post(
+      '${ApiConstants.employeeOffers}/$id/accept',
+      options: Options(extra: {'skipActivePharmacy': true}),
+    );
+  }
 }

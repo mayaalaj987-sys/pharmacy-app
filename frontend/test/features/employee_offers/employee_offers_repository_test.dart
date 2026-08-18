@@ -47,9 +47,7 @@ void main() {
   });
 
   test('actionable counts what can be accepted, not what is pending', () async {
-    final cubit = EmployeeOffersCubit(
-      EmployeeOffersRepository(FakeOffersApi()),
-    );
+    final cubit = _cubit(FakeOffersApi());
 
     await cubit.load();
 
@@ -63,9 +61,7 @@ void main() {
   });
 
   test('an empty inbox is a state, not an error', () async {
-    final cubit = EmployeeOffersCubit(
-      EmployeeOffersRepository(FakeOffersApi()..empty = true),
-    );
+    final cubit = _cubit(FakeOffersApi()..empty = true);
 
     await cubit.load();
 
@@ -76,9 +72,55 @@ void main() {
     await cubit.close();
   });
 
+  test('accepting reloads the session, because the whole app changes', () async {
+    sessionReloads = 0;
+    final api = FakeOffersApi();
+    final cubit = _cubit(api);
+    await cubit.load();
+
+    expect(await cubit.accept(1), isTrue);
+
+    expect(api.accepted, [1]);
+    // Without this the app would stay on the unattached shell after being
+    // hired: AuthGate routes off the session, not off this list.
+    expect(sessionReloads, 1);
+    expect(cubit.state.accepting, isFalse);
+    await cubit.close();
+  });
+
+  test('a refused acceptance surfaces the reason and reloads nothing', () async {
+    sessionReloads = 0;
+    final api = FakeOffersApi()..failAccept = true;
+    final cubit = _cubit(api);
+    await cubit.load();
+
+    expect(await cubit.accept(1), isFalse);
+
+    expect(api.accepted, isEmpty);
+    expect(sessionReloads, 0);
+    expect(cubit.state.error!.code, 'shift_taken');
+    // The list stays on screen; the refusal is nearly always the world having
+    // moved on, and the reason is what the applicant needs to see.
+    expect(cubit.state.offers, hasLength(2));
+    expect(cubit.state.accepting, isFalse);
+    await cubit.close();
+  });
+
+  test('a second tap while accepting is ignored', () async {
+    sessionReloads = 0;
+    final cubit = _cubit(FakeOffersApi());
+    await cubit.load();
+
+    final results = await Future.wait([cubit.accept(1), cubit.accept(1)]);
+
+    expect(results, containsAll(<bool>[true, false]));
+    expect(sessionReloads, 1);
+    await cubit.close();
+  });
+
   test('a failure surfaces without wiping what was already shown', () async {
     final api = FakeOffersApi();
-    final cubit = EmployeeOffersCubit(EmployeeOffersRepository(api));
+    final cubit = _cubit(api);
     await cubit.load();
     expect(cubit.state.offers, hasLength(2));
 
@@ -92,9 +134,23 @@ void main() {
   });
 }
 
+/// Accepting reloads the auth session, because that is what swaps the
+/// unattached shell for the working one. Counted rather than mocked away, so a
+/// test can assert it actually happened.
+int sessionReloads = 0;
+
+EmployeeOffersCubit _cubit(FakeOffersApi api) {
+  return EmployeeOffersCubit(
+    EmployeeOffersRepository(api),
+    () async => sessionReloads++,
+  );
+}
+
 class FakeOffersApi implements EmployeeOffersRemoteDataSource {
   bool empty = false;
   bool fail = false;
+  bool failAccept = false;
+  final List<int> accepted = [];
 
   @override
   Future<Response<dynamic>> getOffers() async {
@@ -171,6 +227,28 @@ class FakeOffersApi implements EmployeeOffersRemoteDataSource {
                 'shift': 'morning',
               },
             },
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> acceptOffer(int id) async {
+    final options = RequestOptions(path: '/employee/offers/$id/accept');
+
+    if (failAccept) {
+      throw DioException(
+        requestOptions: options,
+        response: Response<dynamic>(
+          requestOptions: options,
+          statusCode: 409,
+          data: {'message': 'taken', 'code': 'shift_taken'},
+        ),
+      );
+    }
+
+    accepted.add(id);
+    return Response<dynamic>(
+      requestOptions: options,
+      data: {'message': 'ok', 'code': 'offer_accepted'},
     );
   }
 }

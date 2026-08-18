@@ -118,9 +118,7 @@ class RecruiterDocumentAccessTest extends SecurityTestCase
         [$employer, $employerPharmacy] = $this->hiringOwner('doc-hired-employer');
         [$outsider] = $this->hiringOwner('doc-hired-outsider');
 
-        $this->asOwner($employer)->postJson('/api/employees/approve/'.$applicant->id, [
-            'pharmacy_id' => $employerPharmacy->id,
-        ])->assertOk();
+        $this->hire($employer, $employerPharmacy, $applicant)->assertOk();
 
         // A stranger loses access the moment somebody else hires them.
         $this->asOwner($outsider)

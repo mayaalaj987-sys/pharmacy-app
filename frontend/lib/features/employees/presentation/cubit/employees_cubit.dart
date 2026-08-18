@@ -34,16 +34,16 @@ class EmployeesCubit extends Cubit<EmployeesState> {
     }
   }
 
-  Future<bool> approve(
+  Future<bool> sendOffer(
     int pharmacyId,
     int employeeId, {
+    required String shift,
     double? salary,
-    String? shift,
   }) {
     return _mutate(
       pharmacyId,
       employeeId,
-      () => repository.approveEmployee(employeeId, salary: salary, shift: shift),
+      () => repository.sendOffer(employeeId, shift: shift, salary: salary),
     );
   }
 

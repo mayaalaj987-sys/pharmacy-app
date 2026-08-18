@@ -31,7 +31,7 @@ String userFacingError(
 }
 
 /// Where the failure happened, so a bare HTTP status can be explained usefully.
-enum ErrorContext { generic, approveEmployee, dismissEmployee, sale, order }
+enum ErrorContext { generic, sendOffer, acceptOffer, dismissEmployee, sale, order }
 
 const _messagesByCode = <String, String>{
   'employee_document_retention_required':
@@ -48,15 +48,23 @@ const _messagesByCode = <String, String>{
   'pharmacy_context_conflict':
       'The selected pharmacy does not match your active pharmacy.',
   'too_many_attempts': 'Too many attempts. Please wait a minute and try again.',
+  'shift_taken': 'That shift is already covered at this pharmacy.',
+  'employee_not_available': 'This applicant has already taken a job.',
+  'offer_already_accepted': 'This offer was already accepted.',
+  'offer_not_pending': 'This offer is no longer open.',
+  'already_employed':
+      'You already have a job. Leave it before accepting another offer.',
+  'pharmacy_unavailable': 'This pharmacy is not operating right now.',
 };
 
 String? _messageForStatus(int? status, ErrorContext context) {
   if (status == null) return null;
 
   return switch ((status, context)) {
-    (400, ErrorContext.approveEmployee) =>
-      'This request could not be approved. The pharmacy may already have the '
-          'maximum of 2 employees, or the application was already processed.',
+    (409, ErrorContext.sendOffer) =>
+      'That shift is already covered, or this applicant has taken another job.',
+    (409, ErrorContext.acceptOffer) =>
+      'This offer is no longer available. Pull down to refresh.',
     (400, ErrorContext.dismissEmployee) =>
       'This employee is not an active member of your pharmacy.',
     (400, ErrorContext.sale) =>

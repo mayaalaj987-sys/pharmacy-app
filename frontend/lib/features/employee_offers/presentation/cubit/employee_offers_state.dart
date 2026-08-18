@@ -8,10 +8,14 @@ class EmployeeOffersState {
   final JobOfferInbox inbox;
   final AuthApiException? error;
 
+  /// Which offer is being accepted, so only that button shows a spinner.
+  final int? acceptingOfferId;
+
   const EmployeeOffersState({
     this.status = EmployeeOffersStatus.initial,
     this.inbox = const JobOfferInbox(),
     this.error,
+    this.acceptingOfferId,
   });
 
   const EmployeeOffersState.initial() : this();
@@ -24,16 +28,23 @@ class EmployeeOffersState {
 
   bool get isEmployed => inbox.employment != null;
 
+  bool get accepting => acceptingOfferId != null;
+
   EmployeeOffersState copyWith({
     EmployeeOffersStatus? status,
     JobOfferInbox? inbox,
     AuthApiException? error,
+    int? acceptingOfferId,
     bool clearError = false,
+    bool clearAccepting = false,
   }) {
     return EmployeeOffersState(
       status: status ?? this.status,
       inbox: inbox ?? this.inbox,
       error: clearError ? null : (error ?? this.error),
+      acceptingOfferId: clearAccepting
+          ? null
+          : (acceptingOfferId ?? this.acceptingOfferId),
     );
   }
 }

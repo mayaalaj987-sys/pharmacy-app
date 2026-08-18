@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Exceptions\RecruitmentException;
 use App\Models\Employee;
 use App\Models\JobOffer;
 use App\Models\Notification;
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -80,5 +82,133 @@ class RecruitmentService
 
             return $offer;
         });
+    }
+
+    /**
+     * The applicant takes one offer.
+     *
+     * Locks pharmacy, then employee, then offer — that order everywhere, so
+     * accepting and withdrawing cannot deadlock against each other. On SQLite
+     * those locks do nothing at all, which is why the unique index on
+     * (pharmacy_id, shift) is the real guarantee and a QueryException from it is
+     * translated into the same refusal as the pre-check.
+     *
+     * The other offers this person holds are left exactly as they are. Nothing
+     * marks them superseded, so the day they leave this job those offers are
+     * simply acceptable again.
+     */
+    public function acceptOffer(JobOffer $offer, Employee $actor): Employee
+    {
+        return DB::transaction(function () use ($offer, $actor) {
+            $pharmacy = Pharmacy::lockForUpdate()->find($offer->pharmacy_id);
+
+            if ($pharmacy === null || ! $pharmacy->isOperational()) {
+                throw new RecruitmentException(
+                    'This pharmacy is not operating right now.',
+                    'pharmacy_unavailable',
+                );
+            }
+
+            $employee = Employee::lockForUpdate()->find($actor->id);
+
+            if ($employee === null || $employee->isEmployed()) {
+                throw new RecruitmentException(
+                    'You already have a job. Leave it before accepting another offer.',
+                    'already_employed',
+                );
+            }
+
+            $locked = JobOffer::lockForUpdate()->find($offer->id);
+
+            if ($locked === null || ! $locked->isPending()) {
+                throw new RecruitmentException(
+                    'This offer is no longer open.',
+                    'offer_not_pending',
+                );
+            }
+
+            if (! in_array($locked->shift, $pharmacy->freeShifts(), true)) {
+                throw new RecruitmentException(
+                    'Someone else now covers the '.$locked->shift.' shift.',
+                    'shift_taken',
+                );
+            }
+
+            try {
+                $employee->forceFill([
+                    'pharmacy_id' => $pharmacy->id,
+                    'shift' => $locked->shift,
+                    'status' => Employee::STATUS_APPROVED,
+                    'salary' => $locked->salary,
+                    // Reset per job, so the welcome shown on first sign-in
+                    // belongs to this pharmacy rather than a previous one.
+                    'first_login' => true,
+                ])->save();
+            } catch (QueryException) {
+                throw new RecruitmentException(
+                    'That shift was taken while you were deciding.',
+                    'shift_taken',
+                );
+            }
+
+            $locked->forceFill([
+                'status' => JobOffer::STATUS_ACCEPTED,
+                'responded_at' => now(),
+            ])->save();
+
+            $this->announceAcceptance($pharmacy, $employee, $locked);
+
+            return $employee;
+        });
+    }
+
+    /**
+     * Tell the pharmacy that hired them, and every pharmacy that did not.
+     *
+     * One bulk insert rather than a create per row: the pharmacies still
+     * waiting are told in the same statement, inside the same transaction, so
+     * nobody is left holding an offer they think is live.
+     */
+    private function announceAcceptance(Pharmacy $pharmacy, Employee $employee, JobOffer $accepted): void
+    {
+        $now = now();
+        $today = $now->toDateString();
+
+        $rows = [[
+            'pharmacy_id' => $pharmacy->id,
+            'employee_id' => null,
+            'title' => 'Offer accepted',
+            'message' => $employee->name.' accepted your offer and now covers the '
+                .$accepted->shift.' shift.',
+            'type' => 'employee_offer_accepted',
+            'is_read' => false,
+            'date' => $today,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]];
+
+        $others = JobOffer::query()
+            ->where('employee_id', $employee->id)
+            ->where('id', '!=', $accepted->id)
+            ->where('status', JobOffer::STATUS_PENDING)
+            ->pluck('pharmacy_id')
+            ->unique();
+
+        foreach ($others as $pharmacyId) {
+            $rows[] = [
+                'pharmacy_id' => $pharmacyId,
+                'employee_id' => null,
+                'title' => 'Applicant hired elsewhere',
+                'message' => $employee->name.' took a job at another pharmacy. '
+                    .'Your offer stays open in case that changes.',
+                'type' => 'employee_hired_elsewhere',
+                'is_read' => false,
+                'date' => $today,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        Notification::insert($rows);
     }
 }

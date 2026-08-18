@@ -9,6 +9,14 @@ class EmployeeOffersRepository {
 
   const EmployeeOffersRepository(this.api);
 
+  Future<void> acceptOffer(int id) async {
+    try {
+      await api.acceptOffer(id);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
   Future<JobOfferInbox> fetchInbox() async {
     try {
       final response = await api.getOffers();

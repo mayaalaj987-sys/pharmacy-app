@@ -27,12 +27,15 @@ class EmployeesRepository {
     }
   }
 
-  /// [shift] claims a seat at the pharmacy — a shift can only be held by one
-  /// person, so approving into a covered one is refused with `shift_taken`.
-  /// Omitting it lets the backend pick the first free shift.
-  Future<void> approveEmployee(int id, {double? salary, String? shift}) async {
+  /// Offers [id] the named [shift]. The applicant decides from here; nothing
+  /// about their employment changes until they accept.
+  Future<void> sendOffer(int id, {required String shift, double? salary}) async {
     try {
-      await api.approveEmployee(id, {'salary': ?salary, 'shift': ?shift});
+      await api.sendOffer({
+        'employee_id': id,
+        'shift': shift,
+        'salary': ?salary,
+      });
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }

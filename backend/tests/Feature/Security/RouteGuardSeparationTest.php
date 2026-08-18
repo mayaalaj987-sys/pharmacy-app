@@ -25,12 +25,17 @@ class RouteGuardSeparationTest extends SecurityTestCase
         }
     }
 
-    public function test_employee_reject_route_is_not_exposed(): void
+    public function test_routes_that_would_act_on_an_employee_without_consent_do_not_exist(): void
     {
         $routes = collect(app('router')->getRoutes()->getRoutes());
-        $matches = $routes->filter(fn (Route $route) => $route->uri() === 'api/employees/reject/{id}');
 
-        $this->assertCount(0, $matches);
+        foreach (['api/employees/reject/{id}', 'api/employees/approve/{id}'] as $uri) {
+            $this->assertCount(
+                0,
+                $routes->filter(fn (Route $route) => $route->uri() === $uri),
+                $uri.' must not exist: hiring and rejecting are the applicant\'s call.',
+            );
+        }
     }
 
     public function test_normal_sanctum_routes_require_the_app_ability(): void

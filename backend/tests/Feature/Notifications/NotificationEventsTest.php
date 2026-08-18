@@ -80,7 +80,7 @@ class NotificationEventsTest extends AdminTestCase
         );
     }
 
-    public function test_employee_approval_creates_a_notification_for_the_pharmacy(): void
+    public function test_accepting_an_offer_notifies_the_hiring_pharmacy(): void
     {
         $owner = Pharmacist::create([
             'name' => 'Owner notify-emp',
@@ -109,19 +109,87 @@ class NotificationEventsTest extends AdminTestCase
 
         Sanctum::actingAs($owner, ['*'], 'pharmacist');
 
-        $this->postJson('/api/employees/approve/'.$applicant->id, [
-            'pharmacy_id' => $pharmacy->id,
+        $offerId = $this->postJson('/api/recruitment/offers', [
+            'employee_id' => $applicant->id,
+            'shift' => 'morning',
             'salary' => 500,
-        ])->assertOk();
+        ])->assertCreated()->json('offer.id');
+
+        // Sending is not a hiring event: nothing has happened to the pharmacy
+        // yet, and announcing it would tell the owner their own action back.
+        $this->assertSame(0, Notification::where('pharmacy_id', $pharmacy->id)->count());
+
+        Sanctum::actingAs($applicant, ['*'], 'employee');
+        $this->postJson('/api/employee/offers/'.$offerId.'/accept')->assertOk();
 
         $notification = Notification::where('pharmacy_id', $pharmacy->id)
-            ->where('type', 'employee_approved')
+            ->where('type', 'employee_offer_accepted')
             ->first();
 
         $this->assertNotNull($notification);
-        $this->assertSame('Employee approved', $notification->title);
+        $this->assertSame('Offer accepted', $notification->title);
         $this->assertStringContainsString('Applicant One', $notification->message);
         $this->assertTrue($this->isAscii($notification->message));
+    }
+
+    public function test_a_pharmacy_left_waiting_is_told_the_applicant_went_elsewhere(): void
+    {
+        // Otherwise it sits on an offer that can never be accepted, with no way
+        // of knowing why. The offer itself is deliberately left pending.
+        $applicant = Employee::create([
+            'pharmacy_id' => null,
+            'name' => 'Applicant Two',
+            'phone' => '0999000302',
+            'email' => 'applicant-elsewhere@example.test',
+            'password' => 'Strong!Password123',
+            'cv' => 'cv.pdf',
+            'role' => 'employee',
+            'status' => 'pending',
+            'first_login' => true,
+        ]);
+
+        $rivals = [];
+        foreach (['rival-a', 'rival-b'] as $suffix) {
+            $owner = Pharmacist::create([
+                'name' => 'Owner '.$suffix,
+                'email' => 'owner-'.$suffix.'@example.test',
+                'password' => 'Strong!Password123',
+            ]);
+            $pharmacy = Pharmacy::create([
+                'pharmacist_id' => $owner->id,
+                'pharmacy_name' => 'Pharmacy '.$suffix,
+                'pharmacy_address' => 'Address '.$suffix,
+                'certificate' => 'certificate.pdf',
+                'license' => 'license.pdf',
+                'status' => 'approved',
+            ]);
+
+            Sanctum::actingAs($owner, ['*'], 'pharmacist');
+            $rivals[$suffix] = [
+                'pharmacy' => $pharmacy,
+                'offer' => $this->postJson('/api/recruitment/offers', [
+                    'employee_id' => $applicant->id,
+                    'shift' => 'morning',
+                ])->assertCreated()->json('offer.id'),
+            ];
+        }
+
+        Sanctum::actingAs($applicant, ['*'], 'employee');
+        $this->postJson('/api/employee/offers/'.$rivals['rival-a']['offer'].'/accept')->assertOk();
+
+        $told = Notification::where('pharmacy_id', $rivals['rival-b']['pharmacy']->id)
+            ->where('type', 'employee_hired_elsewhere')
+            ->first();
+
+        $this->assertNotNull($told);
+        $this->assertTrue($this->isAscii($told->message));
+
+        // The losing offer is untouched, so it becomes live again by itself if
+        // the job they took does not last.
+        $this->assertDatabaseHas('job_offers', [
+            'id' => $rivals['rival-b']['offer'],
+            'status' => 'pending',
+        ]);
     }
 
     private function isAscii(string $value): bool

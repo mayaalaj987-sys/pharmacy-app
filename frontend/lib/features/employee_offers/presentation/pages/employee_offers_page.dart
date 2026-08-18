@@ -60,7 +60,9 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
             padding: const EdgeInsets.all(16),
             children: [
               if (state.isEmployed) _employedBanner(state.employment!),
-              ...state.offers.map(_offerCard),
+              ...state.offers.map(
+                (offer) => _offerCard(context, state, offer),
+              ),
             ],
           ),
         );
@@ -85,7 +87,12 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
     );
   }
 
-  Widget _offerCard(JobOffer offer) {
+  Widget _offerCard(
+    BuildContext context,
+    EmployeeOffersState state,
+    JobOffer offer,
+  ) {
+    final busy = state.acceptingOfferId == offer.id;
     final pharmacy = offer.pharmacy;
     final owner = offer.owner;
 
@@ -137,18 +144,29 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              // Accepting arrives with the cutover. Until then the button shows
-              // what will be possible and why it is not yet.
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 200),
                 opacity: offer.acceptable ? 1.0 : 0.4,
                 child: FilledButton.icon(
                   key: ValueKey('accept-offer-${offer.id}'),
-                  onPressed: null,
-                  icon: Icon(
-                    offer.acceptable ? Icons.check : Icons.lock_outline,
-                    size: 18,
-                  ),
+                  // Inert rather than hidden when it cannot be taken: the
+                  // reason underneath is the useful part, and the offer stays a
+                  // record of who wanted them.
+                  onPressed: offer.acceptable && !state.accepting
+                      ? () => _accept(context, offer)
+                      : null,
+                  icon: busy
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          offer.acceptable ? Icons.check : Icons.lock_outline,
+                          size: 18,
+                        ),
                   label: const Text('Accept offer'),
                 ),
               ),
@@ -214,6 +232,54 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
               label: const Text('Refresh'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _accept(BuildContext context, JobOffer offer) async {
+    final cubit = context.read<EmployeeOffersCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final name = offer.pharmacy?.name ?? 'the pharmacy';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Accept the ${offer.shift} shift?'),
+        content: Text(
+          'You will start working at $name. Your other offers stay in this '
+          'list in case you need them later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Not yet'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Accept'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final ok = await cubit.accept(offer.id);
+    if (!mounted) return;
+
+    // On success AuthGate swaps in the working shell off the reloaded session,
+    // so there is nothing to navigate here.
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'You now work at $name.'
+              : userFacingError(
+                  cubit.state.error,
+                  context: ErrorContext.acceptOffer,
+                  fallback: 'Unable to accept this offer.',
+                ),
         ),
       ),
     );

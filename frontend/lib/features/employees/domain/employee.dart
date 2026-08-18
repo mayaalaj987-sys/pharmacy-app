@@ -14,6 +14,10 @@ class Employee {
   final bool hasCv;
   final bool hasExperienceProof;
 
+  /// The status of *this* pharmacy's offer to them, if it has made one. Never
+  /// another pharmacy's: the backend scopes it to the caller.
+  final String? offerStatus;
+
   /// Backend roles: employee | trainee
   final String role;
 
@@ -43,6 +47,7 @@ class Employee {
     this.salary,
     this.hasCv = false,
     this.hasExperienceProof = false,
+    this.offerStatus,
     this.createdAt,
   });
 
@@ -89,6 +94,9 @@ class Employee {
       shift: json['shift']?.toString(),
       hasCv: json['has_cv'] == true,
       hasExperienceProof: json['has_experience_proof'] == true,
+      offerStatus: json['offer'] is Map<String, dynamic>
+          ? (json['offer'] as Map<String, dynamic>)['status']?.toString()
+          : null,
       salary: rawSalary == null
           ? null
           : (rawSalary is num

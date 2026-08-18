@@ -89,9 +89,7 @@ class JobOfferFlowTest extends SecurityTestCase
     {
         [$employer, $employerPharmacy] = $this->hiringOwner('offer-taken-employer');
         $hired = $this->applicant('offer-taken');
-        $this->asOwner($employer)->postJson('/api/employees/approve/'.$hired->id, [
-            'pharmacy_id' => $employerPharmacy->id,
-        ])->assertOk();
+        $this->hire($employer, $employerPharmacy, $hired)->assertOk();
 
         [$late] = $this->hiringOwner('offer-taken-late');
 
@@ -164,21 +162,23 @@ class JobOfferFlowTest extends SecurityTestCase
         [$suitor] = $this->hiringOwner('offer-hold-suitor');
         [$employer, $employerPharmacy] = $this->hiringOwner('offer-hold-employer');
 
-        $this->asOwner($suitor)->postJson('/api/recruitment/offers', [
+        $suitorOffer = $this->asOwner($suitor)->postJson('/api/recruitment/offers', [
             'employee_id' => $applicant->id, 'shift' => Employee::SHIFT_MORNING,
-        ])->assertCreated();
+        ])->assertCreated()->json('offer.id');
 
-        $this->asOwner($employer)->postJson('/api/employees/approve/'.$applicant->id, [
-            'pharmacy_id' => $employerPharmacy->id,
-        ])->assertOk();
+        $this->hire($employer, $employerPharmacy, $applicant)->assertOk();
 
         Sanctum::actingAs($applicant->fresh(), ['*'], 'employee');
-        $this->getJson('/api/employee/offers')
-            ->assertOk()
-            ->assertJsonPath('offers.0.status', 'pending')
-            ->assertJsonPath('offers.0.acceptable', false)
-            ->assertJsonPath('offers.0.unavailable_reason', 'already_employed')
-            ->assertJsonPath('employment.shift', 'morning');
+        $response = $this->getJson('/api/employee/offers')->assertOk();
+
+        // Both are listed — the one they took and the one they did not.
+        $held = collect($response->json('offers'))->firstWhere('id', $suitorOffer);
+
+        $this->assertSame('pending', $held['status']);
+        $this->assertFalse($held['acceptable']);
+        $this->assertSame('already_employed', $held['unavailable_reason']);
+        $response->assertJsonPath('employment.shift', 'morning')
+            ->assertJsonPath('counts.actionable', 0);
     }
 
     public function test_an_offer_from_a_suspended_pharmacy_reads_as_unavailable(): void

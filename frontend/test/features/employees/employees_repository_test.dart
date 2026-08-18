@@ -47,21 +47,20 @@ void main() {
     expect(pending.last.roleLabel, 'Trainee');
   });
 
-  test('approve sends only the fields that were given', () async {
+  test('an offer names the applicant and the shift', () async {
     final api = FakeEmployeesApi();
     final repo = EmployeesRepository(api);
 
-    await repo.approveEmployee(2, salary: 450, shift: 'evening');
-    expect(api.lastApprovePayload, {'salary': 450.0, 'shift': 'evening'});
+    await repo.sendOffer(2, shift: 'evening', salary: 450);
+    expect(api.lastOfferPayload, {
+      'employee_id': 2,
+      'shift': 'evening',
+      'salary': 450.0,
+    });
 
-    // Both are optional: an older client sends neither and the backend picks
-    // the first free shift.
-    await repo.approveEmployee(3);
-    expect(api.lastApprovePayload, isEmpty);
-
-    // A trainee may be paid, so salary is never withheld by role.
-    await repo.approveEmployee(4, salary: 150);
-    expect(api.lastApprovePayload, {'salary': 150.0});
+    // Salary is optional and never withheld by role: a trainee may be paid.
+    await repo.sendOffer(3, shift: 'morning');
+    expect(api.lastOfferPayload, {'employee_id': 3, 'shift': 'morning'});
   });
 
   test('load populates both current and pending lists', () async {
@@ -76,17 +75,16 @@ void main() {
     await cubit.close();
   });
 
-  test('the 2-employee cap rejection is surfaced verbatim', () async {
+  test('a covered shift is refused and nothing changes locally', () async {
     final api = FakeEmployeesApi()..failApproveWithCap = true;
     final cubit = EmployeesCubit(EmployeesRepository(api));
     await cubit.load(7);
 
-    final ok = await cubit.approve(7, 2, salary: 400);
+    final ok = await cubit.sendOffer(7, 2, shift: 'morning', salary: 400);
 
     expect(ok, isFalse);
-    // Surfaced verbatim from the backend (Arabic message naming the "(2)" cap).
-    expect(cubit.state.error!.message, contains('(2)'));
-    expect(cubit.state.error!.message, isNotEmpty);
+    // The code is what the client maps; the message is a fallback.
+    expect(cubit.state.error!.code, 'shift_taken');
     expect(cubit.state.mutatingEmployeeId, isNull);
     // Nothing was added locally.
     expect(cubit.state.current, hasLength(1));
@@ -145,7 +143,7 @@ void main() {
 }
 
 class FakeEmployeesApi implements EmployeesRemoteDataSource {
-  Map<String, dynamic>? lastApprovePayload;
+  Map<String, dynamic>? lastOfferPayload;
   bool failApproveWithCap = false;
   bool failDismissWithRetention = false;
   bool dismissed = false;
@@ -217,25 +215,30 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
   }
 
   @override
-  Future<Response<dynamic>> approveEmployee(
-    int id,
-    Map<String, dynamic> data,
-  ) async {
-    lastApprovePayload = data;
+  Future<Response<dynamic>> sendOffer(Map<String, dynamic> data) async {
+    lastOfferPayload = data;
+    final options = RequestOptions(path: '/recruitment/offers');
+
     if (failApproveWithCap) {
-      throw DioException(
-        requestOptions: RequestOptions(path: '/employees/approve/$id'),
-        response: Response<dynamic>(
-          requestOptions: RequestOptions(path: '/employees/approve/$id'),
-          statusCode: 400,
-          data: {'message': 'هذه الصيدلية وصلت للحد الأقصى (2)'},
+      return Future<Response<dynamic>>.error(
+        DioException(
+          requestOptions: options,
+          response: Response<dynamic>(
+            requestOptions: options,
+            statusCode: 409,
+            data: {
+              'message': 'The morning shift is already covered.',
+              'code': 'shift_taken',
+            },
+          ),
+          type: DioExceptionType.badResponse,
         ),
-        type: DioExceptionType.badResponse,
       );
     }
+
     return Response<dynamic>(
-      requestOptions: RequestOptions(path: '/employees/approve/$id'),
-      data: {'message': 'تم القبول بنجاح'},
+      requestOptions: options,
+      data: {'message': 'Offer sent.', 'code': 'offer_sent'},
     );
   }
 

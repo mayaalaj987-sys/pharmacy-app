@@ -97,8 +97,10 @@ void main() {
               NotificationsCubit(NotificationsRepository(NotificationsApi())),
         ),
         BlocProvider(
-          create: (_) =>
-              EmployeeOffersCubit(EmployeeOffersRepository(EmployeeOffersApi())),
+          create: (context) => EmployeeOffersCubit(
+            EmployeeOffersRepository(EmployeeOffersApi()),
+            context.read<AuthCubit>().reloadSession,
+          ),
         ),
         BlocProvider(
           create: (_) => SupportCubit(SupportRepository(SupportApi())),

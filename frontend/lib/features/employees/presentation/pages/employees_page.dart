@@ -130,7 +130,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
               ),
               child: const Text(
                 "Every shift here is covered. Dismiss whoever holds a shift "
-                "before hiring for it.",
+                "before offering it to somebody else.",
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -262,6 +262,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             Wrap(
               spacing: 6,
               children: [
+                if (employee.offerStatus == 'pending') _chip('Offer sent'),
                 if (employee.hasCv) _chip('CV'),
                 if (employee.hasExperienceProof) _chip('Training certificate'),
                 if (!employee.hasCv && !employee.hasExperienceProof)
@@ -277,14 +278,14 @@ class _EmployeesPageState extends State<EmployeesPage> {
               child: FilledButton.icon(
                 onPressed: state.mutatingEmployeeId != null
                     ? null
-                    : () => _approveFlow(context, employee),
+                    : () => _offerFlow(context, employee),
                 icon: busy
                     ? const SizedBox.square(
                         dimension: 14,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.check, size: 18),
-                label: const Text("Hire"),
+                label: const Text("Send offer"),
               ),
             ),
           ],
@@ -304,13 +305,15 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  /// Hires an applicant into a named shift.
+  /// Offers an applicant a named shift.
   ///
-  /// One dialog for both roles. It used to be two: employees were asked for a
+  /// This used to hire them outright. It cannot any more: the applicant decides,
+  /// so all this does is put terms in front of them.
+  ///
+  /// One dialog for both roles. It used to be two — employees were asked for a
   /// salary and trainees were told they would not get one, because the backend
-  /// discarded a trainee's salary in silence. It no longer does — whether
-  /// training is paid is the pharmacy's decision.
-  Future<void> _approveFlow(BuildContext context, Employee employee) async {
+  /// discarded a trainee's salary in silence. It no longer does.
+  Future<void> _offerFlow(BuildContext context, Employee employee) async {
     final cubit = context.read<EmployeesCubit>();
     final messenger = ScaffoldMessenger.of(context);
     final free = cubit.state.freeShifts;
@@ -329,7 +332,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (builderContext, setDialogState) => AlertDialog(
-          title: Text('Hire ${employee.name}'),
+          title: Text('Offer ${employee.name} a job'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,7 +377,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Hire'),
+              child: const Text('Send offer'),
             ),
           ],
         ),
@@ -396,7 +399,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
       }
     }
 
-    final ok = await cubit.approve(
+    final ok = await cubit.sendOffer(
       _pharmacyId!,
       employee.id,
       salary: salary,
@@ -407,11 +410,11 @@ class _EmployeesPageState extends State<EmployeesPage> {
       SnackBar(
         content: Text(
           ok
-              ? '${employee.name} now covers the $shift shift.'
+              ? 'Offer sent to ${employee.name}. They decide whether to accept.'
               : userFacingError(
                   cubit.state.error,
-                  context: ErrorContext.approveEmployee,
-                  fallback: 'The employee could not be hired.',
+                  context: ErrorContext.sendOffer,
+                  fallback: 'The offer could not be sent.',
                 ),
         ),
       ),

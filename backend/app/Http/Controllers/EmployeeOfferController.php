@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Resources\EmployeeOfferResource;
 use App\Models\Employee;
 use App\Models\JobOffer;
+use App\Services\RecruitmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * The applicant's side of recruitment.
@@ -16,6 +18,8 @@ use Illuminate\Http\Request;
  */
 class EmployeeOfferController extends Controller
 {
+    public function __construct(private readonly RecruitmentService $recruitment) {}
+
     public function index(Request $request): JsonResponse
     {
         /** @var Employee $employee */
@@ -45,6 +49,32 @@ class EmployeeOfferController extends Controller
                 'pharmacy_name' => $employee->pharmacy?->pharmacy_name,
                 'shift' => $employee->shift,
             ] : null,
+        ]);
+    }
+
+    /**
+     * Take one offer.
+     *
+     * The body is empty by contract: nothing about the terms is the applicant's
+     * to set. Salary and shift come from the offer as it was sent, so accepting
+     * cannot quietly rewrite what was agreed.
+     *
+     * No session is returned. Embedding one would save a round trip but bypass
+     * the client path that persists the active pharmacy, leaving a stale
+     * X-Pharmacy-Id in storage; the client reloads through its tested route.
+     */
+    public function accept(Request $request, JobOffer $offer): JsonResponse
+    {
+        /** @var Employee $employee */
+        $employee = $request->user();
+        Gate::forUser($employee)->authorize('accept', $offer);
+
+        $hired = $this->recruitment->acceptOffer($offer, $employee);
+
+        return response()->json([
+            'message' => 'You now cover the '.$hired->shift.' shift at '
+                .($hired->pharmacy?->pharmacy_name ?? 'your new pharmacy').'.',
+            'code' => 'offer_accepted',
         ]);
     }
 }
