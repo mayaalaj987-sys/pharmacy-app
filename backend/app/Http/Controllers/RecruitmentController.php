@@ -152,9 +152,15 @@ class RecruitmentController extends Controller
             ->where('employee_id', $applicant->id)
             ->first();
 
-        if ($existing?->status === JobOffer::STATUS_ACCEPTED) {
+        // Only while they are actually here. The accepted offer survives the
+        // job ending, so this used to refuse forever: once somebody had worked
+        // at a pharmacy, that pharmacy could never hire them again. Re-offering
+        // reuses the row — the employment it produced is recorded separately,
+        // so nothing is lost by doing so.
+        if ($existing?->status === JobOffer::STATUS_ACCEPTED
+            && (int) $applicant->pharmacy_id === (int) $pharmacy->id) {
             return response()->json([
-                'message' => 'This offer was already accepted.',
+                'message' => 'This person already works at your pharmacy.',
                 'code' => 'offer_already_accepted',
             ], 409);
         }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\RecruitmentException;
 use App\Models\Employee;
+use App\Models\Employment;
 use App\Models\JobOffer;
 use App\Models\Notification;
 use App\Models\Pharmacist;
@@ -156,6 +157,16 @@ class RecruitmentService
                 'responded_at' => now(),
             ])->save();
 
+            // The job starts here. Recorded separately from the employee row so
+            // that leaving does not erase the fact that it happened.
+            Employment::create([
+                'employee_id' => $employee->id,
+                'pharmacy_id' => $pharmacy->id,
+                'shift' => $locked->shift,
+                'salary' => $locked->salary,
+                'started_at' => now(),
+            ]);
+
             $this->announceAcceptance($pharmacy, $employee, $locked);
 
             return $employee;
@@ -231,6 +242,17 @@ class RecruitmentService
         return DB::transaction(function () use ($employee, $initiator) {
             $pharmacy = $employee->pharmacy;
             $shift = $employee->shift;
+
+            // Close the record before the columns that identify it are cleared.
+            Employment::query()
+                ->where('employee_id', $employee->id)
+                ->where('pharmacy_id', $employee->pharmacy_id)
+                ->running()
+                ->update([
+                    'ended_at' => now(),
+                    'ended_by' => $initiator,
+                    'updated_at' => now(),
+                ]);
 
             $employee->forceFill([
                 'pharmacy_id' => null,

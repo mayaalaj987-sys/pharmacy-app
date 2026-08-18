@@ -129,6 +129,12 @@ class Employee extends Authenticatable
         return $this->hasMany(JobOffer::class);
     }
 
+    /** Every job they have held, running or finished. */
+    public function employments()
+    {
+        return $this->hasMany(Employment::class);
+    }
+
     /**
      * Placeholder for the one offer the requesting pharmacy holds on this
      * person, constrained per query. Nothing loads it by default — a pharmacy

@@ -67,6 +67,12 @@ class Pharmacy extends Model
         return $this->hasMany(JobOffer::class);
     }
 
+    /** Everyone who has ever worked here, including those who have left. */
+    public function employments()
+    {
+        return $this->hasMany(Employment::class);
+    }
+
     public function blockedByAdmin()
     {
         return $this->belongsTo(Admin::class, 'blocked_by_admin_id');
