@@ -23,6 +23,9 @@ class Notification extends Model
     /** You no longer work at that pharmacy. */
     public const TYPE_EMPLOYMENT_ENDED = 'employment_ended';
 
+    /** A pharmacy vouched that your training is finished. */
+    public const TYPE_ROLE_PROMOTED = 'role_promoted';
+
     /** The pharmacist's business: money, stock, suppliers, staffing. */
     public const AUDIENCE_OWNER = 'owner';
 

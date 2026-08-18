@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RegisterEmployeeRequest;
 use App\Http\Resources\SafeEmployeeResource;
 use App\Models\Employee;
+use App\Models\Notification;
 use App\Services\AuthSessionService;
 use App\Services\DocumentVersionService;
 use App\Services\PharmacyContextResolver;
@@ -120,6 +121,54 @@ class EmployeeController extends Controller
                 'token_type' => 'Bearer',
                 'session' => $this->sessions->build($request, false),
             ],
+        ]);
+    }
+
+    /**
+     * Confirm a trainee has finished training and is now an employee.
+     *
+     * Only a pharmacy that actually employed them can say so. The admin never
+     * watched them work and the trainee cannot vouch for themselves — `role` is
+     * prohibited on profile updates for exactly that reason — so the attestation
+     * has to come from the one party with first-hand knowledge.
+     *
+     * A past employer counts. A trainee who completes a placement and moves on
+     * is precisely the person who has earned this, and refusing them because
+     * the job has ended would make the training itself worthless.
+     */
+    public function promoteEmployee(Request $request, $id): JsonResponse
+    {
+        $pharmacy = $this->pharmacyContext->resolve($request);
+        $employee = Employee::find($id);
+
+        if ($employee === null || ! $employee->workedAt((int) $pharmacy->id)) {
+            return response()->json([
+                'message' => 'This person has never worked at your pharmacy.',
+                'code' => 'employee_not_found',
+            ], 404);
+        }
+
+        if ($employee->role !== Employee::ROLE_TRAINEE) {
+            return response()->json([
+                'message' => $employee->name.' is already an employee.',
+                'code' => 'already_an_employee',
+            ], 409);
+        }
+
+        $employee->forceFill(['role' => Employee::ROLE_EMPLOYEE])->save();
+
+        Notification::notifyEmployee(
+            $employee->id,
+            'Your training is confirmed',
+            $pharmacy->pharmacy_name.' confirmed you completed your training. '
+                .'You are now listed as an employee.',
+            Notification::TYPE_ROLE_PROMOTED,
+        );
+
+        return response()->json([
+            'message' => $employee->name.' is now listed as an employee.',
+            'code' => 'employee_promoted',
+            'employee' => (new SafeEmployeeResource($employee))->resolve($request),
         ]);
     }
 

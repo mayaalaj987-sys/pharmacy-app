@@ -9,6 +9,11 @@ abstract class EmployeesRemoteDataSource {
   /// replaced the approve call that attached them outright.
   Future<Response<dynamic>> sendOffer(Map<String, dynamic> data);
 
+  /// Confirms a trainee finished their training. Only a pharmacy that employed
+  /// them can say so, so this is the pharmacist's call rather than the
+  /// trainee's — `role` is prohibited on their own profile for that reason.
+  Future<Response<dynamic>> promoteEmployee(int id);
+
   /// Lists an applicant's current documents. You cannot offer a stranger a
   /// salary on the strength of a name, so this is what an offer rests on.
   Future<Response<dynamic>> getApplicantDocuments(int employeeId);

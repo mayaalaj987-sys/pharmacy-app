@@ -42,6 +42,14 @@ class EmployeesRepository {
     }
   }
 
+  Future<void> promoteEmployee(int id) async {
+    try {
+      await api.promoteEmployee(id);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
   Future<void> dismissEmployee(int id) async {
     try {
       await api.dismissEmployee(id);

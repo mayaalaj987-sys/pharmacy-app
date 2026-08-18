@@ -42,4 +42,9 @@ class EmployeesApi implements EmployeesRemoteDataSource {
       options: Options(responseType: ResponseType.bytes),
     );
   }
+
+  @override
+  Future<Response<dynamic>> promoteEmployee(int id) {
+    return dio.post('${ApiConstants.employees}/$id/promote');
+  }
 }

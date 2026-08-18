@@ -148,6 +148,8 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     // /employees/pending and would otherwise swallow any word placed after it.
     Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees'])
         ->whereNumber('pharmacy_id');
+    Route::post('/employees/{id}/promote', [EmployeeController::class, 'promoteEmployee'])
+        ->whereNumber('id');
     Route::delete('/employees/{id}/dismiss', [EmployeeController::class, 'dismissEmployee']);
 
     Route::get('/sale/daily', [SaleController::class, 'getDailySales']);

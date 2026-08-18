@@ -53,6 +53,7 @@ const _messagesByCode = <String, String>{
       'You already have a job. Leave it before accepting another offer.',
   'pharmacy_unavailable': 'This pharmacy is not operating right now.',
   'not_employed': 'You do not currently have a job to leave.',
+  'already_an_employee': 'They are already listed as an employee.',
   'employee_not_active': 'This person does not work at your pharmacy.',
 };
 

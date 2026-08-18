@@ -134,6 +134,21 @@ void main() {
     await cubit.close();
   });
 
+  test('confirming training promotes and refetches', () async {
+    final api = FakeEmployeesApi();
+    final cubit = EmployeesCubit(EmployeesRepository(api));
+    await cubit.load(7);
+
+    expect(await cubit.promote(7, 1), isTrue);
+
+    expect(api.promoted, [1]);
+    // Refetched rather than patched locally: the role is the backend's to
+    // change, and the roster is what proves it took.
+    expect(cubit.state.status, EmployeesStatus.ready);
+    expect(cubit.state.mutatingEmployeeId, isNull);
+    await cubit.close();
+  });
+
   test('a successful dismiss refetches authoritative state', () async {
     final api = FakeEmployeesApi();
     final cubit = EmployeesCubit(EmployeesRepository(api));
@@ -174,6 +189,7 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
   bool failDismissWithRetention = false;
   bool dismissed = false;
   bool twoEmployees = false;
+  final List<int> promoted = [];
 
   @override
   Future<Response<dynamic>> getPharmacyEmployees(int pharmacyId) async {
@@ -330,6 +346,15 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
     return Response<List<int>>(
       requestOptions: RequestOptions(path: url),
       data: const <int>[1, 2, 3],
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> promoteEmployee(int id) async {
+    promoted.add(id);
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/employees/$id/promote'),
+      data: {'message': 'ok', 'code': 'employee_promoted'},
     );
   }
 }

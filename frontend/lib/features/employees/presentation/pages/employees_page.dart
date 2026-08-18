@@ -218,23 +218,36 @@ class _EmployeesPageState extends State<EmployeesPage> {
                 style: const TextStyle(fontSize: 13),
               ),
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: state.mutatingEmployeeId != null
-                    ? null
-                    : () => _confirmDismiss(context, employee),
-                icon: busy
-                    ? const SizedBox.square(
-                        dimension: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.person_remove, size: 18),
-                label: const Text("Dismiss"),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.errorRed,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Only this pharmacy can say a trainee is trained: nobody else
+                // watched them work, and they cannot say it about themselves.
+                if (employee.isTrainee)
+                  TextButton.icon(
+                    key: ValueKey('promote-${employee.id}'),
+                    onPressed: state.mutatingEmployeeId != null
+                        ? null
+                        : () => _confirmPromotion(context, employee),
+                    icon: const Icon(Icons.workspace_premium_outlined, size: 18),
+                    label: const Text('Confirm training'),
+                  ),
+                TextButton.icon(
+                  onPressed: state.mutatingEmployeeId != null
+                      ? null
+                      : () => _confirmDismiss(context, employee),
+                  icon: busy
+                      ? const SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.person_remove, size: 18),
+                  label: const Text("Dismiss"),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.errorRed,
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -517,6 +530,53 @@ class _EmployeesPageState extends State<EmployeesPage> {
                   cubit.state.error,
                   context: ErrorContext.dismissEmployee,
                   fallback: 'The employee could not be dismissed.',
+                ),
+        ),
+      ),
+    );
+  }
+
+  /// Confirms a trainee has finished training and is now an employee.
+  ///
+  /// One way on purpose. A pharmacy is vouching for experience the person has
+  /// actually gained, and experience is not something that can be taken back.
+  Future<void> _confirmPromotion(BuildContext context, Employee employee) async {
+    final cubit = context.read<EmployeesCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Confirm ${employee.name} is trained?'),
+        content: const Text(
+          'They will be listed as an employee rather than a trainee, here and '
+          'to every pharmacy hiring. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Not yet'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final ok = await cubit.promote(_pharmacyId!, employee.id);
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? '${employee.name} is now listed as an employee.'
+              : userFacingError(
+                  cubit.state.error,
+                  fallback: 'Unable to confirm the training.',
                 ),
         ),
       ),

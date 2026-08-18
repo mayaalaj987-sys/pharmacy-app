@@ -80,6 +80,18 @@ class Employee extends Authenticatable
         return $this->pharmacy_id !== null;
     }
 
+    /**
+     * Whether this person has ever worked at a given pharmacy.
+     *
+     * Reads the employment log rather than the current attachment, so a
+     * finished placement still counts — which is the whole point when the
+     * pharmacy is vouching for training the person has already completed.
+     */
+    public function workedAt(int $pharmacyId): bool
+    {
+        return $this->employments()->where('pharmacy_id', $pharmacyId)->exists();
+    }
+
     /** "Morning" / "Evening", or null when this person is not working anywhere. */
     public function shiftLabel(): ?string
     {

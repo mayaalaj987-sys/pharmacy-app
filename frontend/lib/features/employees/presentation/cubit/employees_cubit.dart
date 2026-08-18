@@ -47,6 +47,14 @@ class EmployeesCubit extends Cubit<EmployeesState> {
     );
   }
 
+  Future<bool> promote(int pharmacyId, int employeeId) {
+    return _mutate(
+      pharmacyId,
+      employeeId,
+      () => repository.promoteEmployee(employeeId),
+    );
+  }
+
   Future<bool> dismiss(int pharmacyId, int employeeId) {
     return _mutate(
       pharmacyId,
