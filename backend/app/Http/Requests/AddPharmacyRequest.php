@@ -2,8 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AcceptsPharmacyCoordinates;
+
 class AddPharmacyRequest extends ApiFormRequest
 {
+    use AcceptsPharmacyCoordinates;
+
     public function rules(): array
     {
         return [
@@ -14,6 +18,7 @@ class AddPharmacyRequest extends ApiFormRequest
             'pharmacist_id' => ['prohibited'],
             'owner_id' => ['prohibited'],
             'status' => ['prohibited'],
+            ...$this->coordinateRules(),
         ];
     }
 }

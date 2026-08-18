@@ -10,8 +10,10 @@ import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/custom_upload_card.dart';
 
+import '../../../account/domain/pharmacy_location_draft.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
+import '../widgets/pharmacy_location_field.dart';
 import '../../data/models/pharmacist_registration_draft.dart';
 import 'pending_page.dart';
 
@@ -30,6 +32,10 @@ class _SignupPage2State extends State<SignupPage2> {
 
   File? certificateFile;
   File? licenseFile;
+
+  double? latitude;
+  double? longitude;
+  String? suggestedAddress;
 
   Future<void> pickCertificate() async {
     final result = await FilePicker.platform.pickFiles(
@@ -55,6 +61,31 @@ class _SignupPage2State extends State<SignupPage2> {
         licenseFile = File(result.files.single.path!);
       });
     }
+  }
+
+  void applyLocation(PharmacyLocationDraft picked) {
+    setState(() {
+      latitude = picked.latitude;
+      longitude = picked.longitude;
+      suggestedAddress = picked.suggestedAddress;
+    });
+  }
+
+  void clearLocation() {
+    setState(() {
+      latitude = null;
+      longitude = null;
+      suggestedAddress = null;
+    });
+  }
+
+  void useSuggestedAddress() {
+    final suggestion = suggestedAddress;
+    if (suggestion == null) return;
+    setState(() {
+      pharmacyAddressController.text = suggestion;
+      suggestedAddress = null;
+    });
   }
 
   void register() async {
@@ -85,6 +116,11 @@ class _SignupPage2State extends State<SignupPage2> {
         ),
       "pharmacy_name": pharmacyNameController.text,
       "pharmacy_address": pharmacyAddressController.text,
+      // Sent only as a pair; a lone coordinate is a 422 from the backend.
+      if (latitude != null && longitude != null) ...{
+        "latitude": latitude,
+        "longitude": longitude,
+      },
       "certificate": await MultipartFile.fromFile(certificateFile!.path),
       "license": await MultipartFile.fromFile(licenseFile!.path),
     });
@@ -124,10 +160,16 @@ class _SignupPage2State extends State<SignupPage2> {
                     prefixIcon: Icons.local_pharmacy,
                   ),
                   const SizedBox(height: 20),
-                  CustomTextField(
-                    controller: pharmacyAddressController,
-                    hint: "Pharmacy Address",
-                    prefixIcon: Icons.location_on,
+                  PharmacyLocationField(
+                    key: const ValueKey('signup-pharmacy-location-field'),
+                    addressController: pharmacyAddressController,
+                    latitude: latitude,
+                    longitude: longitude,
+                    suggestedAddress: suggestedAddress,
+                    enabled: state is! AuthLoading,
+                    onLocationPicked: applyLocation,
+                    onLocationCleared: clearLocation,
+                    onSuggestionAccepted: useSuggestedAddress,
                   ),
                   const SizedBox(height: 30),
                   CustomUploadCard(

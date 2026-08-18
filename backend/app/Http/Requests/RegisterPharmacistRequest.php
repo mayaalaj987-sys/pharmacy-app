@@ -2,8 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\AcceptsPharmacyCoordinates;
+
 class RegisterPharmacistRequest extends ApiFormRequest
 {
+    use AcceptsPharmacyCoordinates;
+
     public function rules(): array
     {
         return [
@@ -19,6 +23,7 @@ class RegisterPharmacistRequest extends ApiFormRequest
             'certificate' => ['required', 'file', 'max:5120'],
             'license' => ['required', 'file', 'max:5120'],
             'status' => ['prohibited'],
+            ...$this->coordinateRules(),
         ];
     }
 }

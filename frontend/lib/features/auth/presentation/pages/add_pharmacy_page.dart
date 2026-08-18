@@ -11,14 +11,18 @@ import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/custom_upload_card.dart';
+import '../../../account/domain/pharmacy_location_draft.dart';
 import '../cubit/auth_cubit.dart';
+import '../widgets/pharmacy_location_field.dart';
 
 /// Registers an additional pharmacy for the signed-in owner.
 ///
 /// Mirrors the pharmacy half of the signup flow, but posts to
-/// `POST /pharmacy/add`. Only the four fields `AddPharmacyRequest` accepts are
+/// `POST /pharmacy/add`. Only the fields `AddPharmacyRequest` accepts are
 /// sent — the owner comes from the bearer token and the backend forces
 /// `pending`, so `pharmacist_id`, `owner_id` and `status` are never submitted.
+/// Coordinates are sent only as a complete pair, which is the one shape the
+/// backend accepts.
 ///
 /// The busy flag is local rather than in [AuthCubit] because this is a pushed
 /// route: driving it from the auth state would rebuild the shell underneath.
@@ -35,6 +39,9 @@ class _AddPharmacyPageState extends State<AddPharmacyPage> {
 
   File? _certificate;
   File? _license;
+  double? _latitude;
+  double? _longitude;
+  String? _suggestedAddress;
   bool _submitting = false;
   bool _submitted = false;
 
@@ -88,11 +95,16 @@ class _AddPharmacyPageState extends State<AddPharmacyPage> {
             prefixIcon: Icons.local_pharmacy,
           ),
           const SizedBox(height: 20),
-          CustomTextField(
-            key: const ValueKey('add-pharmacy-address-field'),
-            controller: _addressController,
-            hint: 'Pharmacy Address',
-            prefixIcon: Icons.location_on,
+          PharmacyLocationField(
+            key: const ValueKey('add-pharmacy-location-field'),
+            addressController: _addressController,
+            latitude: _latitude,
+            longitude: _longitude,
+            suggestedAddress: _suggestedAddress,
+            enabled: !_submitting,
+            onLocationPicked: _applyLocation,
+            onLocationCleared: _clearLocation,
+            onSuggestionAccepted: _useSuggestedAddress,
           ),
           const SizedBox(height: 30),
           CustomUploadCard(
@@ -161,6 +173,31 @@ class _AddPharmacyPageState extends State<AddPharmacyPage> {
     );
   }
 
+  void _applyLocation(PharmacyLocationDraft picked) {
+    setState(() {
+      _latitude = picked.latitude;
+      _longitude = picked.longitude;
+      _suggestedAddress = picked.suggestedAddress;
+    });
+  }
+
+  void _clearLocation() {
+    setState(() {
+      _latitude = null;
+      _longitude = null;
+      _suggestedAddress = null;
+    });
+  }
+
+  void _useSuggestedAddress() {
+    final suggestion = _suggestedAddress;
+    if (suggestion == null) return;
+    setState(() {
+      _addressController.text = suggestion;
+      _suggestedAddress = null;
+    });
+  }
+
   Future<void> _submit() async {
     final messenger = ScaffoldMessenger.of(context);
     final cubit = context.read<AuthCubit>();
@@ -185,9 +222,16 @@ class _AddPharmacyPageState extends State<AddPharmacyPage> {
 
     setState(() => _submitting = true);
 
+    final latitude = _latitude;
+    final longitude = _longitude;
     final data = FormData.fromMap({
       'pharmacy_name': name,
       'pharmacy_address': address,
+      // Sent only as a pair; a lone coordinate is a 422 from the backend.
+      if (latitude != null && longitude != null) ...{
+        'latitude': latitude,
+        'longitude': longitude,
+      },
       'certificate': await MultipartFile.fromFile(_certificate!.path),
       'license': await MultipartFile.fromFile(_license!.path),
     });

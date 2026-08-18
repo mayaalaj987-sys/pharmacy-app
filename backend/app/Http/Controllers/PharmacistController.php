@@ -30,6 +30,7 @@ class PharmacistController extends Controller
     public function register(RegisterPharmacistRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $coordinates = $request->pharmacyCoordinates();
         $profileImage = null;
         $certificate = null;
         $license = null;
@@ -41,7 +42,7 @@ class PharmacistController extends Controller
             $certificate = $this->documents->storeUpload($request->file('certificate'), 'pharmacy-documents', 'certificate');
             $license = $this->documents->storeUpload($request->file('license'), 'pharmacy-documents', 'license');
 
-            [$pharmacist, $pharmacy] = DB::transaction(function () use ($validated, $profileImage, $certificate, $license) {
+            [$pharmacist, $pharmacy] = DB::transaction(function () use ($validated, $coordinates, $profileImage, $certificate, $license) {
                 $pharmacist = Pharmacist::create([
                     'name' => $validated['name'],
                     'email' => $validated['email'],
@@ -53,6 +54,8 @@ class PharmacistController extends Controller
                 $pharmacy = $pharmacist->pharmacies()->create([
                     'pharmacy_name' => $validated['pharmacy_name'],
                     'pharmacy_address' => $validated['pharmacy_address'],
+                    'latitude' => $coordinates['latitude'],
+                    'longitude' => $coordinates['longitude'],
                     'certificate' => '',
                     'license' => '',
                     'status' => 'pending',
@@ -96,6 +99,8 @@ class PharmacistController extends Controller
                     'id' => $pharmacy->id,
                     'name' => $pharmacy->pharmacy_name,
                     'address' => $pharmacy->pharmacy_address,
+                    'latitude' => $pharmacy->latitude,
+                    'longitude' => $pharmacy->longitude,
                     'status' => $pharmacy->status,
                 ],
                 'registration' => $this->approvals->registrationStatus($pharmacist),
@@ -170,11 +175,14 @@ class PharmacistController extends Controller
         try {
             $certificate = $this->documents->storeUpload($request->file('certificate'), 'pharmacy-documents', 'certificate');
             $license = $this->documents->storeUpload($request->file('license'), 'pharmacy-documents', 'license');
-            $pharmacy = DB::transaction(function () use ($request, $certificate, $license) {
+            $coordinates = $request->pharmacyCoordinates();
+            $pharmacy = DB::transaction(function () use ($request, $coordinates, $certificate, $license) {
                 $pharmacy = Pharmacy::create([
                     'pharmacist_id' => $request->user()->id,
                     'pharmacy_name' => $request->validated('pharmacy_name'),
                     'pharmacy_address' => $request->validated('pharmacy_address'),
+                    'latitude' => $coordinates['latitude'],
+                    'longitude' => $coordinates['longitude'],
                     'certificate' => '',
                     'license' => '',
                     'status' => 'pending',
@@ -199,6 +207,8 @@ class PharmacistController extends Controller
                 'id' => $pharmacy->id,
                 'pharmacy_name' => $pharmacy->pharmacy_name,
                 'pharmacy_address' => $pharmacy->pharmacy_address,
+                'latitude' => $pharmacy->latitude,
+                'longitude' => $pharmacy->longitude,
                 'status' => $pharmacy->status,
                 'certificate_on_file' => true,
                 'license_on_file' => true,
