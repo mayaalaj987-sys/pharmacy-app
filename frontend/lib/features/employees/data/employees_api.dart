@@ -28,4 +28,18 @@ class EmployeesApi implements EmployeesRemoteDataSource {
   Future<Response<dynamic>> dismissEmployee(int id) {
     return dio.delete('${ApiConstants.employees}/$id/dismiss');
   }
+
+  @override
+  Future<Response<dynamic>> getApplicantDocuments(int employeeId) {
+    return dio.get('${ApiConstants.recruitmentApplicants}/$employeeId/documents');
+  }
+
+  @override
+  Future<Response<List<int>>> downloadDocument(String url) {
+    // The listing returns absolute URLs; Dio would otherwise prefix the base.
+    return dio.get<List<int>>(
+      url,
+      options: Options(responseType: ResponseType.bytes),
+    );
+  }
 }

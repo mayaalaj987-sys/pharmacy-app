@@ -18,6 +18,10 @@ class Employee {
   /// another pharmacy's: the backend scopes it to the caller.
   final String? offerStatus;
 
+  /// Which shift this pharmacy offered them, so two outstanding offers are
+  /// distinguishable at a glance.
+  final String? offerShift;
+
   /// Backend roles: employee | trainee
   final String role;
 
@@ -48,6 +52,7 @@ class Employee {
     this.hasCv = false,
     this.hasExperienceProof = false,
     this.offerStatus,
+    this.offerShift,
     this.createdAt,
   });
 
@@ -62,6 +67,12 @@ class Employee {
         'trainee' => 'Trainee',
         _ => role,
       };
+
+  String? get offerShiftLabel => switch (offerShift) {
+    'morning' => 'Morning',
+    'evening' => 'Evening',
+    _ => null,
+  };
 
   String get shiftLabel => switch (shift) {
         'morning' => 'Morning',
@@ -96,6 +107,9 @@ class Employee {
       hasExperienceProof: json['has_experience_proof'] == true,
       offerStatus: json['offer'] is Map<String, dynamic>
           ? (json['offer'] as Map<String, dynamic>)['status']?.toString()
+          : null,
+      offerShift: json['offer'] is Map<String, dynamic>
+          ? (json['offer'] as Map<String, dynamic>)['shift']?.toString()
           : null,
       salary: rawSalary == null
           ? null

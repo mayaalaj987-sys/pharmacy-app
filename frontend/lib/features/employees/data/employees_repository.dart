@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/error_handler.dart';
+import '../domain/applicant_document.dart';
 import '../domain/employee.dart';
 import 'employees_remote_data_source.dart';
 
@@ -57,5 +58,31 @@ class EmployeesRepository {
         .whereType<Map<String, dynamic>>()
         .map(Employee.fromJson)
         .toList(growable: false);
+  }
+
+  Future<List<ApplicantDocument>> fetchApplicantDocuments(int employeeId) async {
+    try {
+      final response = await api.getApplicantDocuments(employeeId);
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return const <ApplicantDocument>[];
+      final raw = data['data'];
+
+      return raw is List
+          ? raw
+                .whereType<Map<String, dynamic>>()
+                .map(ApplicantDocument.fromJson)
+                .toList(growable: false)
+          : const <ApplicantDocument>[];
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<List<int>> downloadDocument(String url) async {
+    try {
+      return (await api.downloadDocument(url)).data ?? const <int>[];
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
   }
 }

@@ -47,6 +47,32 @@ void main() {
     expect(pending.last.roleLabel, 'Trainee');
   });
 
+  test('a pool applicant carries the offer this pharmacy made', () async {
+    final pending =
+        await EmployeesRepository(FakeEmployeesApi()).fetchPendingEmployees();
+
+    // Which shift was offered, so two outstanding offers are distinguishable.
+    // Without it a pharmacist could not tell whom they had offered mornings to.
+    expect(pending.first.offerStatus, 'pending');
+    expect(pending.first.offerShift, 'morning');
+    expect(pending.first.offerShiftLabel, 'Morning');
+
+    expect(pending.last.offerStatus, isNull);
+    expect(pending.last.offerShiftLabel, isNull);
+  });
+
+  test('applicant documents parse without exposing the file itself', () async {
+    final docs = await EmployeesRepository(
+      FakeEmployeesApi(),
+    ).fetchApplicantDocuments(2);
+
+    expect(docs, hasLength(1));
+    expect(docs.first.label, 'CV');
+    expect(docs.first.fileExtension, 'pdf');
+    expect(docs.first.sizeLabel, '2 KB');
+    expect(docs.first.downloadUrl, contains('/documents/'));
+  });
+
   test('an offer names the applicant and the shift', () async {
     final api = FakeEmployeesApi();
     final repo = EmployeesRepository(api);
@@ -200,6 +226,12 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
             'applied_at': '2026-08-10T00:00:00.000Z',
             'has_cv': true,
             'has_experience_proof': true,
+            'offer': {
+              'id': 9,
+              'status': 'pending',
+              'shift': 'morning',
+              'salary': 400000,
+            },
           },
           {
             'id': 3,
@@ -208,6 +240,7 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
             'applied_at': '2026-08-11T00:00:00.000Z',
             'has_cv': true,
             'has_experience_proof': false,
+            'offer': null,
           },
         ],
       },
@@ -263,6 +296,40 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
     return Response<dynamic>(
       requestOptions: RequestOptions(path: '/employees/$id/dismiss'),
       data: {'message': 'تم حذف الموظف من النظام بنجاح'},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> getApplicantDocuments(int employeeId) async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(
+        path: '/recruitment/applicants/$employeeId/documents',
+      ),
+      data: {
+        'data': [
+          {
+            'id': 'a1b2c3',
+            'type': 'cv',
+            'version': 1,
+            'mime_type': 'application/pdf',
+            'size_bytes': 2048,
+            'uploaded_at': '2026-08-10T00:00:00.000Z',
+            'preview_url':
+                'http://x.test/api/recruitment/applicants/2/documents/a1b2c3/preview',
+            'download_url':
+                'http://x.test/api/recruitment/applicants/2/documents/a1b2c3/download',
+          },
+        ],
+        'applicant': {'id': 2, 'name': 'Applicant One', 'role': 'employee'},
+      },
+    );
+  }
+
+  @override
+  Future<Response<List<int>>> downloadDocument(String url) async {
+    return Response<List<int>>(
+      requestOptions: RequestOptions(path: url),
+      data: const <int>[1, 2, 3],
     );
   }
 }

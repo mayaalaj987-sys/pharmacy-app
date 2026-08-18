@@ -48,6 +48,7 @@ class ApiConstants {
   static const String employeeOffers = "/employee/offers";
   static const String employeeResign = "/employee/resign";
   static const String recruitmentOffers = "/recruitment/offers";
+  static const String recruitmentApplicants = "/recruitment/applicants";
   static const String employeeNotifications = "/employee/notifications";
   static const String employeeProfile = "/employee/profile";
   static const String employeeProfileUpdate = "/employee/profile/update";

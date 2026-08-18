@@ -8,6 +8,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/employee.dart';
 import '../cubit/employees_cubit.dart';
 import '../cubit/employees_state.dart';
+import '../widgets/applicant_documents_sheet.dart';
 import '../../../../core/format/money.dart';
 
 class EmployeesPage extends StatefulWidget {
@@ -18,6 +19,14 @@ class EmployeesPage extends StatefulWidget {
 }
 
 class _EmployeesPageState extends State<EmployeesPage> {
+  /// Owned by the page rather than created per dialog.
+  ///
+  /// Disposing it right after `showDialog` returns crashes the app: the route
+  /// is still animating out, so the TextField is still mounted and still
+  /// reading from the controller. The offer had already been sent by then,
+  /// which is why the failure looked like "it worked but showed a red screen".
+  final _salaryController = TextEditingController();
+
   int? _pharmacyId;
 
   @override
@@ -26,6 +35,12 @@ class _EmployeesPageState extends State<EmployeesPage> {
     _pharmacyId = context.read<AuthCubit>().session?.activePharmacy?.id;
     final id = _pharmacyId;
     if (id != null) context.read<EmployeesCubit>().load(id);
+  }
+
+  @override
+  void dispose() {
+    _salaryController.dispose();
+    super.dispose();
   }
 
   @override
@@ -262,7 +277,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
             Wrap(
               spacing: 6,
               children: [
-                if (employee.offerStatus == 'pending') _chip('Offer sent'),
+                if (employee.offerStatus == 'pending')
+                  _chip('Offered: ${employee.offerShiftLabel ?? 'a shift'}'),
                 if (employee.hasCv) _chip('CV'),
                 if (employee.hasExperienceProof) _chip('Training certificate'),
                 if (!employee.hasCv && !employee.hasExperienceProof)
@@ -273,23 +289,49 @@ class _EmployeesPageState extends State<EmployeesPage> {
               ],
             ),
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                onPressed: state.mutatingEmployeeId != null
-                    ? null
-                    : () => _offerFlow(context, employee),
-                icon: busy
-                    ? const SizedBox.square(
-                        dimension: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.check, size: 18),
-                label: const Text("Send offer"),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (employee.hasCv || employee.hasExperienceProof)
+                  TextButton.icon(
+                    key: ValueKey('view-documents-${employee.id}'),
+                    onPressed: () => _showDocuments(context, employee),
+                    icon: const Icon(Icons.description_outlined, size: 18),
+                    label: const Text('Documents'),
+                  ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: state.mutatingEmployeeId != null
+                      ? null
+                      : () => _offerFlow(context, employee),
+                  icon: busy
+                      ? const SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check, size: 18),
+                  label: const Text("Send offer"),
+                ),
+              ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Opens the applicant's CV and certificate before any offer is made.
+  ///
+  /// Reads through the cubit's repository rather than a second instance, so
+  /// there is one authenticated client and one place the base URL is decided.
+  Future<void> _showDocuments(BuildContext context, Employee employee) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ApplicantDocumentsSheet(
+        employeeId: employee.id,
+        applicantName: employee.name,
+        repository: context.read<EmployeesCubit>().repository,
       ),
     );
   }
@@ -325,8 +367,13 @@ class _EmployeesPageState extends State<EmployeesPage> {
       return;
     }
 
-    final salaryController = TextEditingController();
-    var shift = free.first;
+    _salaryController.clear();
+
+    // Nothing preselected while there is a real choice. Defaulting to the first
+    // free shift meant that once one was filled, the dialog quietly switched to
+    // the other — so a pharmacist who thought they were offering mornings twice
+    // sent an evening the second time without ever seeing it change.
+    String? shift = free.length == 1 ? free.first : null;
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -354,14 +401,22 @@ class _EmployeesPageState extends State<EmployeesPage> {
                       enabled: free.contains(option),
                     ),
                 ],
-                selected: {shift},
+                emptySelectionAllowed: true,
+                selected: shift == null ? const <String>{} : {shift!},
                 onSelectionChanged: (selection) =>
-                    setDialogState(() => shift = selection.first),
+                    setDialogState(() => shift = selection.firstOrNull),
               ),
+              if (shift == null) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'Pick a shift to continue.',
+                  style: TextStyle(fontSize: 11, color: Colors.black54),
+                ),
+              ],
               const SizedBox(height: 16),
               TextField(
                 key: const ValueKey('employee-salary-field'),
-                controller: salaryController,
+                controller: _salaryController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Monthly salary (optional)',
@@ -376,7 +431,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
+              onPressed: shift == null
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
               child: const Text('Send offer'),
             ),
           ],
@@ -384,9 +441,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
       ),
     );
 
-    final entered = salaryController.text.trim();
-    salaryController.dispose();
-    if (confirmed != true) return;
+    final entered = _salaryController.text.trim();
+    if (confirmed != true || shift == null) return;
 
     double? salary;
     if (entered.isNotEmpty) {
@@ -403,14 +459,14 @@ class _EmployeesPageState extends State<EmployeesPage> {
       _pharmacyId!,
       employee.id,
       salary: salary,
-      shift: shift,
+      shift: shift!,
     );
 
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok
-              ? 'Offer sent to ${employee.name}. They decide whether to accept.'
+              ? 'Offered ${employee.name} the $shift shift. They decide whether to accept.'
               : userFacingError(
                   cubit.state.error,
                   context: ErrorContext.sendOffer,

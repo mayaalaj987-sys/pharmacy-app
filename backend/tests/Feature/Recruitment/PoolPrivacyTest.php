@@ -96,7 +96,9 @@ class PoolPrivacyTest extends SecurityTestCase
 
         $this->asOwner($mine)->getJson('/api/employees/pending')
             ->assertOk()
-            ->assertJsonPath('employees.0.offer.shift', 'morning');
+            ->assertJsonPath('employees.0.offer.shift', 'morning')
+            // The shift is what tells two outstanding offers apart on the card.
+            ->assertJsonPath('employees.0.offer.status', 'pending');
 
         // The rival's terms must not leak through the shared applicant.
         $this->assertStringNotContainsString(
