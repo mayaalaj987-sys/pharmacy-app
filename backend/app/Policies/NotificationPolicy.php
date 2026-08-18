@@ -10,6 +10,14 @@ class NotificationPolicy
 {
     public function view(Pharmacist|Employee $user, Notification $notification): bool
     {
+        // Addressed to a person: pure self-access, with no pharmacy and no
+        // status involved, because the recipient may have neither. A pharmacist
+        // can never reach one of these, whatever they own.
+        if ($notification->isPersonal()) {
+            return $user instanceof Employee
+                && (int) $notification->employee_id === (int) $user->id;
+        }
+
         if (! $notification->pharmacy || $notification->pharmacy->status !== 'approved') {
             return false;
         }

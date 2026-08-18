@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
+use App\Http\Controllers\EmployeeNotificationController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -79,6 +80,12 @@ Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
     Route::post('/employee/profile/update', [EmployeeAccountController::class, 'update']);
     Route::post('/employee/password/change', [EmployeeAccountController::class, 'changePassword'])
         ->middleware('throttle:account-security');
+
+    // The employee's own bell. The pharmacy-scoped notification routes sit
+    // behind active.pharmacy, which someone waiting on a job does not have.
+    Route::get('/employee/notifications', [EmployeeNotificationController::class, 'index']);
+    Route::post('/employee/notifications/{id}/read', [EmployeeNotificationController::class, 'markAsRead'])
+        ->whereNumber('id');
 
     Route::get('/employee/documents', [EmployeeDocumentController::class, 'index']);
     Route::post('/employee/documents/{type}', [EmployeeDocumentController::class, 'store']);
