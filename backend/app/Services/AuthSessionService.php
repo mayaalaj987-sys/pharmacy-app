@@ -134,6 +134,12 @@ class AuthSessionService
                 // Employees have no profile_image column; the key stays so the
                 // actor shape is identical for both kinds of user.
                 'profile_image_url' => null,
+                // One query, so the shell can badge waiting offers at sign-in
+                // rather than only after the offers screen has loaded. Zero for
+                // anyone already employed: none of them can be acted on.
+                'pending_offer_count' => $actor->pharmacy_id === null
+                    ? $actor->jobOffers()->where('status', 'pending')->count()
+                    : 0,
             ],
             'available_pharmacies' => $assigned ? [$this->pharmacy($assigned)] : [],
             'active_pharmacy' => $active ? $this->pharmacy($active) : null,

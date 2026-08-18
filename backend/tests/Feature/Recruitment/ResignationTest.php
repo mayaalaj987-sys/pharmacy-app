@@ -187,6 +187,59 @@ class ResignationTest extends SecurityTestCase
         $this->postJson('/api/employee/resign')->assertUnauthorized();
     }
 
+    public function test_resigning_changes_who_is_hired_without_erasing_the_placement(): void
+    {
+        // The two figures the analytics screen reads. Counted from pharmacy_id
+        // rather than status, and from accepted offers rather than headcount,
+        // so that leaving a job does not read as an un-hiring.
+        [$owner, $pharmacy] = $this->hiringOwner('resign-metrics');
+        $employee = $this->applicant('resign-metrics');
+        $this->hire($owner, $pharmacy, $employee)->assertOk();
+
+        $this->assertSame(1, Employee::whereNotNull('pharmacy_id')->count());
+        $this->assertSame(1, JobOffer::where('status', JobOffer::STATUS_ACCEPTED)->count());
+
+        Sanctum::actingAs($employee->fresh(), ['*'], 'employee');
+        $this->postJson('/api/employee/resign')->assertOk();
+
+        $this->assertSame(0, Employee::whereNotNull('pharmacy_id')->count());
+        $this->assertSame(
+            1,
+            Employee::whereNull('pharmacy_id')
+                ->where('status', '!=', Employee::STATUS_REJECTED)
+                ->count(),
+        );
+
+        // Somebody who took a job and later left was still placed by this
+        // platform, so the all-time figure must not go backwards.
+        $this->assertSame(1, JobOffer::where('status', JobOffer::STATUS_ACCEPTED)->count());
+    }
+
+    public function test_the_session_reports_how_many_offers_are_waiting(): void
+    {
+        // So the shell can badge them at sign-in rather than only once the
+        // offers screen has loaded.
+        $employee = $this->applicant('session-badge');
+        [$owner] = $this->hiringOwner('session-badge');
+
+        Sanctum::actingAs($owner, ['*'], 'pharmacist');
+        $this->postJson('/api/recruitment/offers', [
+            'employee_id' => $employee->id,
+            'shift' => Employee::SHIFT_MORNING,
+        ])->assertCreated();
+
+        // /api/me resolves auth:pharmacist,employee in order, and the acting
+        // pharmacist above would still satisfy the first guard — returning the
+        // wrong session entirely. Forgetting the guards is how the rest of this
+        // suite switches actor mid-test.
+        $this->app['auth']->forgetGuards();
+        Sanctum::actingAs($employee->fresh(), ['*'], 'employee');
+
+        $this->getJson('/api/me')
+            ->assertOk()
+            ->assertJsonPath('data.session.actor.pending_offer_count', 1);
+    }
+
     /** @return array{0: Pharmacist, 1: Pharmacy} */
     private function hiringOwner(string $suffix): array
     {

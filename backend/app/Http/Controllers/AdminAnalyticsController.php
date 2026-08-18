@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\JobOffer;
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
 use Carbon\Carbon;
@@ -132,10 +133,19 @@ class AdminAnalyticsController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $approved = (int) ($byStatus[Employee::STATUS_APPROVED] ?? 0);
-        $pending = (int) ($byStatus[Employee::STATUS_PENDING] ?? 0);
         $rejected = (int) ($byStatus[Employee::STATUS_REJECTED] ?? 0);
-        $applicants = $approved + $pending + $rejected;
+
+        // Counted from pharmacy_id, not from status. Employment is having a
+        // pharmacy; status only mirrors it, and it lags in two directions —
+        // a deleted pharmacy leaves staff detached but still reading
+        // 'approved'. Reading status alone also made resignation look like an
+        // un-hiring, which is not what a hire count means.
+        $hired = Employee::query()->whereNotNull('pharmacy_id')->count();
+        $seeking = Employee::query()
+            ->whereNull('pharmacy_id')
+            ->where('status', '!=', Employee::STATUS_REJECTED)
+            ->count();
+        $applicants = Employee::query()->count();
 
         // A vacancy is an uncovered shift at an approved pharmacy. Capacity is
         // the shift list, not a number: one person per shift, enforced by a
@@ -152,15 +162,23 @@ class AdminAnalyticsController extends Controller
             ->map(fn ($filled) => max(0, $cap - (int) $filled))
             ->sum();
 
+        // All-time placements, which resignation cannot erode: somebody who
+        // took a job and later left was still placed by this platform.
+        $placements = JobOffer::where('status', JobOffer::STATUS_ACCEPTED)->count();
+
         return response()->json([
             'data' => [
                 'open_positions' => $openPositions,
                 // Still looking: applied, not yet placed at a pharmacy.
-                'active_seekers' => $pending,
+                'active_seekers' => $seeking,
                 'total_applicants' => $applicants,
-                'hired' => $approved,
+                'hired' => $hired,
                 'rejected' => $rejected,
-                'hire_rate_percentage' => $this->percentage($approved, $applicants),
+                'hire_rate_percentage' => $this->percentage($hired, $applicants),
+                'offers' => [
+                    'pending' => JobOffer::where('status', JobOffer::STATUS_PENDING)->count(),
+                    'accepted_all_time' => $placements,
+                ],
                 'capacity' => [
                     'employees_per_pharmacy' => $cap,
                     'shifts' => Employee::SHIFTS,
