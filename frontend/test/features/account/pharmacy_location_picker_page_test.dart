@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:phamacy_managment/features/account/data/location_services.dart';
 import 'package:phamacy_managment/features/account/domain/pharmacy_location_draft.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/pharmacy_location_picker_page.dart';
@@ -105,5 +106,54 @@ void main() {
       find.byKey(const ValueKey('confirm-location-button')),
     );
     expect(confirm.onPressed, isNull);
+  });
+
+  testWidgets('an unplaced pharmacy opens the camera over Syria', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PharmacyLocationPickerPage(
+          locationService: FakeCurrentLocationService(
+            const CurrentLocationResult.failure(LocationFailure.unavailable),
+          ),
+          addressLookup: FakeAddressLookup(),
+        ),
+      ),
+    );
+
+    // At world zoom the country is a few pixels wide and every owner has to
+    // pan across an ocean before they can place anything.
+    final map = tester.widget<GoogleMap>(
+      find.byKey(const ValueKey('pharmacy-google-map')),
+    );
+    expect(map.initialCameraPosition.target.latitude, closeTo(34.8, 0.5));
+    expect(map.initialCameraPosition.target.longitude, closeTo(38.0, 0.5));
+    expect(map.initialCameraPosition.zoom, greaterThanOrEqualTo(5));
+  });
+
+  testWidgets('an already placed pharmacy opens on its own street', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PharmacyLocationPickerPage(
+          initialLocation: const PharmacyLocationDraft(
+            latitude: 33.5138,
+            longitude: 36.2765,
+          ),
+          locationService: FakeCurrentLocationService(
+            const CurrentLocationResult.failure(LocationFailure.unavailable),
+          ),
+          addressLookup: FakeAddressLookup(),
+        ),
+      ),
+    );
+
+    final map = tester.widget<GoogleMap>(
+      find.byKey(const ValueKey('pharmacy-google-map')),
+    );
+    expect(map.initialCameraPosition.target.latitude, 33.5138);
+    expect(map.initialCameraPosition.zoom, greaterThanOrEqualTo(15));
   });
 }

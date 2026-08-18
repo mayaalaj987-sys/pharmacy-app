@@ -24,6 +24,16 @@ class PharmacyLocationPickerPage extends StatefulWidget {
 
 class _PharmacyLocationPickerPageState
     extends State<PharmacyLocationPickerPage> {
+  /// Where the camera starts when the pharmacy has no pin yet.
+  ///
+  /// Centred on Syria rather than on the globe: at world zoom the whole
+  /// country is a few pixels wide, so every owner had to pan and zoom across
+  /// an ocean before they could place anything. No marker is dropped here —
+  /// this only decides what the map is looking at.
+  static const _syria = LatLng(34.8, 38.0);
+  static const _countryZoom = 6.0;
+  static const _streetZoom = 16.0;
+
   late final PharmacyLocationController _controller;
   GoogleMapController? _mapController;
 
@@ -55,7 +65,7 @@ class _PharmacyLocationPickerPageState
   Widget build(BuildContext context) {
     final initial = widget.initialLocation;
     final initialTarget = initial == null
-        ? const LatLng(20, 0)
+        ? _syria
         : LatLng(initial.latitude, initial.longitude);
     final draft = _controller.draft;
 
@@ -74,7 +84,7 @@ class _PharmacyLocationPickerPageState
             key: const ValueKey('pharmacy-google-map'),
             initialCameraPosition: CameraPosition(
               target: initialTarget,
-              zoom: initial == null ? 2 : 16,
+              zoom: initial == null ? _countryZoom : _streetZoom,
             ),
             onMapCreated: (controller) => _mapController = controller,
             onTap: (point) =>
@@ -137,46 +147,44 @@ class _PharmacyLocationPickerPageState
                           ),
                       ],
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              key: const ValueKey(
-                                'use-current-location-button',
-                              ),
-                              onPressed: _controller.locating
-                                  ? null
-                                  : _useCurrentLocation,
-                              icon: _controller.locating
-                                  ? const SizedBox.square(
-                                      dimension: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.my_location),
-                              label: const Text('Use My Current Location'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: FilledButton(
-                              key: const ValueKey('confirm-location-button'),
-                              onPressed: _controller.canConfirm
-                                  ? _confirmLocation
-                                  : null,
-                              child: _controller.confirming
-                                  ? const SizedBox.square(
-                                      dimension: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text('Confirm Location'),
-                            ),
-                          ),
-                        ],
+                      // Stacked rather than side by side: half a phone width
+                      // wraps "Use My Current Location" onto three lines.
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          key: const ValueKey('use-current-location-button'),
+                          onPressed: _controller.locating
+                              ? null
+                              : _useCurrentLocation,
+                          icon: _controller.locating
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.my_location),
+                          label: const Text('Use My Current Location'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          key: const ValueKey('confirm-location-button'),
+                          onPressed: _controller.canConfirm
+                              ? _confirmLocation
+                              : null,
+                          child: _controller.confirming
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Confirm Location'),
+                        ),
                       ),
                     ],
                   ),
@@ -195,7 +203,7 @@ class _PharmacyLocationPickerPageState
       await _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(
           LatLng(result.latitude, result.longitude),
-          16,
+          _streetZoom,
         ),
       );
     }
