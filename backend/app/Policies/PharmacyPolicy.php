@@ -15,7 +15,7 @@ class PharmacyPolicy
             return (int) $pharmacy->pharmacist_id === (int) $user->id;
         }
 
-        return $user->status === 'approved'
+        return $user->status === Employee::STATUS_APPROVED
             && (int) $user->pharmacy_id === (int) $pharmacy->id;
     }
 

@@ -5,6 +5,7 @@ import '../../../../core/network/user_facing_error.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../auth/data/models/auth_session_model.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../cubit/employee_workspace_cubit.dart';
 import '../cubit/employee_workspace_state.dart';
 
@@ -175,10 +176,19 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
       return;
     }
 
+    // An empty field means "not edited", never "erase my number". The backend
+    // turns '' into null and writes it, so sending a blank would silently
+    // delete the phone of anyone who opens this page and presses save.
+    final phone = _phoneController.text.trim();
     final ok = await cubit.updateProfile(
       name: name,
-      phone: _phoneController.text.trim(),
+      phone: phone.isEmpty ? null : phone,
     );
+
+    if (ok && mounted) {
+      // The shell reads the name from the session, not from this page.
+      await context.read<AuthCubit>().reloadSession();
+    }
 
     messenger.showSnackBar(
       SnackBar(

@@ -16,7 +16,7 @@ class TaskPolicy
 
         return $user instanceof Pharmacist
             ? (int) $task->pharmacy->pharmacist_id === (int) $user->id
-            : $user->status === 'approved' && (int) $task->employee_id === (int) $user->id;
+            : $user->status === Employee::STATUS_APPROVED && (int) $task->employee_id === (int) $user->id;
     }
 
     public function update(Pharmacist|Employee $user, Task $task): bool

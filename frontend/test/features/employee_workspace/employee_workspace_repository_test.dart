@@ -111,6 +111,35 @@ void main() {
     expect(api.lastProfilePayload!.containsKey('phone'), isFalse);
   });
 
+  test('a blank phone never reaches the backend', () async {
+    // Laravel turns '' into null and writes it, so sending a blank would erase
+    // the stored number. The account screen seeds this field from the session,
+    // which means a stray save would silently delete someone's phone.
+    for (final blank in ['', '   ']) {
+      final api = FakeWorkspaceApi();
+
+      await EmployeeWorkspaceRepository(
+        api,
+      ).updateProfile(name: 'Lina Haddad', phone: blank);
+
+      expect(
+        api.lastProfilePayload!.containsKey('phone'),
+        isFalse,
+        reason: 'blank ${blank.length} chars',
+      );
+    }
+  });
+
+  test('a phone with stray whitespace is trimmed', () async {
+    final api = FakeWorkspaceApi();
+
+    await EmployeeWorkspaceRepository(
+      api,
+    ).updateProfile(name: 'Lina Haddad', phone: '  0930111222 ');
+
+    expect(api.lastProfilePayload!['phone'], '0930111222');
+  });
+
   test(
     'changePassword forwards the confirmation the backend requires',
     () async {

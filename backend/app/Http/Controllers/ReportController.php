@@ -118,8 +118,8 @@ class ReportController extends Controller
 
         // ✅ FIX: الرواتب نحسبها نسبة للفترة الزمنية مو كاملة
         $monthlySalaries = Employee::where('pharmacy_id', $pharmacyId)
-            ->where('status', 'approved')
-            ->where('role', 'employee')
+            ->where('status', Employee::STATUS_APPROVED)
+            ->where('role', Employee::ROLE_EMPLOYEE)
             ->sum('salary');
 
         $salaryForPeriod = match($request->filter) {
@@ -231,8 +231,8 @@ class ReportController extends Controller
             ->first();
 
         $dailySalary = Employee::where('pharmacy_id', $pharmacyId)
-                ->where('status', 'approved')
-                ->where('role', 'employee')
+                ->where('status', Employee::STATUS_APPROVED)
+                ->where('role', Employee::ROLE_EMPLOYEE)
                 ->sum('salary') / 30;
 
         $todayProfit = $todayRevenue - ($costOfGoods->total_cost ?? 0) - $dailySalary;

@@ -52,7 +52,7 @@ class EmployeeController extends Controller
                     'cv' => '',
                     'experience_proof' => null,
                     'role' => $validated['role'],
-                    'status' => 'pending',
+                    'status' => Employee::STATUS_PENDING,
                     'first_login' => true,
                 ]);
                 $this->documentVersions->createEmployeeVersion($employee, 'cv', $cv, $employee);
@@ -104,7 +104,7 @@ class EmployeeController extends Controller
         }
 
         $welcomeMessage = null;
-        if ($employee->status === 'approved' && $employee->first_login) {
+        if ($employee->status === Employee::STATUS_APPROVED && $employee->first_login) {
             $welcomeMessage = 'Welcome '.$employee->name.'! Your account has been approved.';
             $employee->update(['first_login' => false]);
         }
@@ -128,7 +128,7 @@ class EmployeeController extends Controller
     {
         // يرجع كل الموظفين اللي حالتهم pending وما عندهم صيدلية بعد
         $employees = Employee::whereNull('pharmacy_id')
-            ->where('status', 'pending')
+            ->where('status', Employee::STATUS_PENDING)
             ->get();
 
         return response()->json([
@@ -168,7 +168,7 @@ class EmployeeController extends Controller
             }
 
             $employeeCount = Employee::where('pharmacy_id', $pharmacy->id)
-                ->where('status', 'approved')
+                ->where('status', Employee::STATUS_APPROVED)
                 ->count();
 
             if ($employeeCount >= 2) {
@@ -180,7 +180,7 @@ class EmployeeController extends Controller
             }
 
             $employee->pharmacy_id = $pharmacy->id;
-            $employee->status = 'approved';
+            $employee->status = Employee::STATUS_APPROVED;
             $employee->salary = $employee->role === 'employee' ? $request->salary : null;
             $employee->save();
 
@@ -214,7 +214,7 @@ class EmployeeController extends Controller
         $this->pharmacyContext->assertMatches($request, (int) $employee->pharmacy_id);
         Gate::forUser($request->user())->authorize('delete', $employee);
 
-        if ($employee->status !== 'approved') {
+        if ($employee->status !== Employee::STATUS_APPROVED) {
             return response()->json([
                 'message' => 'هذا الموظف ليس موظفاً نشطاً',
             ], 400);
@@ -254,7 +254,7 @@ class EmployeeController extends Controller
         $pharmacy = $this->pharmacyContext->owned($request, (int) $pharmacy_id);
 
         $employees = Employee::where('pharmacy_id', $pharmacy->id)
-            ->where('status', 'approved')
+            ->where('status', Employee::STATUS_APPROVED)
             ->get();
 
         return response()->json(['employees' => SafeEmployeeResource::collection($employees)->resolve($request)]);

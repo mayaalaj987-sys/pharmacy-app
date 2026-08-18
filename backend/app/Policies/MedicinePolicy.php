@@ -14,7 +14,7 @@ class MedicinePolicy
             && $medicine->pharmacy->status === 'approved'
             && ($user instanceof Pharmacist
                 ? (int) $medicine->pharmacy->pharmacist_id === (int) $user->id
-                : $user->status === 'approved' && (int) $medicine->pharmacy_id === (int) $user->pharmacy_id);
+                : $user->status === Employee::STATUS_APPROVED && (int) $medicine->pharmacy_id === (int) $user->pharmacy_id);
     }
 
     public function update(Pharmacist|Employee $user, Medicine $medicine): bool

@@ -108,15 +108,15 @@ class AuthSessionService
         }
 
         $ready = ! $stale
-            && $actor->status === 'approved'
+            && $actor->status === Employee::STATUS_APPROVED
             && $assigned
             && $assigned->isOperational();
 
         $active = $ready ? $assigned : null;
         $code = match (true) {
             $stale => 'stale_active_pharmacy',
-            $actor->status === 'pending' => 'account_pending',
-            $actor->status === 'rejected' => 'account_rejected',
+            $actor->status === Employee::STATUS_PENDING => 'account_pending',
+            $actor->status === Employee::STATUS_REJECTED => 'account_rejected',
             ! $assigned => 'no_pharmacy',
             ! $assigned->isOperational() => 'assigned_pharmacy_unavailable',
             default => 'ready',
@@ -130,7 +130,9 @@ class AuthSessionService
                 'status' => $actor->status,
                 'name' => $actor->name,
                 'email' => $actor->email,
-                'phone' => null,
+                'phone' => $actor->phone,
+                // Employees have no profile_image column; the key stays so the
+                // actor shape is identical for both kinds of user.
                 'profile_image_url' => null,
             ],
             'available_pharmacies' => $assigned ? [$this->pharmacy($assigned)] : [],

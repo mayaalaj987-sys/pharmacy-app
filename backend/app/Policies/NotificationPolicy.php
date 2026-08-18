@@ -16,7 +16,7 @@ class NotificationPolicy
 
         return $user instanceof Pharmacist
             ? (int) $notification->pharmacy->pharmacist_id === (int) $user->id
-            : $user->status === 'approved' && (int) $notification->pharmacy_id === (int) $user->pharmacy_id;
+            : $user->status === Employee::STATUS_APPROVED && (int) $notification->pharmacy_id === (int) $user->pharmacy_id;
     }
 
     public function update(Pharmacist|Employee $user, Notification $notification): bool

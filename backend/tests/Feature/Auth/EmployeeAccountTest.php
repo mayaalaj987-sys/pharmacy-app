@@ -44,6 +44,36 @@ class EmployeeAccountTest extends SecurityTestCase
         ]);
     }
 
+    public function test_the_session_reports_the_employees_real_phone_number(): void
+    {
+        // It used to report null unconditionally, and the account screen seeds
+        // its phone field from the session — so opening that screen and pressing
+        // save posted a blank and wiped the number. The screen is now the main
+        // surface for anyone waiting on a job, which makes this load-bearing.
+        [, $employee] = $this->setUpEmployee('acc-session-phone');
+        Sanctum::actingAs($employee, ['*'], 'employee');
+
+        $this->getJson('/api/me')
+            ->assertOk()
+            ->assertJsonPath('data.session.actor.phone', $employee->phone);
+    }
+
+    public function test_an_omitted_phone_leaves_the_stored_number_alone(): void
+    {
+        [, $employee] = $this->setUpEmployee('acc-phone-keep');
+        $original = $employee->phone;
+        Sanctum::actingAs($employee, ['*'], 'employee');
+
+        $this->postJson('/api/employee/profile/update', ['name' => 'Renamed Only'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('employees', [
+            'id' => $employee->id,
+            'name' => 'Renamed Only',
+            'phone' => $original,
+        ]);
+    }
+
     public function test_employee_cannot_modify_tenant_role_or_lifecycle_fields(): void
     {
         [$pharmacy, $employee] = $this->setUpEmployee('acc-prohibited');

@@ -28,7 +28,7 @@ class TaskController extends Controller
 
         $employee = Employee::where('id', $request->employee_id)
             ->where('pharmacy_id', $pharmacy->id)
-            ->where('status', 'approved')
+            ->where('status', Employee::STATUS_APPROVED)
             ->first();
 
         if (! $employee) {
@@ -99,9 +99,13 @@ class TaskController extends Controller
     public function getMyTasks(Request $request): JsonResponse
     {
         $employee = $request->user(); // من الـ token
-        $this->pharmacyContext->resolve($request);
+        $pharmacy = $this->pharmacyContext->resolve($request);
 
+        // Scoped to the current pharmacy as well as the person. An employee who
+        // leaves one pharmacy and joins another keeps their row, so filtering on
+        // employee_id alone would show them their old employer's tasks.
         $tasks = Task::where('employee_id', $employee->id)
+            ->where('pharmacy_id', $pharmacy->id)
             ->latest()
             ->get();
 

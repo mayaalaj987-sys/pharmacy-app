@@ -178,4 +178,39 @@ class TaskWorkflowTest extends SecurityTestCase
             ->assertJsonPath('tasks.0.title', 'Mine')
             ->assertJsonMissing(['title' => 'Theirs']);
     }
+
+    public function test_an_employees_own_task_list_is_scoped_to_their_current_pharmacy(): void
+    {
+        // An employee row outlives any one job: they can be moved between
+        // pharmacies. Filtering their task list on employee_id alone would show
+        // them work assigned by a pharmacy they no longer belong to.
+        $formerOwner = $this->pharmacist('task-scope-former');
+        $formerPharmacy = $this->pharmacy($formerOwner, 'task-scope-former');
+        $currentOwner = $this->pharmacist('task-scope-current');
+        $currentPharmacy = $this->pharmacy($currentOwner, 'task-scope-current');
+
+        $employee = $this->employee($currentPharmacy, '208');
+
+        Task::create([
+            'pharmacy_id' => $formerPharmacy->id,
+            'employee_id' => $employee->id,
+            'title' => 'Left behind at the old job',
+            'status' => 'pending',
+        ]);
+        Task::create([
+            'pharmacy_id' => $currentPharmacy->id,
+            'employee_id' => $employee->id,
+            'title' => 'Restock shelf A',
+            'status' => 'pending',
+        ]);
+
+        Sanctum::actingAs($employee, ['*'], 'employee');
+
+        $this->getJson('/api/tasks')
+            ->assertOk()
+            ->assertJsonCount(1, 'tasks')
+            ->assertJsonPath('tasks.0.title', 'Restock shelf A')
+            ->assertJsonPath('pending_count', 1)
+            ->assertJsonMissing(['title' => 'Left behind at the old job']);
+    }
 }

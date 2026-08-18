@@ -97,7 +97,10 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
         ->name('pharmacy-documents.download');
     Route::get('/employees/pending', [EmployeeController::class, 'getAllPendingEmployees']);
     Route::post('/employees/approve/{id}', [EmployeeController::class, 'approveEmployee']);
-    Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees']);
+    // Numeric only: this wildcard sits directly below literal siblings such as
+    // /employees/pending and would otherwise swallow any word placed after it.
+    Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees'])
+        ->whereNumber('pharmacy_id');
     Route::delete('/employees/{id}/dismiss', [EmployeeController::class, 'dismissEmployee']);
 
     Route::get('/sale/daily', [SaleController::class, 'getDailySales']);

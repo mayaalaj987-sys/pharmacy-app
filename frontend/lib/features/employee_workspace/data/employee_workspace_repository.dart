@@ -92,11 +92,17 @@ class EmployeeWorkspaceRepository {
 
   /// Only name and phone are accepted by the backend; every other field is
   /// rejected server-side as a prohibited attribute.
+  ///
+  /// A blank phone is omitted rather than sent. Laravel converts an empty
+  /// string to null before validation, so posting one would erase a stored
+  /// number — an edit nobody asked for. Clearing a phone is not a thing this
+  /// screen offers, so "empty" can only mean "left alone".
   Future<void> updateProfile({required String name, String? phone}) async {
+    final trimmed = phone?.trim();
     try {
       await api.updateProfile({
         'name': name,
-        'phone': ?phone,
+        if (trimmed != null && trimmed.isNotEmpty) 'phone': trimmed,
       });
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);

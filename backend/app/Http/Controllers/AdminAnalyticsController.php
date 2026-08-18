@@ -140,16 +140,16 @@ class AdminAnalyticsController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $approved = (int) ($byStatus['approved'] ?? 0);
-        $pending = (int) ($byStatus['pending'] ?? 0);
-        $rejected = (int) ($byStatus['rejected'] ?? 0);
+        $approved = (int) ($byStatus[Employee::STATUS_APPROVED] ?? 0);
+        $pending = (int) ($byStatus[Employee::STATUS_PENDING] ?? 0);
+        $rejected = (int) ($byStatus[Employee::STATUS_REJECTED] ?? 0);
         $applicants = $approved + $pending + $rejected;
 
         // A vacancy is an unused slot at an approved pharmacy.
         $filledPerPharmacy = Pharmacy::query()
             ->where('status', 'approved')
             ->withCount([
-                'employees as approved_employees' => fn ($query) => $query->where('status', 'approved'),
+                'employees as approved_employees' => fn ($query) => $query->where('status', Employee::STATUS_APPROVED),
             ])
             ->pluck('approved_employees');
 
