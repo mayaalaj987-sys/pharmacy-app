@@ -9,6 +9,7 @@ use App\Models\Pharmacist;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Services\PharmacyContextResolver;
+use App\Services\PurchaseCartAutoStocker;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +19,10 @@ use Throwable;
 
 class SaleController extends Controller
 {
-    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+    public function __construct(
+        private readonly PharmacyContextResolver $pharmacyContext,
+        private readonly PurchaseCartAutoStocker $autoStocker,
+    ) {}
 
     public function createSale(Request $request): JsonResponse
     {
@@ -98,7 +102,13 @@ class SaleController extends Controller
                 ]);
                 $medicine->decrement('quantity', $item['quantity']);
                 $medicine->refresh();
-                $this->createStockNotification($pharmacy->id, $medicine);
+
+                // Queuing the restock says everything the bare warning said and
+                // acts on it, so the plain warning only fires when nothing
+                // could be queued.
+                if (! $this->autoStocker->consider($pharmacy, $medicine)) {
+                    $this->createStockNotification($pharmacy->id, $medicine);
+                }
             }
 
             // Names the seller. "A sale happened" told the owner nothing they
