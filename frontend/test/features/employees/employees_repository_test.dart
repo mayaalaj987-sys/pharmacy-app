@@ -20,6 +20,8 @@ void main() {
     expect(e.role, 'employee');
     expect(e.roleLabel, 'Employee');
     expect(e.status, 'approved');
+    expect(e.shift, 'morning');
+    expect(e.shiftLabel, 'Morning');
     expect(e.salary, 500.0);
     expect(e.isTrainee, isFalse);
   });
@@ -37,15 +39,21 @@ void main() {
     expect(pending.last.roleLabel, 'Trainee');
   });
 
-  test('approve sends salary only when provided', () async {
+  test('approve sends only the fields that were given', () async {
     final api = FakeEmployeesApi();
     final repo = EmployeesRepository(api);
 
-    await repo.approveEmployee(2, salary: 450);
-    expect(api.lastApprovePayload, {'salary': 450.0});
+    await repo.approveEmployee(2, salary: 450, shift: 'evening');
+    expect(api.lastApprovePayload, {'salary': 450.0, 'shift': 'evening'});
 
+    // Both are optional: an older client sends neither and the backend picks
+    // the first free shift.
     await repo.approveEmployee(3);
     expect(api.lastApprovePayload, isEmpty);
+
+    // A trainee may be paid, so salary is never withheld by role.
+    await repo.approveEmployee(4, salary: 150);
+    expect(api.lastApprovePayload, {'salary': 150.0});
   });
 
   test('load populates both current and pending lists', () async {
@@ -108,15 +116,23 @@ void main() {
     await cubit.close();
   });
 
-  test('atCapacity reflects the backend maximum of two', () async {
-    final api = FakeEmployeesApi()..twoEmployees = true;
-    final cubit = EmployeesCubit(EmployeesRepository(api));
-
+  test('capacity is the shift list, not a headcount', () async {
+    final cubit = EmployeesCubit(EmployeesRepository(FakeEmployeesApi()));
     await cubit.load(7);
 
-    expect(cubit.state.current, hasLength(2));
-    expect(cubit.state.atCapacity, isTrue);
+    // One morning person hired: only the evening shift is offerable.
+    expect(cubit.state.freeShifts, ['evening']);
+    expect(cubit.state.atCapacity, isFalse);
     await cubit.close();
+
+    final full = EmployeesCubit(
+      EmployeesRepository(FakeEmployeesApi()..twoEmployees = true),
+    );
+    await full.load(7);
+
+    expect(full.state.freeShifts, isEmpty);
+    expect(full.state.atCapacity, isTrue);
+    await full.close();
   });
 }
 
@@ -139,6 +155,7 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
               'phone': '0999000000',
               'email': 'emp@example.test',
               'role': 'employee',
+              'shift': 'morning',
               'status': 'approved',
               'salary': 500,
               'created_at': '2026-08-01T00:00:00.000Z',
@@ -151,6 +168,7 @@ class FakeEmployeesApi implements EmployeesRemoteDataSource {
                 'phone': '0999000004',
                 'email': 'emp4@example.test',
                 'role': 'employee',
+                'shift': 'evening',
                 'status': 'approved',
                 'salary': 450,
               },

@@ -27,11 +27,12 @@ class EmployeesRepository {
     }
   }
 
-  /// [salary] is only meaningful for the `employee` role; the backend forces
-  /// null for trainees.
-  Future<void> approveEmployee(int id, {double? salary}) async {
+  /// [shift] claims a seat at the pharmacy — a shift can only be held by one
+  /// person, so approving into a covered one is refused with `shift_taken`.
+  /// Omitting it lets the backend pick the first free shift.
+  Future<void> approveEmployee(int id, {double? salary, String? shift}) async {
     try {
-      await api.approveEmployee(id, {'salary': ?salary});
+      await api.approveEmployee(id, {'salary': ?salary, 'shift': ?shift});
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }

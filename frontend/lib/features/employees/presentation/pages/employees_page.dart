@@ -96,7 +96,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
         children: [
           _sectionTitle(
             "Current Employees",
-            "${state.current.length} of ${EmployeesState.maxApprovedEmployees}",
+            "${state.current.length} of ${EmployeesState.shifts.length} shifts covered",
           ),
           const SizedBox(height: 8),
 
@@ -129,8 +129,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Text(
-                "This pharmacy has reached the maximum of 2 approved "
-                "employees. Dismiss an employee before hiring another.",
+                "Every shift here is covered. Dismiss whoever holds a shift "
+                "before hiring for it.",
                 style: TextStyle(fontSize: 12),
               ),
             ),
@@ -189,9 +189,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
                     ),
                   ),
                 ),
-                _chip(employee.roleLabel),
+                _chip(employee.shiftLabel),
                 const SizedBox(width: 6),
-                _chip(employee.statusLabel),
+                _chip(employee.roleLabel),
               ],
             ),
             const SizedBox(height: 6),
@@ -292,29 +292,64 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
+  /// Hires an applicant into a named shift.
+  ///
+  /// One dialog for both roles. It used to be two: employees were asked for a
+  /// salary and trainees were told they would not get one, because the backend
+  /// discarded a trainee's salary in silence. It no longer does — whether
+  /// training is paid is the pharmacy's decision.
   Future<void> _approveFlow(BuildContext context, Employee employee) async {
     final cubit = context.read<EmployeesCubit>();
     final messenger = ScaffoldMessenger.of(context);
-    final salaryController = TextEditingController();
+    final free = cubit.state.freeShifts;
 
-    // Trainees carry no salary on the backend, so only ask employees.
-    double? salary;
-    if (!employee.isTrainee) {
-      final entered = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text('Approve ${employee.name}'),
+    if (free.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Every shift here is already covered.')),
+      );
+      return;
+    }
+
+    final salaryController = TextEditingController();
+    var shift = free.first;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (builderContext, setDialogState) => AlertDialog(
+          title: Text('Hire ${employee.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Enter the monthly salary for this employee.'),
-              const SizedBox(height: 12),
+              const Text(
+                'Which shift will they cover?',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              // Only free shifts are offered. A covered one cannot be chosen
+              // at all, rather than being chosen and then refused.
+              SegmentedButton<String>(
+                key: const ValueKey('employee-shift-picker'),
+                segments: [
+                  for (final option in EmployeesState.shifts)
+                    ButtonSegment(
+                      value: option,
+                      label: Text(option == 'morning' ? 'Morning' : 'Evening'),
+                      enabled: free.contains(option),
+                    ),
+                ],
+                selected: {shift},
+                onSelectionChanged: (selection) =>
+                    setDialogState(() => shift = selection.first),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 key: const ValueKey('employee-salary-field'),
                 controller: salaryController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Salary',
+                  labelText: 'Monthly salary (optional)',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -322,62 +357,49 @@ class _EmployeesPageState extends State<EmployeesPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, salaryController.text.trim()),
-              child: const Text('Approve'),
-            ),
-          ],
-        ),
-      );
-      salaryController.dispose();
-
-      if (entered == null) return;
-      if (entered.isNotEmpty) {
-        salary = double.tryParse(entered);
-        if (salary == null) {
-          messenger.showSnackBar(
-            const SnackBar(content: Text('Enter a valid salary amount.')),
-          );
-          return;
-        }
-      }
-    } else {
-      salaryController.dispose();
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text('Approve ${employee.name}'),
-          content: const Text('Trainees are approved without a salary.'),
-          actions: [
-            TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Approve'),
+              child: const Text('Hire'),
             ),
           ],
         ),
-      );
-      if (confirmed != true) return;
+      ),
+    );
+
+    final entered = salaryController.text.trim();
+    salaryController.dispose();
+    if (confirmed != true) return;
+
+    double? salary;
+    if (entered.isNotEmpty) {
+      salary = double.tryParse(entered);
+      if (salary == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Enter a valid salary amount.')),
+        );
+        return;
+      }
     }
 
-    final ok = await cubit.approve(_pharmacyId!, employee.id, salary: salary);
+    final ok = await cubit.approve(
+      _pharmacyId!,
+      employee.id,
+      salary: salary,
+      shift: shift,
+    );
 
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok
-              ? '${employee.name} has been hired.'
+              ? '${employee.name} now covers the $shift shift.'
               : userFacingError(
                   cubit.state.error,
                   context: ErrorContext.approveEmployee,
-                  fallback: 'The employee could not be approved.',
+                  fallback: 'The employee could not be hired.',
                 ),
         ),
       ),

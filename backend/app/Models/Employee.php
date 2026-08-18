@@ -27,9 +27,26 @@ class Employee extends Authenticatable
 
     public const ROLE_TRAINEE = 'trainee';
 
+    public const SHIFT_MORNING = 'morning';
+
+    public const SHIFT_EVENING = 'evening';
+
+    /**
+     * The working day, and therefore the pharmacy's headcount.
+     *
+     * A pharmacy's staff do not overlap: one person opens, another closes. So a
+     * shift is a seat, and `unique(pharmacy_id, shift)` on this table is what
+     * enforces capacity — not a counted cap in application code, which cannot
+     * be made safe on a driver where `lockForUpdate()` is a no-op.
+     *
+     * Adding a third shift here raises the headcount by one, everywhere, with
+     * no schema change and no arithmetic to update.
+     */
+    public const SHIFTS = [self::SHIFT_MORNING, self::SHIFT_EVENING];
+
     protected $fillable = [
         'pharmacy_id', 'name', 'phone', 'email', 'password',
-        'cv', 'experience_proof', 'salary', 'role', 'status', 'first_login',
+        'cv', 'experience_proof', 'salary', 'role', 'shift', 'status', 'first_login',
     ];
 
     // `cv` and `experience_proof` look vestigial — registration writes '' and
@@ -61,6 +78,35 @@ class Employee extends Authenticatable
     public function isEmployed(): bool
     {
         return $this->pharmacy_id !== null;
+    }
+
+    /** "Morning" / "Evening", or null when this person is not working anywhere. */
+    public function shiftLabel(): ?string
+    {
+        return $this->shift === null ? null : ucfirst($this->shift);
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $employee): void {
+            // `unique(pharmacy_id, shift)` cannot catch this: two rows holding
+            // (5, NULL) are distinct to every SQL engine. An employee attached
+            // to a pharmacy with no shift occupies no seat, so they are
+            // invisible to capacity and to every roster grouped by shift.
+            if ($employee->pharmacy_id !== null && $employee->shift === null) {
+                throw new \LogicException(
+                    'Employee '.($employee->id ?? 'new').' would be attached to pharmacy '.
+                    $employee->pharmacy_id.' without a shift. Employment always claims a seat.'
+                );
+            }
+
+            if ($employee->pharmacy_id === null && $employee->shift !== null) {
+                throw new \LogicException(
+                    'Employee '.($employee->id ?? 'new').' holds the '.$employee->shift.
+                    ' shift without a pharmacy. Detaching must release the seat.'
+                );
+            }
+        });
     }
 
     public function pharmacy()

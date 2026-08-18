@@ -13,7 +13,13 @@ class Employee {
   /// Backend statuses: pending | approved
   final String status;
 
-  /// Only employees (not trainees) carry a salary.
+  /// The shift this person covers: morning | evening. Null while unattached.
+  ///
+  /// A pharmacy holds one person per shift, so this is also their seat — the
+  /// backend enforces it with a unique index rather than a headcount.
+  final String? shift;
+
+  /// Set by the pharmacist for either role; trainees may be paid or unpaid.
   final double? salary;
 
   final DateTime? createdAt;
@@ -26,6 +32,7 @@ class Employee {
     required this.role,
     required this.status,
     this.pharmacyId,
+    this.shift,
     this.salary,
     this.createdAt,
   });
@@ -36,6 +43,12 @@ class Employee {
         'employee' => 'Employee',
         'trainee' => 'Trainee',
         _ => role,
+      };
+
+  String get shiftLabel => switch (shift) {
+        'morning' => 'Morning',
+        'evening' => 'Evening',
+        _ => 'No shift',
       };
 
   String get statusLabel => switch (status) {
@@ -60,6 +73,7 @@ class Employee {
       email: json['email']?.toString() ?? '',
       role: json['role']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
+      shift: json['shift']?.toString(),
       salary: rawSalary == null
           ? null
           : (rawSalary is num

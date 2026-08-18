@@ -401,6 +401,7 @@ class ProfileAccountManagementTest extends TestCase
         [, $pharmacy] = $this->authenticatedOwner('employee-reject');
         $employee = Employee::create([
             'pharmacy_id' => $pharmacy->id,
+            'shift' => Employee::SHIFT_MORNING,
             'name' => 'Employee',
             'phone' => '0999000000',
             'email' => 'employee-reject@example.test',

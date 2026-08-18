@@ -155,6 +155,7 @@ class PharmacistApprovalGateTest extends TestCase
         foreach (['employee', 'trainee'] as $role) {
             $employee = Employee::create([
                 'pharmacy_id' => $pharmacy->id,
+                'shift' => $pharmacy->fresh()->freeShifts()[0] ?? null,
                 'name' => ucfirst($role),
                 'phone' => '09990000'.($role === 'employee' ? '01' : '02'),
                 'email' => $role.'-ability@example.test',

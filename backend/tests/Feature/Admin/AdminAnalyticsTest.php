@@ -206,8 +206,11 @@ class AdminAnalyticsTest extends AdminTestCase
 
     private function employeeFor(Pharmacy $pharmacy, string $suffix, string $status): Employee
     {
+        $employed = $status === 'approved';
+
         return Employee::create([
-            'pharmacy_id' => $status === 'approved' ? $pharmacy->id : null,
+            'pharmacy_id' => $employed ? $pharmacy->id : null,
+            'shift' => $employed ? ($pharmacy->fresh()->freeShifts()[0] ?? null) : null,
             'name' => 'Employee '.$suffix,
             'phone' => '09300000'.substr(md5($suffix), 0, 2),
             'email' => 'employee-'.$suffix.'@example.test',

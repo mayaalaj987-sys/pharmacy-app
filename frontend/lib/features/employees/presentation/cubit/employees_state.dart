@@ -27,10 +27,18 @@ class EmployeesState {
 
   const EmployeesState.initial() : this();
 
-  /// The backend caps approved employees per pharmacy at two.
-  static const maxApprovedEmployees = 2;
+  /// A pharmacy's staff work opposite shifts, so a shift is a seat and the
+  /// shift list is the capacity. The backend enforces one person per shift
+  /// with a unique index; this mirrors it so the UI can offer only free ones.
+  static const shifts = <String>['morning', 'evening'];
 
-  bool get atCapacity => current.length >= maxApprovedEmployees;
+  /// Shifts nobody covers yet, in a stable order.
+  List<String> get freeShifts {
+    final taken = current.map((employee) => employee.shift).toSet();
+    return shifts.where((shift) => !taken.contains(shift)).toList();
+  }
+
+  bool get atCapacity => freeShifts.isEmpty;
 
   EmployeesState copyWith({
     EmployeesStatus? status,

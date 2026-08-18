@@ -22,14 +22,6 @@ use Illuminate\Support\Facades\Gate;
 class AdminAnalyticsController extends Controller
 {
     /**
-     * Employees a single pharmacy may have approved at once.
-     *
-     * Mirrors the cap enforced in {@see EmployeeController::approveEmployee()};
-     * open vacancies are derived from it.
-     */
-    private const EMPLOYEE_CAP = 2;
-
-    /**
      * Headline figures for the console dashboard.
      *
      * The month-over-month deltas are genuine, not estimates: a pharmacy's
@@ -145,16 +137,19 @@ class AdminAnalyticsController extends Controller
         $rejected = (int) ($byStatus[Employee::STATUS_REJECTED] ?? 0);
         $applicants = $approved + $pending + $rejected;
 
-        // A vacancy is an unused slot at an approved pharmacy.
+        // A vacancy is an uncovered shift at an approved pharmacy. Capacity is
+        // the shift list, not a number: one person per shift, enforced by a
+        // unique index rather than counted here.
+        $cap = count(Employee::SHIFTS);
         $filledPerPharmacy = Pharmacy::query()
             ->where('status', 'approved')
             ->withCount([
-                'employees as approved_employees' => fn ($query) => $query->where('status', Employee::STATUS_APPROVED),
+                'employees as covered_shifts' => fn ($query) => $query->whereNotNull('shift'),
             ])
-            ->pluck('approved_employees');
+            ->pluck('covered_shifts');
 
         $openPositions = $filledPerPharmacy
-            ->map(fn ($filled) => max(0, self::EMPLOYEE_CAP - (int) $filled))
+            ->map(fn ($filled) => max(0, $cap - (int) $filled))
             ->sum();
 
         return response()->json([
@@ -167,8 +162,9 @@ class AdminAnalyticsController extends Controller
                 'rejected' => $rejected,
                 'hire_rate_percentage' => $this->percentage($approved, $applicants),
                 'capacity' => [
-                    'employees_per_pharmacy' => self::EMPLOYEE_CAP,
-                    'total_slots' => $filledPerPharmacy->count() * self::EMPLOYEE_CAP,
+                    'employees_per_pharmacy' => $cap,
+                    'shifts' => Employee::SHIFTS,
+                    'total_slots' => $filledPerPharmacy->count() * $cap,
                     'filled_slots' => (int) $filledPerPharmacy->sum(),
                 ],
             ],

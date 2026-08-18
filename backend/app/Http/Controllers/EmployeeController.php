@@ -10,11 +10,13 @@ use App\Services\AuthSessionService;
 use App\Services\DocumentVersionService;
 use App\Services\PharmacyContextResolver;
 use App\Services\PrivateDocumentService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class EmployeeController extends Controller
@@ -143,6 +145,9 @@ class EmployeeController extends Controller
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'salary' => 'nullable|numeric',
+            // Optional: a client that does not know about shifts yet gets the
+            // first free one, which is what the old counted cap did in effect.
+            'shift' => ['nullable', Rule::in(Employee::SHIFTS)],
         ]);
         $pharmacy = $this->pharmacyContext->resolve($request);
 
@@ -155,33 +160,41 @@ class EmployeeController extends Controller
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'الموظف غير موجود',
+                    'message' => 'Applicant not found.',
+                    'code' => 'employee_not_found',
                 ], 404);
             }
 
-            if ($employee->status !== 'pending' || $employee->pharmacy_id !== null) {
+            if ($employee->status !== Employee::STATUS_PENDING || $employee->isEmployed()) {
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'هذا الموظف تمت معالجة طلبه مسبقاً',
+                    'message' => 'This application has already been processed.',
+                    'code' => 'employee_not_available',
                 ], 400);
             }
 
-            $employeeCount = Employee::where('pharmacy_id', $pharmacy->id)
-                ->where('status', Employee::STATUS_APPROVED)
-                ->count();
+            $free = $pharmacy->freeShifts();
+            $shift = $request->input('shift') ?? ($free[0] ?? null);
 
-            if ($employeeCount >= 2) {
+            if ($shift === null || ! in_array($shift, $free, true)) {
                 DB::rollBack();
 
                 return response()->json([
-                    'message' => 'هذه الصيدلية وصلت للحد الأقصى (2)',
+                    'message' => $free === []
+                        ? 'Every shift at this pharmacy is already covered.'
+                        : 'The '.$shift.' shift is already covered at this pharmacy.',
+                    'code' => 'shift_taken',
+                    'free_shifts' => $free,
                 ], 400);
             }
 
             $employee->pharmacy_id = $pharmacy->id;
+            $employee->shift = $shift;
             $employee->status = Employee::STATUS_APPROVED;
-            $employee->salary = $employee->role === 'employee' ? $request->salary : null;
+            // Salary is the pharmacist's call for trainees too. It used to be
+            // forced to null for them, silently discarding what was typed.
+            $employee->salary = $request->salary;
             $employee->save();
 
             Notification::create([
@@ -196,14 +209,30 @@ class EmployeeController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'تم القبول بنجاح',
+                'message' => $employee->name.' now covers the '.$shift.' shift.',
+                'code' => 'employee_approved',
                 'employee' => (new SafeEmployeeResource($employee))->resolve($request),
             ]);
+        } catch (QueryException $exception) {
+            DB::rollBack();
+
+            // The unique index caught a second hire into the same shift that
+            // the check above could not see. On SQLite there is no row locking
+            // to prevent the interleave, so this is the guarantee, not a
+            // formality — report it as the same refusal.
+            return response()->json([
+                'message' => 'That shift was taken while you were deciding.',
+                'code' => 'shift_taken',
+                'free_shifts' => $pharmacy->fresh()->freeShifts(),
+            ], 409);
         } catch (Throwable $exception) {
             DB::rollBack();
             report($exception);
 
-            return response()->json(['message' => 'تعذر قبول الموظف'], 500);
+            return response()->json([
+                'message' => 'The application could not be approved.',
+                'code' => 'employee_approval_failed',
+            ], 500);
         }
     }
 
@@ -255,6 +284,7 @@ class EmployeeController extends Controller
 
         $employees = Employee::where('pharmacy_id', $pharmacy->id)
             ->where('status', Employee::STATUS_APPROVED)
+            ->orderByRaw("case shift when 'morning' then 0 when 'evening' then 1 else 2 end")
             ->get();
 
         return response()->json(['employees' => SafeEmployeeResource::collection($employees)->resolve($request)]);

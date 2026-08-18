@@ -111,6 +111,7 @@ class AdminPharmacyControlTest extends AdminTestCase
         $pharmacy = $this->pharmacyFor($owner, 'emp-suspend', 'approved');
         $employee = Employee::create([
             'pharmacy_id' => $pharmacy->id,
+            'shift' => Employee::SHIFT_MORNING,
             'name' => 'Employee',
             'phone' => '0930111222',
             'email' => 'employee-suspend@example.test',

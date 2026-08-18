@@ -224,6 +224,7 @@ class AuthenticationSessionTest extends TestCase
     {
         return Employee::create([
             'pharmacy_id' => $pharmacy->id,
+            'shift' => $pharmacy->fresh()->freeShifts()[0] ?? null,
             'name' => 'Employee '.$suffix,
             'phone' => '0999'.$pharmacy->id.$suffix,
             'email' => 'employee-'.$suffix.'@example.test',

@@ -16,6 +16,7 @@ class SafeEmployeeResource extends JsonResource
             'phone' => $this->phone,
             'email' => $this->email,
             'role' => $this->role,
+            'shift' => $this->shift,
             'status' => $this->status,
             'salary' => $this->salary === null ? null : (float) $this->salary,
             'created_at' => $this->created_at?->toISOString(),

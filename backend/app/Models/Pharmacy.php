@@ -43,6 +43,25 @@ class Pharmacy extends Model
         return $this->status === 'approved' && ! $this->isBlocked();
     }
 
+    /**
+     * Shifts nobody is working here yet.
+     *
+     * This is the pharmacy's capacity: there is no separate headcount limit,
+     * because a seat is a shift and a shift can only be held once. Reads the
+     * loaded `employees` relation when it is already there, so a pool listing
+     * can report free shifts for many pharmacies without a query each.
+     *
+     * @return list<string>
+     */
+    public function freeShifts(): array
+    {
+        $taken = $this->relationLoaded('employees')
+            ? $this->employees->pluck('shift')
+            : $this->employees()->whereNotNull('shift')->pluck('shift');
+
+        return array_values(array_diff(Employee::SHIFTS, $taken->filter()->all()));
+    }
+
     public function blockedByAdmin()
     {
         return $this->belongsTo(Admin::class, 'blocked_by_admin_id');

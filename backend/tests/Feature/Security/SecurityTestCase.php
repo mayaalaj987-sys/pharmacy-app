@@ -34,7 +34,14 @@ abstract class SecurityTestCase extends TestCase
         ]);
     }
 
-    protected function employee(Pharmacy $pharmacy, string $suffix): Employee
+    /**
+     * An employed member of staff.
+     *
+     * The shift defaults to the first one still free at this pharmacy, so a
+     * test that hires two people gets morning and evening without saying so,
+     * and a test that tries to hire a third fails — which is the real rule.
+     */
+    protected function employee(Pharmacy $pharmacy, string $suffix, ?string $shift = null): Employee
     {
         return Employee::create([
             'pharmacy_id' => $pharmacy->id,
@@ -43,8 +50,9 @@ abstract class SecurityTestCase extends TestCase
             'email' => 'employee-'.$suffix.'@example.test',
             'password' => Hash::make('password'),
             'cv' => 'cv.pdf',
-            'role' => 'employee',
-            'status' => 'approved',
+            'role' => Employee::ROLE_EMPLOYEE,
+            'shift' => $shift ?? ($pharmacy->fresh()->freeShifts()[0] ?? null),
+            'status' => Employee::STATUS_APPROVED,
             'first_login' => false,
         ]);
     }

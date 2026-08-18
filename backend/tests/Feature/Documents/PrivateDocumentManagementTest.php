@@ -250,7 +250,11 @@ class PrivateDocumentManagementTest extends TestCase
         $this->withToken($employeeToken)
             ->post('/api/employee/documents/cv', ['document' => $this->validPdfUpload('cv.pdf')], ['Accept' => 'application/json'])
             ->assertCreated();
-        $employee->forceFill(['pharmacy_id' => $pharmacy->id, 'status' => 'approved'])->save();
+        $employee->forceFill([
+            'pharmacy_id' => $pharmacy->id,
+            'shift' => Employee::SHIFT_MORNING,
+            'status' => Employee::STATUS_APPROVED,
+        ])->save();
 
         $this->app['auth']->forgetGuards();
         $this->withToken($ownerToken)

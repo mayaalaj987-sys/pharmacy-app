@@ -132,6 +132,7 @@ class AdminInboxTest extends AdminTestCase
         ]);
         $employee = Employee::create([
             'pharmacy_id' => $pharmacy->id,
+            'shift' => Employee::SHIFT_MORNING,
             'name' => 'Lina Haddad',
             'phone' => '0930111222',
             'email' => 'lina@example.test',
