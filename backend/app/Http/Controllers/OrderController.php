@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\PharmacyContextException;
+use App\Exceptions\SupplierStockException;
 use App\Models\Medicine;
 use App\Models\Notification;
 use App\Models\Order;
-use App\Models\OrderItem;
+use App\Services\OrderPlacementService;
 use App\Services\PharmacyContextResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -14,11 +15,15 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use InvalidArgumentException;
 use Throwable;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+    public function __construct(
+        private readonly PharmacyContextResolver $pharmacyContext,
+        private readonly OrderPlacementService $orderPlacement,
+    ) {}
 
     public function createOrder(Request $request): JsonResponse
     {
@@ -35,66 +40,12 @@ class OrderController extends Controller
         DB::beginTransaction();
 
         try {
-            $totalPrice = 0;
-            $medicines = [];
-
-            foreach ($request->input('items') as $item) {
-                // Orders may reference only the global supplier catalogue, never another tenant's stock row.
-                // Locked because the catalogue is shared: two pharmacies ordering
-                // the last units at once must not both succeed.
-                $medicine = Medicine::whereNull('pharmacy_id')
-                    ->where('supplier_id', $request->supplier_id)
-                    ->lockForUpdate()
-                    ->find($item['medicine_id']);
-
-                if (! $medicine) {
-                    DB::rollBack();
-
-                    return response()->json(['message' => 'الدواء غير متوفر عند هذا المورد'], 400);
-                }
-
-                if ($medicine->quantity < $item['quantity']) {
-                    DB::rollBack();
-
-                    return response()->json([
-                        'message' => 'Only '.$medicine->quantity.' units of '.$medicine->name.' are available from this supplier.',
-                        'code' => 'supplier_stock_insufficient',
-                        'medicine' => [
-                            'id' => $medicine->id,
-                            'name' => $medicine->name,
-                            'available_quantity' => $medicine->quantity,
-                            'requested_quantity' => (int) $item['quantity'],
-                        ],
-                    ], 400);
-                }
-
-                $medicines[$medicine->id] = $medicine;
-                $totalPrice += $medicine->cost_price * $item['quantity'];
-            }
-
-            $order = Order::create([
-                'supplier_id' => $request->supplier_id,
-                'pharmacy_id' => $pharmacy->id,
-                'date' => now()->toDateString(),
-                'total_price' => $totalPrice,
-                'payment_method' => $request->payment_method,
-                'status' => 'pending',
-            ]);
-
-            foreach ($request->input('items') as $item) {
-                $medicine = $medicines[$item['medicine_id']];
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'medicine_id' => $medicine->id,
-                    'quantity' => $item['quantity'],
-                    'price' => $medicine->cost_price,
-                ]);
-
-                // Reserve the units against the supplier catalogue so the
-                // advertised availability stays truthful. Cancelling the order
-                // releases them again.
-                $medicine->decrement('quantity', (int) $item['quantity']);
-            }
+            $order = $this->orderPlacement->place(
+                $pharmacy,
+                (int) $request->supplier_id,
+                $request->input('items'),
+                $request->payment_method,
+            );
 
             Notification::create([
                 'pharmacy_id' => $pharmacy->id,
@@ -110,9 +61,21 @@ class OrderController extends Controller
             return response()->json([
                 'message' => 'تم إنشاء الطلب بنجاح',
                 'order_id' => $order->id,
-                'total_price' => $totalPrice,
+                'total_price' => (float) $order->total_price,
                 'status' => 'pending',
             ], 201);
+        } catch (SupplierStockException $exception) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'supplier_stock_insufficient',
+                'medicine' => $exception->details(),
+            ], 400);
+        } catch (InvalidArgumentException) {
+            DB::rollBack();
+
+            return response()->json(['message' => 'الدواء غير متوفر عند هذا المورد'], 400);
         } catch (AuthorizationException|ModelNotFoundException|PharmacyContextException $exception) {
             DB::rollBack();
 

@@ -177,9 +177,13 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     Route::get('/purchase-cart', [PurchaseCartController::class, 'index']);
     Route::post('/purchase-cart', [PurchaseCartController::class, 'store']);
     Route::delete('/purchase-cart', [PurchaseCartController::class, 'clear']);
+    // Literal, so it is matched before the numeric wildcards below it.
+    Route::post('/purchase-cart/checkout', [PurchaseCartController::class, 'checkout']);
     Route::patch('/purchase-cart/{item}', [PurchaseCartController::class, 'update'])
         ->whereNumber('item');
     Route::delete('/purchase-cart/{item}', [PurchaseCartController::class, 'destroy'])
+        ->whereNumber('item');
+    Route::post('/purchase-cart/{item}/switch-supplier', [PurchaseCartController::class, 'switchSupplier'])
         ->whereNumber('item');
 
     Route::post('/orders', [OrderController::class, 'createOrder']);

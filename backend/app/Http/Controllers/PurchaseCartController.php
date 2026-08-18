@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\SupplierStockException;
 use App\Models\Medicine;
+use App\Models\Notification;
 use App\Models\Pharmacy;
 use App\Models\PurchaseCartItem;
+use App\Services\OrderPlacementService;
 use App\Services\PharmacyContextResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * The pharmacy's purchase cart: what it means to buy, before it has bought it.
@@ -29,7 +34,10 @@ use Illuminate\Support\Collection;
  */
 class PurchaseCartController extends Controller
 {
-    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+    public function __construct(
+        private readonly PharmacyContextResolver $pharmacyContext,
+        private readonly OrderPlacementService $orderPlacement,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -125,6 +133,167 @@ class PurchaseCartController extends Controller
         PurchaseCartItem::where('pharmacy_id', $pharmacy->id)->delete();
 
         return response()->json($this->cart($pharmacy));
+    }
+
+    /**
+     * Moves a line to another supplier's offer of the same drug.
+     *
+     * How a saving is actually taken. Restricted to the same drug by name,
+     * because this is a change of supplier, not a change of mind about what to
+     * buy — swapping in a different product under the guise of a price switch
+     * is how a pharmacy ends up with stock nobody ordered.
+     */
+    public function switchSupplier(Request $request, int $item): JsonResponse
+    {
+        $validated = $request->validate([
+            'medicine_id' => ['required', 'integer'],
+        ]);
+
+        $pharmacy = $this->pharmacyContext->resolve($request);
+        $line = $this->line($pharmacy, $item);
+
+        if (! $line || ! $line->medicine) {
+            return $this->noSuchLine();
+        }
+
+        $target = Medicine::whereNull('pharmacy_id')
+            ->where('name', $line->medicine->name)
+            ->find($validated['medicine_id']);
+
+        if (! $target) {
+            return response()->json([
+                'message' => 'That supplier does not offer '.$line->medicine->name.'.',
+                'code' => 'not_the_same_drug',
+            ], 422);
+        }
+
+        if ($target->id === $line->medicine_id) {
+            return response()->json($this->cart($pharmacy));
+        }
+
+        // The target may already be in the cart from an earlier decision. The
+        // unique index forbids two lines for one offer, and two lines for the
+        // same drug at the same price is not what anyone meant anyway.
+        $existing = PurchaseCartItem::where('pharmacy_id', $pharmacy->id)
+            ->where('medicine_id', $target->id)
+            ->first();
+
+        if ($existing) {
+            $existing->update([
+                'quantity' => $existing->quantity + $line->quantity,
+                'added_by' => PurchaseCartItem::ADDED_BY_PHARMACIST,
+            ]);
+            $line->delete();
+
+            return response()->json($this->cart($pharmacy));
+        }
+
+        $line->update([
+            'medicine_id' => $target->id,
+            'added_by' => PurchaseCartItem::ADDED_BY_PHARMACIST,
+        ]);
+
+        return response()->json($this->cart($pharmacy));
+    }
+
+    /**
+     * Buys the cart: one order per supplier, all of them or none.
+     *
+     * All-or-nothing because a partially bought cart is the hardest state to
+     * explain and to undo — the pharmacist would be left working out which
+     * supplier went through and what is still owed. Being told nothing happened
+     * and why is recoverable in one action.
+     */
+    public function checkout(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'payment_method' => ['required', 'in:cash,card'],
+        ]);
+
+        $pharmacy = $this->pharmacyContext->resolve($request);
+
+        $items = PurchaseCartItem::where('pharmacy_id', $pharmacy->id)
+            ->with('medicine')
+            ->get()
+            ->filter(fn (PurchaseCartItem $item) => $item->medicine !== null);
+
+        if ($items->isEmpty()) {
+            return response()->json([
+                'message' => 'There is nothing in the cart to buy.',
+                'code' => 'cart_empty',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $placed = [];
+
+            foreach ($items->groupBy(fn (PurchaseCartItem $item) => $item->medicine->supplier_id) as $supplierId => $lines) {
+                $order = $this->orderPlacement->place(
+                    $pharmacy,
+                    (int) $supplierId,
+                    $lines->map(fn (PurchaseCartItem $line) => [
+                        'medicine_id' => $line->medicine_id,
+                        'quantity' => $line->quantity,
+                    ])->all(),
+                    $validated['payment_method'],
+                );
+
+                $placed[] = [
+                    'id' => $order->id,
+                    'supplier_id' => $order->supplier_id,
+                    'supplier_name' => $order->supplier?->name,
+                    'total_price' => (float) $order->total_price,
+                    'item_count' => $lines->count(),
+                ];
+            }
+
+            PurchaseCartItem::where('pharmacy_id', $pharmacy->id)->delete();
+
+            $total = array_sum(array_column($placed, 'total_price'));
+
+            // One message for one act of buying. A notification per supplier
+            // would bury the fact that this was a single decision.
+            Notification::create([
+                'pharmacy_id' => $pharmacy->id,
+                'title' => 'Purchase placed',
+                'message' => count($placed) === 1
+                    ? 'Ordered '.$items->count().' item(s) from '.$placed[0]['supplier_name'].' for '.$total.'.'
+                    : 'Ordered '.$items->count().' item(s) from '.count($placed).' suppliers for '.$total.'.',
+                'type' => 'order',
+                'audience' => Notification::AUDIENCE_OWNER,
+                'is_read' => false,
+                'date' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Your order has been placed.',
+                'code' => 'purchase_placed',
+                'orders' => $placed,
+                'total' => $total,
+            ], 201);
+        } catch (SupplierStockException $exception) {
+            DB::rollBack();
+
+            // Nothing was bought and the cart is untouched, so the pharmacist
+            // can lower this one line and try again.
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'supplier_stock_insufficient',
+                'medicine' => $exception->details(),
+            ], 409);
+        } catch (Throwable $exception) {
+            DB::rollBack();
+            report($exception);
+
+            return response()->json([
+                'message' => 'Your order could not be placed.',
+                'code' => 'checkout_failed',
+            ], 500);
+        }
     }
 
     /**
