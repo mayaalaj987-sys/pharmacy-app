@@ -14,6 +14,7 @@ use App\Http\Controllers\PharmacistController;
 use App\Http\Controllers\PharmacyDocumentController;
 use App\Http\Controllers\PharmacyProfileController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PurchaseCartController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ReportController;
@@ -169,6 +170,17 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
 
     Route::get('/suppliers', [SupplierController::class, 'getSuppliers']);
     Route::get('/suppliers/{id}/medicines', [SupplierController::class, 'getSupplierMedicines']);
+
+    // What the pharmacy intends to buy. Nothing here reserves stock or costs
+    // money until checkout, which is what lets a line be added on the app's own
+    // initiative and simply removed if the pharmacist disagrees.
+    Route::get('/purchase-cart', [PurchaseCartController::class, 'index']);
+    Route::post('/purchase-cart', [PurchaseCartController::class, 'store']);
+    Route::delete('/purchase-cart', [PurchaseCartController::class, 'clear']);
+    Route::patch('/purchase-cart/{item}', [PurchaseCartController::class, 'update'])
+        ->whereNumber('item');
+    Route::delete('/purchase-cart/{item}', [PurchaseCartController::class, 'destroy'])
+        ->whereNumber('item');
 
     Route::post('/orders', [OrderController::class, 'createOrder']);
     Route::post('/orders/{id}/receive', [OrderController::class, 'receiveOrder']);
