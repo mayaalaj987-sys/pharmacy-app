@@ -30,10 +30,6 @@ class PharmacyLocationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markerDragged(double latitude, double longitude) {
-    select(latitude, longitude);
-  }
-
   Future<PharmacyLocationDraft?> useCurrentLocation() async {
     if (_locating) return null;
     _locating = true;

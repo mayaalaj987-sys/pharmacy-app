@@ -5,7 +5,7 @@ import 'package:phamacy_managment/features/account/domain/pharmacy_edit_draft.da
 import 'package:phamacy_managment/features/account/presentation/controllers/pharmacy_location_controller.dart';
 
 void main() {
-  test('existing location initializes draft and tap and drag replace it', () {
+  test('existing location initializes the draft and a tap replaces it', () {
     final controller = _controller(
       initial: const PharmacyLocationDraft(latitude: 1, longitude: 2),
     );
@@ -14,7 +14,10 @@ void main() {
     controller.select(3, 4);
     expect(controller.draft?.latitude, 3);
     expect(controller.draft?.longitude, 4);
-    controller.markerDragged(5, 6);
+
+    // Repositioning is unlimited: tapping again moves the pin, which is what
+    // replaced dragging the marker.
+    controller.select(5, 6);
     expect(controller.draft?.latitude, 5);
     expect(controller.draft?.longitude, 6);
   });

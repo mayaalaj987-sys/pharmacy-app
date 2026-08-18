@@ -1,22 +1,39 @@
-# Google Maps Android setup
+# Maps setup
 
-The repository intentionally contains no usable Google API key. The committed
-`local.defaults.properties` value only keeps tests and non-map builds
-configurable after cloning.
+There is nothing to set up. Clone the repository, `flutter run`, and the map
+renders.
 
-For local development, create `android/secrets.properties` (it is ignored by
-Git) with:
+## Why there is no API key
 
-```properties
-MAPS_API_KEY=your_restricted_development_key
-```
+The pharmacy location picker draws OpenStreetMap tiles through `flutter_map`.
+OSM needs no credential, so the repository holds no map secret and a new
+contributor needs no account.
 
-Google Maps rendering requires a Google Cloud project with billing enabled and
-Maps SDK for Android enabled. Use separate development and production keys.
-Restrict each key to the Android application ID and the SHA-1 certificate for
-the corresponding signing key, then apply the API restriction **Maps SDK for
-Android only**. Never use an unrestricted server credential in this app.
+Google Maps was used first and was replaced. Its Android SDK requires an API
+key, the key requires a Google Cloud project, and the project requires a
+billing account with a payment method attached — even though mobile map loads
+themselves are not charged. Google Cloud is also unavailable in some of the
+countries this app is meant to run in, which made the map unrenderable for the
+people it was built for. A missing key does not fail loudly either: the SDK
+draws an empty grey canvas that still accepts taps, so the map looks broken
+rather than unconfigured.
 
-This milestone deliberately retains the placeholder application ID and debug
-release signing. Update production identity and signing in a separate release
-hardening task before creating the production key restriction.
+## What is still native, and still free
+
+Only the tiles changed.
+
+- Locating the device is `geolocator`, which calls Android's own location
+  services.
+- Turning a point into a street name is `geocoding`, which calls Android's
+  built-in `Geocoder` — not Google's billable Geocoding API.
+
+Neither is a Google Cloud service and neither needs a key.
+
+## Tile usage
+
+`TileLayer` sends `userAgentPackageName` because OpenStreetMap's tile policy
+asks clients to identify themselves, and the map carries the attribution OSM
+requires. The public tile servers are fine for development and for a
+deployment of this size. A production rollout at real volume should move to a
+tile provider — Thunderforest, MapTiler, Stadia and others serve the same OSM
+data — which is a change to one `urlTemplate`.

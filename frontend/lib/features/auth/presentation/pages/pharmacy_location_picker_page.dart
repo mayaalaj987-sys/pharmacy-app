@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../account/data/location_services.dart';
 import '../../../account/domain/pharmacy_location_draft.dart';
 import '../../../account/presentation/controllers/pharmacy_location_controller.dart';
 
+/// Places a pharmacy on the map.
+///
+/// Tiles come from OpenStreetMap rather than Google Maps: the Maps SDK needs
+/// an API key, which needs a Google Cloud project with a billing account
+/// attached, which is not available in every country this app ships to. With
+/// OSM the map renders on a fresh clone with no setup and no account.
+///
+/// Only the tiles changed. Locating the device is still `geolocator` and the
+/// address lookup is still the platform geocoder, neither of which is a
+/// Google Cloud service or costs anything.
 class PharmacyLocationPickerPage extends StatefulWidget {
   final PharmacyLocationDraft? initialLocation;
   final CurrentLocationService? locationService;
@@ -34,8 +45,11 @@ class _PharmacyLocationPickerPageState
   static const _countryZoom = 6.0;
   static const _streetZoom = 16.0;
 
+  /// OpenStreetMap asks that clients identify themselves in the User-Agent.
+  static const _userAgent = 'com.example.phamacy_managment';
+
   late final PharmacyLocationController _controller;
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -53,7 +67,7 @@ class _PharmacyLocationPickerPageState
     _controller
       ..removeListener(_refresh)
       ..dispose();
-    _mapController?.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -64,9 +78,6 @@ class _PharmacyLocationPickerPageState
   @override
   Widget build(BuildContext context) {
     final initial = widget.initialLocation;
-    final initialTarget = initial == null
-        ? _syria
-        : LatLng(initial.latitude, initial.longitude);
     final draft = _controller.draft;
 
     return Scaffold(
@@ -80,30 +91,48 @@ class _PharmacyLocationPickerPageState
       ),
       body: Stack(
         children: [
-          GoogleMap(
-            key: const ValueKey('pharmacy-google-map'),
-            initialCameraPosition: CameraPosition(
-              target: initialTarget,
-              zoom: initial == null ? _countryZoom : _streetZoom,
+          FlutterMap(
+            key: const ValueKey('pharmacy-map'),
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: initial == null
+                  ? _syria
+                  : LatLng(initial.latitude, initial.longitude),
+              initialZoom: initial == null ? _countryZoom : _streetZoom,
+              // Tapping anywhere moves the pin, which replaces dragging it.
+              onTap: (_, point) =>
+                  _controller.select(point.latitude, point.longitude),
             ),
-            onMapCreated: (controller) => _mapController = controller,
-            onTap: (point) =>
-                _controller.select(point.latitude, point.longitude),
-            markers: draft == null
-                ? const <Marker>{}
-                : {
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: _userAgent,
+              ),
+              if (draft != null)
+                MarkerLayer(
+                  markers: [
                     Marker(
-                      markerId: const MarkerId('pharmacy-location'),
-                      position: LatLng(draft.latitude, draft.longitude),
-                      draggable: true,
-                      onDragEnd: (point) => _controller.markerDragged(
-                        point.latitude,
-                        point.longitude,
+                      key: const ValueKey('pharmacy-location-marker'),
+                      point: LatLng(draft.latitude, draft.longitude),
+                      width: 40,
+                      height: 40,
+                      // The pin's point, not its middle, is the location.
+                      alignment: Alignment.topCenter,
+                      child: const Icon(
+                        Icons.location_on,
+                        size: 40,
+                        color: Colors.red,
                       ),
                     ),
-                  },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
+                  ],
+                ),
+              // Attribution is a condition of using OpenStreetMap's tiles.
+              const RichAttributionWidget(
+                attributions: [
+                  TextSourceAttribution('OpenStreetMap contributors'),
+                ],
+              ),
+            ],
           ),
           Positioned(
             left: 16,
@@ -200,11 +229,9 @@ class _PharmacyLocationPickerPageState
   Future<void> _useCurrentLocation() async {
     final result = await _controller.useCurrentLocation();
     if (result != null) {
-      await _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(result.latitude, result.longitude),
-          _streetZoom,
-        ),
+      _mapController.move(
+        LatLng(result.latitude, result.longitude),
+        _streetZoom,
       );
     }
   }

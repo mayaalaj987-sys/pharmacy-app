@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:phamacy_managment/features/account/data/location_services.dart';
 import 'package:phamacy_managment/features/account/domain/pharmacy_location_draft.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/pharmacy_location_picker_page.dart';
@@ -124,12 +124,12 @@ void main() {
 
     // At world zoom the country is a few pixels wide and every owner has to
     // pan across an ocean before they can place anything.
-    final map = tester.widget<GoogleMap>(
-      find.byKey(const ValueKey('pharmacy-google-map')),
+    final map = tester.widget<FlutterMap>(
+      find.byKey(const ValueKey('pharmacy-map')),
     );
-    expect(map.initialCameraPosition.target.latitude, closeTo(34.8, 0.5));
-    expect(map.initialCameraPosition.target.longitude, closeTo(38.0, 0.5));
-    expect(map.initialCameraPosition.zoom, greaterThanOrEqualTo(5));
+    expect(map.options.initialCenter.latitude, closeTo(34.8, 0.5));
+    expect(map.options.initialCenter.longitude, closeTo(38.0, 0.5));
+    expect(map.options.initialZoom, greaterThanOrEqualTo(5));
   });
 
   testWidgets('an already placed pharmacy opens on its own street', (
@@ -150,10 +150,10 @@ void main() {
       ),
     );
 
-    final map = tester.widget<GoogleMap>(
-      find.byKey(const ValueKey('pharmacy-google-map')),
+    final map = tester.widget<FlutterMap>(
+      find.byKey(const ValueKey('pharmacy-map')),
     );
-    expect(map.initialCameraPosition.target.latitude, 33.5138);
-    expect(map.initialCameraPosition.zoom, greaterThanOrEqualTo(15));
+    expect(map.options.initialCenter.latitude, 33.5138);
+    expect(map.options.initialZoom, greaterThanOrEqualTo(15));
   });
 }
