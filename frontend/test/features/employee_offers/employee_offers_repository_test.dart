@@ -118,6 +118,34 @@ void main() {
     await cubit.close();
   });
 
+  test('resigning reloads the session and refreshes the offers', () async {
+    sessionReloads = 0;
+    final api = FakeOffersApi();
+    final cubit = _cubit(api);
+    await cubit.load();
+
+    expect(await cubit.resign(), isTrue);
+
+    expect(api.resigned, 1);
+    // Employment decides which shell the app shows, so the session must be
+    // reloaded rather than patched here.
+    expect(sessionReloads, 1);
+    await cubit.close();
+  });
+
+  test('resigning without a job surfaces the refusal', () async {
+    sessionReloads = 0;
+    final api = FakeOffersApi()..failResign = true;
+    final cubit = _cubit(api);
+    await cubit.load();
+
+    expect(await cubit.resign(), isFalse);
+
+    expect(sessionReloads, 0);
+    expect(cubit.state.error!.code, 'not_employed');
+    await cubit.close();
+  });
+
   test('a failure surfaces without wiping what was already shown', () async {
     final api = FakeOffersApi();
     final cubit = _cubit(api);
@@ -150,7 +178,9 @@ class FakeOffersApi implements EmployeeOffersRemoteDataSource {
   bool empty = false;
   bool fail = false;
   bool failAccept = false;
+  bool failResign = false;
   final List<int> accepted = [];
+  int resigned = 0;
 
   @override
   Future<Response<dynamic>> getOffers() async {
@@ -249,6 +279,28 @@ class FakeOffersApi implements EmployeeOffersRemoteDataSource {
     return Response<dynamic>(
       requestOptions: options,
       data: {'message': 'ok', 'code': 'offer_accepted'},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> resign() async {
+    final options = RequestOptions(path: '/employee/resign');
+
+    if (failResign) {
+      throw DioException(
+        requestOptions: options,
+        response: Response<dynamic>(
+          requestOptions: options,
+          statusCode: 409,
+          data: {'message': 'no job', 'code': 'not_employed'},
+        ),
+      );
+    }
+
+    resigned++;
+    return Response<dynamic>(
+      requestOptions: options,
+      data: {'message': 'ok', 'code': 'employment_ended'},
     );
   }
 }

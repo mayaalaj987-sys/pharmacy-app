@@ -211,4 +211,55 @@ class RecruitmentService
 
         Notification::insert($rows);
     }
+
+    /**
+     * End someone's employment, whoever decided it.
+     *
+     * Detaches rather than deletes, which is the whole reason the old dismissal
+     * was impossible. Deleting an employee would have cascaded away every task
+     * ever assigned to them and stripped their name from every sale they rang
+     * up — so the 409 that blocked it was protecting real data, not being
+     * fussy. Nothing is destroyed here, so the retention question it was
+     * waiting on simply does not arise.
+     *
+     * The row, the documents and the tokens all survive: the person stays
+     * signed in and lands back on the offers screen, where their old offers are
+     * live again because nothing was ever written to them.
+     */
+    public function endEmployment(Employee $employee, string $initiator): Employee
+    {
+        return DB::transaction(function () use ($employee, $initiator) {
+            $pharmacy = $employee->pharmacy;
+            $shift = $employee->shift;
+
+            $employee->forceFill([
+                'pharmacy_id' => null,
+                // Releases the seat, so the pharmacy can hire for it again.
+                'shift' => null,
+                'salary' => null,
+                'status' => Employee::STATUS_PENDING,
+            ])->save();
+
+            if ($pharmacy !== null) {
+                Notification::notify(
+                    $pharmacy->id,
+                    $initiator === 'employee' ? 'An employee resigned' : 'Employee dismissed',
+                    $employee->name.' no longer covers the '.$shift.' shift.',
+                    'employee_left',
+                );
+            }
+
+            if ($initiator === 'pharmacy') {
+                Notification::notifyEmployee(
+                    $employee->id,
+                    'Your job has ended',
+                    ($pharmacy?->pharmacy_name ?? 'Your pharmacy')
+                        .' ended your employment. Your offers are open again.',
+                    Notification::TYPE_EMPLOYMENT_ENDED,
+                );
+            }
+
+            return $employee;
+        });
+    }
 }

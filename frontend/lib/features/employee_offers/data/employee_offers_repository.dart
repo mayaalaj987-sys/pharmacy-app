@@ -17,6 +17,14 @@ class EmployeeOffersRepository {
     }
   }
 
+  Future<void> resign() async {
+    try {
+      await api.resign();
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
   Future<JobOfferInbox> fetchInbox() async {
     try {
       final response = await api.getOffers();

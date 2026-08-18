@@ -242,7 +242,7 @@ class PrivateDocumentManagementTest extends TestCase
         Storage::disk('documents')->assertExists($second->storage_key);
     }
 
-    public function test_employee_with_recruitment_documents_is_not_hard_deleted_by_dismissal(): void
+    public function test_dismissal_detaches_the_employee_and_retains_every_document(): void
     {
         [, $pharmacy, $ownerToken] = $this->authenticatedOwner('retained-dismissal');
         $employee = $this->employee('dismissal');
@@ -260,12 +260,27 @@ class PrivateDocumentManagementTest extends TestCase
         $this->withToken($ownerToken)
             ->withHeader('X-Pharmacy-Id', (string) $pharmacy->id)
             ->deleteJson('/api/employees/'.$employee->id.'/dismiss')
-            ->assertStatus(409)
-            ->assertJsonPath('code', 'employee_document_retention_required');
+            ->assertOk()
+            ->assertJsonPath('code', 'employee_detached');
 
-        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
+        // Dismissal used to be a hard delete, guarded by a 409 that refused
+        // every real employee — registering always creates a CV. The guard was
+        // protecting data: deleting the row would have cascaded away their
+        // tasks and stripped their name from their sales. Detaching keeps all
+        // of it, so the refusal is no longer needed.
+        $this->assertDatabaseHas('employees', [
+            'id' => $employee->id,
+            'pharmacy_id' => null,
+            'shift' => null,
+            'status' => Employee::STATUS_PENDING,
+        ]);
         $this->assertDatabaseHas('employee_document_versions', ['employee_id' => $employee->id]);
         $this->assertCount(1, Storage::disk('documents')->allFiles('employee-documents'));
+
+        // Still signed in. They land back on the offers screen rather than
+        // being logged out of an account they still own.
+        $this->app['auth']->forgetGuards();
+        $this->withToken($employeeToken)->getJson('/api/employee/offers')->assertOk();
     }
 
     public function test_pharmacy_employee_lists_never_expose_recruitment_document_references(): void

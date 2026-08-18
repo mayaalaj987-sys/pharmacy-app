@@ -87,4 +87,35 @@ class EmployeeOffersCubit extends Cubit<EmployeeOffersState> {
       // Best effort: the error already shown is the useful one.
     }
   }
+
+  /// Leaves the current job.
+  ///
+  /// Same shape as accepting, and for the same reason: employment decides which
+  /// shell the app shows, so the session has to be reloaded rather than patched.
+  Future<bool> resign() async {
+    if (state.accepting) return false;
+    emit(state.copyWith(clearError: true));
+
+    try {
+      await repository.resign();
+      emit(
+        state.copyWith(
+          status: EmployeeOffersStatus.ready,
+          inbox: await repository.fetchInbox(),
+        ),
+      );
+      await reloadSession();
+      return true;
+    } on AuthApiException catch (error) {
+      emit(state.copyWith(error: error));
+      return false;
+    } catch (_) {
+      emit(
+        state.copyWith(
+          error: const AuthApiException(message: 'Unable to leave this job.'),
+        ),
+      );
+      return false;
+    }
+  }
 }

@@ -77,4 +77,30 @@ class EmployeeOfferController extends Controller
             'code' => 'offer_accepted',
         ]);
     }
+
+    /**
+     * Leave the job.
+     *
+     * Deliberately outside the active-pharmacy gate: somebody whose pharmacy
+     * was suspended is exactly who needs to quit, and that gate would 403 them.
+     */
+    public function resign(Request $request): JsonResponse
+    {
+        /** @var Employee $employee */
+        $employee = $request->user();
+
+        if (! $employee->isEmployed()) {
+            return response()->json([
+                'message' => 'You do not currently have a job to leave.',
+                'code' => 'not_employed',
+            ], 409);
+        }
+
+        $this->recruitment->endEmployment($employee, 'employee');
+
+        return response()->json([
+            'message' => 'You have left the job. Your offers are open again.',
+            'code' => 'employment_ended',
+        ]);
+    }
 }

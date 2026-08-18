@@ -34,9 +34,6 @@ String userFacingError(
 enum ErrorContext { generic, sendOffer, acceptOffer, dismissEmployee, sale, order }
 
 const _messagesByCode = <String, String>{
-  'employee_document_retention_required':
-      'This employee has recruitment documents on file and cannot be dismissed '
-          'until the document retention policy is defined.',
   'validation_failed': 'Please check the highlighted fields and try again.',
   'unauthenticated': 'Your session has expired. Please sign in again.',
   'account_deactivated': 'This account has been deactivated.',
@@ -55,6 +52,8 @@ const _messagesByCode = <String, String>{
   'already_employed':
       'You already have a job. Leave it before accepting another offer.',
   'pharmacy_unavailable': 'This pharmacy is not operating right now.',
+  'not_employed': 'You do not currently have a job to leave.',
+  'employee_not_active': 'This person does not work at your pharmacy.',
 };
 
 String? _messageForStatus(int? status, ErrorContext context) {
@@ -66,7 +65,7 @@ String? _messageForStatus(int? status, ErrorContext context) {
     (409, ErrorContext.acceptOffer) =>
       'This offer is no longer available. Pull down to refresh.',
     (400, ErrorContext.dismissEmployee) =>
-      'This employee is not an active member of your pharmacy.',
+      'This person does not work at your pharmacy.',
     (400, ErrorContext.sale) =>
       'One or more items do not have enough stock for this sale.',
     (400, ErrorContext.order) =>

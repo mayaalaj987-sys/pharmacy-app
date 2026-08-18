@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RegisterEmployeeRequest;
 use App\Http\Resources\SafeEmployeeResource;
 use App\Models\Employee;
-use App\Models\Notification;
 use App\Services\AuthSessionService;
 use App\Services\DocumentVersionService;
 use App\Services\PharmacyContextResolver;
 use App\Services\PrivateDocumentService;
+use App\Services\RecruitmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +24,7 @@ class EmployeeController extends Controller
         private readonly AuthSessionService $sessions,
         private readonly PrivateDocumentService $documents,
         private readonly DocumentVersionService $documentVersions,
+        private readonly RecruitmentService $recruitment,
     ) {}
 
     // ===== تسجيل الموظف — بدون اختيار صيدلية، الطلب يروح لكل الصيدليات =====
@@ -129,37 +130,23 @@ class EmployeeController extends Controller
         $this->pharmacyContext->assertMatches($request, (int) $employee->pharmacy_id);
         Gate::forUser($request->user())->authorize('delete', $employee);
 
-        if ($employee->status !== Employee::STATUS_APPROVED) {
+        if (! $employee->isEmployed()) {
             return response()->json([
-                'message' => 'هذا الموظف ليس موظفاً نشطاً',
+                'message' => 'This person does not work at your pharmacy.',
+                'code' => 'employee_not_active',
             ], 400);
         }
 
-        if ($employee->documentVersions()->exists()) {
-            return response()->json([
-                'message' => 'This employee cannot be dismissed until the recruitment-document retention policy is defined.',
-                'code' => 'employee_document_retention_required',
-            ], 409);
-        }
-
-        $employeeName = $employee->name;
-        $pharmacyId = $employee->pharmacy_id;
-
-        // ✅ حذف الموظف كلياً من النظام
-        $employee->tokens()->delete(); // نحذف tokens أولاً لو كان مسجل دخول
-        $employee->delete();
-
-        Notification::create([
-            'pharmacy_id' => $pharmacyId,
-            'title' => 'تم إنهاء خدمة موظف',
-            'message' => 'تم إنهاء خدمة الموظف '.$employeeName.' من الصيدلية',
-            'type' => 'employee',
-            'is_read' => false,
-            'date' => now(),
-        ]);
+        // No document check any more. It refused every real employee, because
+        // registering always creates a CV — and it existed to stop a hard
+        // delete that would have taken their tasks and sales with it. Nothing
+        // is deleted now.
+        $this->recruitment->endEmployment($employee, 'pharmacy');
 
         return response()->json([
-            'message' => 'تم حذف الموظف من النظام بنجاح',
+            'message' => $employee->name.' no longer works at your pharmacy.',
+            'code' => 'employee_detached',
+            'employee_id' => $employee->id,
         ]);
     }
 

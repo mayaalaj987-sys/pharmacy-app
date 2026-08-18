@@ -6,6 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../auth/data/models/auth_session_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../employee_offers/presentation/cubit/employee_offers_cubit.dart';
+import '../../../employee_offers/presentation/cubit/employee_offers_state.dart';
 import '../cubit/employee_workspace_cubit.dart';
 import '../cubit/employee_workspace_state.dart';
 
@@ -139,6 +141,45 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
                 onPressed: busy ? null : _changePassword,
                 child: const Text('Change password'),
               ),
+
+              // Only shown while there is a job to leave. Reads from the offers
+              // inbox rather than the session, because that is the screen the
+              // person lands back on and it already knows.
+              BlocBuilder<EmployeeOffersCubit, EmployeeOffersState>(
+                builder: (context, offers) {
+                  if (!offers.isEmployed) return const SizedBox.shrink();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(height: 40),
+                      const Text(
+                        'Your job',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'You cover the ${offers.employment!.shift ?? ''} shift at '
+                        '${offers.employment!.pharmacyName}.',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        key: const ValueKey('employee-resign-button'),
+                        onPressed: busy ? null : _confirmResign,
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('Leave this job'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.errorRed,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           );
         },
@@ -245,6 +286,55 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
               : userFacingError(
                   cubit.state.error,
                   fallback: 'Unable to change password.',
+                ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmResign() async {
+    final cubit = context.read<EmployeeOffersCubit>();
+    final messenger = ScaffoldMessenger.of(context);
+    final employment = cubit.state.employment;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave this job?'),
+        content: Text(
+          'You will stop working at ${employment?.pharmacyName ?? 'this pharmacy'} '
+          'and your shift opens up for someone else. Any offers you were sent '
+          'become available again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Stay'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.errorRed),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final ok = await cubit.resign();
+    if (!mounted) return;
+
+    // On success the reloaded session sends AuthGate back to the unattached
+    // shell, so this page goes with it; nothing to navigate here.
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'You have left the job.'
+              : userFacingError(
+                  cubit.state.error,
+                  fallback: 'Unable to leave this job.',
                 ),
         ),
       ),

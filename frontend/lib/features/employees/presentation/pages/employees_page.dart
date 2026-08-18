@@ -430,8 +430,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
       builder: (dialogContext) => AlertDialog(
         title: Text('Dismiss ${employee.name}?'),
         content: const Text(
-          'This removes the employee from your pharmacy and revokes their '
-          'access. This cannot be undone.',
+          'They stop working here and their shift opens up. Their application '
+          'returns to the hiring pool, and their tasks, sales and documents are '
+          'all kept.',
         ),
         actions: [
           TextButton(

@@ -91,6 +91,8 @@ Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
     Route::post('/employee/offers/{offer}/accept', [EmployeeOfferController::class, 'accept'])
         ->whereNumber('offer')
         ->middleware('throttle:account-security');
+    Route::post('/employee/resign', [EmployeeOfferController::class, 'resign'])
+        ->middleware('throttle:account-security');
 
     Route::get('/employee/notifications', [EmployeeNotificationController::class, 'index']);
     Route::post('/employee/notifications/{id}/read', [EmployeeNotificationController::class, 'markAsRead'])
