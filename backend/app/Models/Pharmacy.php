@@ -73,6 +73,23 @@ class Pharmacy extends Model
         return $this->hasMany(Employment::class);
     }
 
+    /**
+     * How the people who worked here rated it.
+     *
+     * The average and the count, never the individual verdicts: two people work
+     * at a pharmacy, so attributing an honest low rating would make it
+     * unsurvivable for whoever gave it.
+     *
+     * @return array{average: float|null, count: int}
+     */
+    public function staffRating(): array
+    {
+        return EmploymentRating::summarise(
+            $this->employments()->pluck('id'),
+            EmploymentRating::FROM_EMPLOYEE,
+        );
+    }
+
     public function blockedByAdmin()
     {
         return $this->belongsTo(Admin::class, 'blocked_by_admin_id');

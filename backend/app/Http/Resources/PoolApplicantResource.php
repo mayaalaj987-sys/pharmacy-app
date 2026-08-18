@@ -36,6 +36,10 @@ class PoolApplicantResource extends JsonResource
             'role' => $this->role,
             'applied_at' => $this->created_at?->toISOString(),
 
+            // What previous employers thought. A name and a CV say what someone
+            // claims; this says how it went for the people who found out.
+            'rating' => $this->resource->workRating(),
+
             // Availability only. The files themselves are a separate, logged
             // request; these two flags just say whether it is worth making one.
             'has_cv' => $documents->contains('document_type', 'cv'),

@@ -50,6 +50,9 @@ class EmployeeOfferResource extends JsonResource
                 'address' => $pharmacy->pharmacy_address,
                 'latitude' => $pharmacy->latitude === null ? null : (float) $pharmacy->latitude,
                 'longitude' => $pharmacy->longitude === null ? null : (float) $pharmacy->longitude,
+                // How its former staff rated it. Deciding whether to take a job
+                // on a salary alone is exactly what this is meant to replace.
+                'rating' => $pharmacy->staffRating(),
             ],
             // Both are sent rather than one: pharmacists.phone is nullable and
             // email always exists, so "whichever they have" is resolved here

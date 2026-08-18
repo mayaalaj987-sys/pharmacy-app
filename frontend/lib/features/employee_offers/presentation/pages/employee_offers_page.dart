@@ -127,6 +127,11 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
               ],
             ),
             const SizedBox(height: 8),
+            if (pharmacy != null)
+              _row(
+                Icons.star_outline,
+                'Rated by former staff: ${pharmacy.rating.label}',
+              ),
             if (pharmacy != null && pharmacy.address.isNotEmpty)
               _row(Icons.place_outlined, pharmacy.address),
             if (pharmacy != null && pharmacy.hasLocation)

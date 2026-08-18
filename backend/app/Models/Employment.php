@@ -58,6 +58,23 @@ class Employment extends Model
         return $this->belongsTo(Pharmacy::class);
     }
 
+    public function ratings()
+    {
+        return $this->hasMany(EmploymentRating::class);
+    }
+
+    /**
+     * Whether this job can be judged yet.
+     *
+     * Only once it is over. Rating an employer while still working for them is
+     * not a free judgement, and the period being rated has to be a finished one
+     * for the verdict to mean anything.
+     */
+    public function isRateable(): bool
+    {
+        return $this->ended_at !== null;
+    }
+
     public function scopeFinished($query)
     {
         return $query->whereNotNull('ended_at');

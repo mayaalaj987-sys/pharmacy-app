@@ -1,3 +1,5 @@
+import 'party_rating.dart';
+
 /// A pharmacy's invitation to cover one shift.
 class JobOffer {
   final int id;
@@ -81,12 +83,17 @@ class OfferPharmacy {
   final double? latitude;
   final double? longitude;
 
+  /// How its former staff rated it. The point of showing this on an offer is
+  /// that deciding on the salary alone is what it replaces.
+  final PartyRating rating;
+
   const OfferPharmacy({
     required this.id,
     required this.name,
     required this.address,
     this.latitude,
     this.longitude,
+    this.rating = const PartyRating(),
   });
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -102,6 +109,7 @@ class OfferPharmacy {
       address: json['address']?.toString() ?? '',
       latitude: coordinate(json['latitude']),
       longitude: coordinate(json['longitude']),
+      rating: PartyRating.fromJson(json['rating'] as Map<String, dynamic>?),
     );
   }
 }

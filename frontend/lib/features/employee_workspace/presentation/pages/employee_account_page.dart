@@ -7,6 +7,7 @@ import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../auth/data/models/auth_session_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../employee_offers/presentation/cubit/employee_offers_cubit.dart';
+import '../../../employment_history/presentation/pages/employment_history_page.dart';
 import '../../../employee_offers/presentation/cubit/employee_offers_state.dart';
 import '../cubit/employee_workspace_cubit.dart';
 import '../cubit/employee_workspace_state.dart';
@@ -142,6 +143,30 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
                 child: const Text('Change password'),
               ),
 
+              const Divider(height: 40),
+              const Text(
+                'Work history',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Every job you have held, and the pharmacies you can rate.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('employee-history-button'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const EmploymentHistoryPage(asPharmacy: false),
+                  ),
+                ),
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('My work history'),
+              ),
+
               // Only shown while there is a job to leave. Reads from the offers
               // inbox rather than the session, because that is the screen the
               // person lands back on and it already knows.
@@ -261,7 +286,9 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
     }
     if (_newPassword.text != _confirmPassword.text) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('New password confirmation does not match.')),
+        const SnackBar(
+          content: Text('New password confirmation does not match.'),
+        ),
       );
       return;
     }

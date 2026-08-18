@@ -1,3 +1,5 @@
+import '../../employee_offers/domain/party_rating.dart';
+
 /// Employee as returned by `SafeEmployeeResource`.
 /// Credentials and recruitment documents are never exposed by the backend.
 class Employee {
@@ -21,6 +23,10 @@ class Employee {
   /// Which shift this pharmacy offered them, so two outstanding offers are
   /// distinguishable at a glance.
   final String? offerShift;
+
+  /// How previous employers rated their work. A name and a CV say what someone
+  /// claims; this says how it went for the people who found out.
+  final PartyRating rating;
 
   /// Backend roles: employee | trainee
   final String role;
@@ -53,6 +59,7 @@ class Employee {
     this.hasExperienceProof = false,
     this.offerStatus,
     this.offerShift,
+    this.rating = const PartyRating(),
     this.createdAt,
   });
 
@@ -111,6 +118,7 @@ class Employee {
       offerShift: json['offer'] is Map<String, dynamic>
           ? (json['offer'] as Map<String, dynamic>)['shift']?.toString()
           : null,
+      rating: PartyRating.fromJson(json['rating'] as Map<String, dynamic>?),
       salary: rawSalary == null
           ? null
           : (rawSalary is num

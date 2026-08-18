@@ -8,6 +8,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/employee.dart';
 import '../cubit/employees_cubit.dart';
 import '../cubit/employees_state.dart';
+import '../../../employment_history/presentation/pages/employment_history_page.dart';
 import '../widgets/applicant_documents_sheet.dart';
 import '../../../../core/format/money.dart';
 
@@ -52,6 +53,19 @@ class _EmployeesPageState extends State<EmployeesPage> {
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Employees"),
       ),
+      floatingActionButton: _pharmacyId == null
+          ? null
+          : FloatingActionButton.extended(
+              key: const ValueKey('pharmacy-history-button'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const EmploymentHistoryPage(asPharmacy: true),
+                ),
+              ),
+              icon: const Icon(Icons.history),
+              label: const Text('Past staff'),
+            ),
 
       body: _pharmacyId == null
           ? const Center(
@@ -229,7 +243,10 @@ class _EmployeesPageState extends State<EmployeesPage> {
                     onPressed: state.mutatingEmployeeId != null
                         ? null
                         : () => _confirmPromotion(context, employee),
-                    icon: const Icon(Icons.workspace_premium_outlined, size: 18),
+                    icon: const Icon(
+                      Icons.workspace_premium_outlined,
+                      size: 18,
+                    ),
                     label: const Text('Confirm training'),
                   ),
                 TextButton.icon(
@@ -290,6 +307,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
             Wrap(
               spacing: 6,
               children: [
+                if (employee.rating.hasAny) _chip('★ ${employee.rating.label}'),
                 if (employee.offerStatus == 'pending')
                   _chip('Offered: ${employee.offerShiftLabel ?? 'a shift'}'),
                 if (employee.hasCv) _chip('CV'),
@@ -540,7 +558,10 @@ class _EmployeesPageState extends State<EmployeesPage> {
   ///
   /// One way on purpose. A pharmacy is vouching for experience the person has
   /// actually gained, and experience is not something that can be taken back.
-  Future<void> _confirmPromotion(BuildContext context, Employee employee) async {
+  Future<void> _confirmPromotion(
+    BuildContext context,
+    Employee employee,
+  ) async {
     final cubit = context.read<EmployeesCubit>();
     final messenger = ScaffoldMessenger.of(context);
 

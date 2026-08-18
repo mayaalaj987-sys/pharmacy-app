@@ -148,6 +148,19 @@ class Employee extends Authenticatable
     }
 
     /**
+     * How the pharmacies they worked for rated them.
+     *
+     * @return array{average: float|null, count: int}
+     */
+    public function workRating(): array
+    {
+        return EmploymentRating::summarise(
+            $this->employments()->pluck('id'),
+            EmploymentRating::FROM_PHARMACY,
+        );
+    }
+
+    /**
      * Placeholder for the one offer the requesting pharmacy holds on this
      * person, constrained per query. Nothing loads it by default — a pharmacy
      * must never see what anyone else has offered.

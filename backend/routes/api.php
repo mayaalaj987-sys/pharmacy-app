@@ -6,6 +6,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeNotificationController;
 use App\Http\Controllers\EmployeeOfferController;
+use App\Http\Controllers\EmploymentRatingController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -94,6 +95,11 @@ Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
     Route::post('/employee/resign', [EmployeeOfferController::class, 'resign'])
         ->middleware('throttle:account-security');
 
+    // Work history, and the verdict they owe on each finished job.
+    Route::get('/employee/employments', [EmploymentRatingController::class, 'myHistory']);
+    Route::post('/employee/employments/{employment}/rate', [EmploymentRatingController::class, 'ratePharmacy'])
+        ->whereNumber('employment');
+
     Route::get('/employee/notifications', [EmployeeNotificationController::class, 'index']);
     Route::post('/employee/notifications/{id}/read', [EmployeeNotificationController::class, 'markAsRead'])
         ->whereNumber('id');
@@ -148,6 +154,9 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     // /employees/pending and would otherwise swallow any word placed after it.
     Route::get('/employees/{pharmacy_id}', [EmployeeController::class, 'getEmployees'])
         ->whereNumber('pharmacy_id');
+    Route::get('/employees/history', [EmploymentRatingController::class, 'pharmacyHistory']);
+    Route::post('/employees/employments/{employment}/rate', [EmploymentRatingController::class, 'rateEmployee'])
+        ->whereNumber('employment');
     Route::post('/employees/{id}/promote', [EmployeeController::class, 'promoteEmployee'])
         ->whereNumber('id');
     Route::delete('/employees/{id}/dismiss', [EmployeeController::class, 'dismissEmployee']);
