@@ -31,15 +31,20 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
   Widget build(BuildContext context) {
     return BlocBuilder<EmployeeOffersCubit, EmployeeOffersState>(
       builder: (context, state) {
-        if (state.status == EmployeeOffersStatus.loading && state.offers.isEmpty) {
+        if (state.status == EmployeeOffersStatus.loading &&
+            state.offers.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (state.status == EmployeeOffersStatus.failure && state.offers.isEmpty) {
+        if (state.status == EmployeeOffersStatus.failure &&
+            state.offers.isEmpty) {
           return _centred(
             context,
             Icons.error_outline,
-            userFacingError(state.error, fallback: 'Unable to load your offers.'),
+            userFacingError(
+              state.error,
+              fallback: 'Unable to load your offers.',
+            ),
             onRetry: () => context.read<EmployeeOffersCubit>().load(),
           );
         }
@@ -49,7 +54,7 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
             context,
             Icons.work_outline,
             'No offers yet. Your application is live, and pharmacies can see '
-                'your name and read your CV.',
+            'your name and read your CV.',
             onRetry: () => context.read<EmployeeOffersCubit>().load(),
           );
         }
@@ -60,9 +65,7 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
             padding: const EdgeInsets.all(16),
             children: [
               if (state.isEmployed) _employedBanner(state.employment!),
-              ...state.offers.map(
-                (offer) => _offerCard(context, state, offer),
-              ),
+              ...state.offers.map((offer) => _offerCard(context, state, offer)),
             ],
           ),
         );
@@ -116,6 +119,10 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
                     ),
                   ),
                 ),
+                if (offer.isCurrentJob) ...[
+                  _chip('Current job', highlight: true),
+                  const SizedBox(width: 6),
+                ],
                 _chip(offer.shiftLabel),
               ],
             ),
@@ -126,7 +133,7 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
               _row(
                 Icons.map_outlined,
                 '${pharmacy.latitude!.toStringAsFixed(5)}, '
-                    '${pharmacy.longitude!.toStringAsFixed(5)}',
+                '${pharmacy.longitude!.toStringAsFixed(5)}',
               ),
             _row(
               Icons.payments_outlined,
@@ -142,36 +149,42 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
                     : '${owner.name} — ${owner.contact}',
               ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: offer.acceptable ? 1.0 : 0.4,
-                child: FilledButton.icon(
-                  key: ValueKey('accept-offer-${offer.id}'),
-                  // Inert rather than hidden when it cannot be taken: the
-                  // reason underneath is the useful part, and the offer stays a
-                  // record of who wanted them.
-                  onPressed: offer.acceptable && !state.accepting
-                      ? () => _accept(context, offer)
-                      : null,
-                  icon: busy
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+            // The job they hold gets no Accept button at all. Dimming it and
+            // explaining why it cannot be accepted described the one thing
+            // that went right as though it had failed.
+            if (!offer.isCurrentJob)
+              SizedBox(
+                width: double.infinity,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: offer.acceptable ? 1.0 : 0.4,
+                  child: FilledButton.icon(
+                    key: ValueKey('accept-offer-${offer.id}'),
+                    // Inert rather than hidden when it cannot be taken: the
+                    // reason underneath is the useful part, and the offer stays a
+                    // record of who wanted them.
+                    onPressed: offer.acceptable && !state.accepting
+                        ? () => _accept(context, offer)
+                        : null,
+                    icon: busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Icon(
+                            offer.acceptable ? Icons.check : Icons.lock_outline,
+                            size: 18,
                           ),
-                        )
-                      : Icon(
-                          offer.acceptable ? Icons.check : Icons.lock_outline,
-                          size: 18,
-                        ),
-                  label: const Text('Accept offer'),
+                    label: const Text('Accept offer'),
+                  ),
                 ),
               ),
-            ),
-            if (!offer.acceptable && offer.unavailableExplanation != null) ...[
+            if (!offer.isCurrentJob &&
+                !offer.acceptable &&
+                offer.unavailableExplanation != null) ...[
               const SizedBox(height: 6),
               Text(
                 offer.unavailableExplanation!,
@@ -199,14 +212,22 @@ class _EmployeeOffersPageState extends State<EmployeeOffersPage> {
     );
   }
 
-  Widget _chip(String label) {
+  Widget _chip(String label, {bool highlight = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppColors.lightGreen.withValues(alpha: .15),
+        color: (highlight ? AppColors.darkGreen : AppColors.lightGreen)
+            .withValues(alpha: highlight ? .85 : .15),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 11)),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: highlight ? Colors.white : null,
+          fontWeight: highlight ? FontWeight.bold : null,
+        ),
+      ),
     );
   }
 

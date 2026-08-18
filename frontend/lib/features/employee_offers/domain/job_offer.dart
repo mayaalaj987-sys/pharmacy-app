@@ -32,6 +32,9 @@ class JobOffer {
 
   String get shiftLabel => shift == 'morning' ? 'Morning' : 'Evening';
 
+  /// The one they took. Shown as a job rather than as a refusal.
+  bool get isCurrentJob => status == 'accepted';
+
   /// Plain-English reason the button is inert, written for the applicant rather
   /// than for a log.
   String? get unavailableExplanation => switch (unavailableReason) {
@@ -40,6 +43,7 @@ class JobOffer {
     'offer_withdrawn' => 'This pharmacy withdrew the offer.',
     'pharmacy_unavailable' => 'This pharmacy is not operating right now.',
     'shift_taken' => 'Someone else now covers this shift.',
+    'offer_accepted' => 'You accepted this offer.',
     'offer_not_pending' => 'This offer is no longer open.',
     _ => null,
   };

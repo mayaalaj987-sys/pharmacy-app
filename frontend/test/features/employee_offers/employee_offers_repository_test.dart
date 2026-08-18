@@ -72,6 +72,20 @@ void main() {
     await cubit.close();
   });
 
+  test('the job they took reads as a job, not as a refusal', () async {
+    // 'offer_not_pending' was reachable in exactly one case — the offer they
+    // accepted — so the one good outcome in the list was labelled as if it had
+    // failed, and greyed out to match.
+    final inbox = await EmployeeOffersRepository(
+      FakeOffersApi()..acceptedFirst = true,
+    ).fetchInbox();
+
+    final job = inbox.offers.first;
+    expect(job.status, 'accepted');
+    expect(job.isCurrentJob, isTrue);
+    expect(job.unavailableExplanation, 'You accepted this offer.');
+  });
+
   test('accepting reloads the session, because the whole app changes', () async {
     sessionReloads = 0;
     final api = FakeOffersApi();
@@ -179,6 +193,7 @@ class FakeOffersApi implements EmployeeOffersRemoteDataSource {
   bool fail = false;
   bool failAccept = false;
   bool failResign = false;
+  bool acceptedFirst = false;
   final List<int> accepted = [];
   int resigned = 0;
 
@@ -209,12 +224,12 @@ class FakeOffersApi implements EmployeeOffersRemoteDataSource {
               'offers': [
                 {
                   'id': 1,
-                  'status': 'pending',
+                  'status': acceptedFirst ? 'accepted' : 'pending',
+                  'unavailable_reason': acceptedFirst ? 'offer_accepted' : null,
                   'shift': 'evening',
                   'salary': 500000,
                   'offered_at': '2026-08-18T09:00:00.000Z',
-                  'acceptable': true,
-                  'unavailable_reason': null,
+                  'acceptable': !acceptedFirst,
                   'pharmacy': {
                     'id': 7,
                     'name': 'Barada Pharmacy',

@@ -68,7 +68,15 @@ class JobOffer extends Model
     public function unacceptableReasonFor(Employee $employee): ?string
     {
         if (! $this->isPending()) {
-            return $this->status === self::STATUS_WITHDRAWN ? 'offer_withdrawn' : 'offer_not_pending';
+            // Named separately because these read very differently to the
+            // person holding them. An accepted offer is their current job, not
+            // a failure — reporting it as "no longer open" made the one good
+            // outcome in the list look like the broken one.
+            return match ($this->status) {
+                self::STATUS_WITHDRAWN => 'offer_withdrawn',
+                self::STATUS_ACCEPTED => 'offer_accepted',
+                default => 'offer_not_pending',
+            };
         }
 
         if ($employee->isEmployed()) {
