@@ -62,5 +62,22 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by(hash('sha256', $userId.'|'.$request->ip()));
         });
+
+        // The mobile sign-in endpoints, on the same terms as the admin console.
+        // Both guards issue a long-lived bearer token from an email/password
+        // pair, so leaving one of them unlimited hands an attacker unlimited
+        // guesses at every pharmacist and employee on the platform.
+        RateLimiter::for('mobile-login', function (Request $request): Limit {
+            $email = strtolower(trim((string) $request->input('email', '')));
+
+            return Limit::perMinute(5)->by(hash('sha256', $email.'|'.$request->ip()));
+        });
+
+        // Registration writes rows and uploads files before anyone has proved
+        // anything, and every applicant becomes visible to recruiters. Keyed by
+        // IP only — there is no account yet to key on.
+        RateLimiter::for('registration', function (Request $request): Limit {
+            return Limit::perHour(10)->by(hash('sha256', (string) $request->ip()));
+        });
     }
 }

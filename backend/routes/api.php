@@ -20,10 +20,17 @@ use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [PharmacistController::class, 'register']);
-Route::post('/login', [PharmacistController::class, 'login']);
-Route::post('/employee/register', [EmployeeController::class, 'register']);
-Route::post('/employee/login', [EmployeeController::class, 'login']);
+// The only unauthenticated writes in the API. Both pairs are throttled: the
+// admin console has had brute-force protection since it was built and these
+// never got it, even though they cover every account on the platform.
+Route::post('/register', [PharmacistController::class, 'register'])
+    ->middleware('throttle:registration');
+Route::post('/login', [PharmacistController::class, 'login'])
+    ->middleware('throttle:mobile-login');
+Route::post('/employee/register', [EmployeeController::class, 'register'])
+    ->middleware('throttle:registration');
+Route::post('/employee/login', [EmployeeController::class, 'login'])
+    ->middleware('throttle:mobile-login');
 
 Route::middleware(['auth:pharmacist,employee'])->group(function () {
     Route::post('/logout', [SessionController::class, 'logout']);
