@@ -45,15 +45,15 @@ class TaskController extends Controller
             'status' => 'pending',
         ]);
 
-        // إشعار للصيدلية إن مهمة انضافت
-        Notification::create([
-            'pharmacy_id' => $pharmacy->id,
-            'title' => 'مهمة جديدة',
-            'message' => 'تم تعيين مهمة "'.$task->title.'" للموظف '.$employee->name,
-            'type' => 'task',
-            'is_read' => false,
-            'date' => now(),
-        ]);
+        // Straight to the person who has to do it. Announcing it to the whole
+        // pharmacy told the owner what they had just done themselves, and left
+        // the assignee to find it in a shared feed.
+        Notification::notifyEmployee(
+            $employee->id,
+            'New task',
+            'You were assigned: "'.$task->title.'".',
+            'task_assigned',
+        );
 
         return response()->json([
             'message' => 'تم إضافة المهمة بنجاح',
@@ -135,15 +135,14 @@ class TaskController extends Controller
 
         $task->update(['status' => 'done']);
 
-        // إشعار للصيدلية إن الموظف أنجز المهمة
-        Notification::create([
-            'pharmacy_id' => $task->pharmacy_id,
-            'title' => 'مهمة منجزة ✅',
-            'message' => 'أنجز الموظف '.$employee->name.' المهمة: "'.$task->title.'"',
-            'type' => 'task',
-            'is_read' => false,
-            'date' => now(),
-        ]);
+        // Back to the owner, who asked for it.
+        Notification::notify(
+            (int) $task->pharmacy_id,
+            'Task completed',
+            $employee->name.' completed: "'.$task->title.'".',
+            'task_completed',
+            Notification::AUDIENCE_OWNER,
+        );
 
         return response()->json([
             'message' => 'تم تعليم المهمة كمنجزة',

@@ -71,7 +71,15 @@ class EmployeeNotificationTest extends SecurityTestCase
         $employee = $this->employee($pharmacy, '902');
 
         Notification::notifyEmployee($employee->id, 'CV viewed', 'Someone read your CV.', Notification::TYPE_CV_VIEWED);
-        Notification::notify($pharmacy->id, 'New task', 'Restock shelf A.', 'task');
+        Notification::notify(
+            $pharmacy->id,
+            'Running low',
+            'Panadol is down to 3.',
+            'low_stock',
+            Notification::AUDIENCE_STAFF,
+        );
+        // The owner's business. Takings are not the counter staff's to read.
+        Notification::notify($pharmacy->id, 'New sale', 'Rana sold 2 items.', 'sale');
 
         Sanctum::actingAs($employee, ['*'], 'employee');
 
@@ -79,6 +87,25 @@ class EmployeeNotificationTest extends SecurityTestCase
             ->assertOk()
             ->assertJsonCount(2, 'notifications')
             ->assertJsonPath('unread_count', 2);
+    }
+
+    public function test_an_employee_never_sees_the_owners_business(): void
+    {
+        // Every pharmacy notification used to reach everyone, so an employee's
+        // bell filled with supplier orders and the day's takings while the
+        // messages actually meant for them were buried underneath.
+        $owner = $this->pharmacist('notif-audience');
+        $pharmacy = $this->pharmacy($owner, 'notif-audience');
+        $employee = $this->employee($pharmacy, '904');
+
+        Notification::notify($pharmacy->id, 'New sale', 'Rana sold 2 items.', 'sale');
+        Notification::notify($pharmacy->id, 'Order received', 'Order 5 arrived.', 'order');
+
+        Sanctum::actingAs($employee, ['*'], 'employee');
+
+        $this->getJson('/api/employee/notifications')
+            ->assertOk()
+            ->assertJsonCount(0, 'notifications');
     }
 
     public function test_one_employee_cannot_read_anothers(): void
@@ -101,7 +128,13 @@ class EmployeeNotificationTest extends SecurityTestCase
         $owner = $this->pharmacist('notif-left');
         $pharmacy = $this->pharmacy($owner, 'notif-left');
         $employee = $this->employee($pharmacy, '903');
-        Notification::notify($pharmacy->id, 'New task', 'Restock shelf A.', 'task');
+        Notification::notify(
+            $pharmacy->id,
+            'Running low',
+            'Panadol is down to 3.',
+            'low_stock',
+            Notification::AUDIENCE_STAFF,
+        );
 
         Sanctum::actingAs($employee, ['*'], 'employee');
         $this->getJson('/api/employee/notifications')->assertOk()->assertJsonCount(1, 'notifications');

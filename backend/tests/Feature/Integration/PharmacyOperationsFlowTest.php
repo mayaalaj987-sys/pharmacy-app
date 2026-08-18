@@ -251,7 +251,7 @@ class PharmacyOperationsFlowTest extends SecurityTestCase
         $this->assertSame(16, $stock->fresh()->quantity);
     }
 
-    public function test_task_assignment_and_completion_each_raise_a_notification(): void
+    public function test_a_task_notifies_the_person_and_its_completion_notifies_the_owner(): void
     {
         $owner = $this->pharmacist('task-notify');
         $pharmacy = $this->pharmacy($owner, 'task-notify');
@@ -268,31 +268,31 @@ class PharmacyOperationsFlowTest extends SecurityTestCase
 
         $task = Task::where('pharmacy_id', $pharmacy->id)->sole();
         $this->assertSame('pending', $task->status);
-        $this->assertSame(1, Notification::where('pharmacy_id', $pharmacy->id)->where('type', 'task')->count());
+
+        // Addressed to the person who has to do it, not announced to the shop.
+        // Telling the whole pharmacy repeated the owner's own action back at
+        // them and left the assignee to find it in a shared feed.
+        $assignment = Notification::where('employee_id', $employee->id)->sole();
+        $this->assertSame('task_assigned', $assignment->type);
+        $this->assertNull($assignment->pharmacy_id);
+        $this->assertSame(0, Notification::where('pharmacy_id', $pharmacy->id)->count());
 
         $this->actAsEmployee($employee);
         $this->postJson('/api/tasks/'.$task->id.'/done', [], $headers)->assertOk();
 
         $this->assertSame('done', $task->fresh()->status);
 
-        // Assignment and completion are two distinct notifications.
-        $notifications = Notification::where('pharmacy_id', $pharmacy->id)
-            ->where('type', 'task')
-            ->get();
-        $this->assertCount(2, $notifications);
-
-        // Every notification carries a type the Flutter client can map to English.
-        foreach ($notifications as $notification) {
-            $this->assertContains($notification->type, [
-                'task', 'order', 'sale', 'employee', 'employee_approved',
-                'pharmacy_approved', 'pharmacy_rejected', 'pharmacist',
-                'low_stock', 'out_of_stock', 'medicine',
-            ]);
-        }
+        // Completion goes back to the owner, who asked for the work, and names
+        // who did it.
+        $completion = Notification::where('pharmacy_id', $pharmacy->id)->sole();
+        $this->assertSame('task_completed', $completion->type);
+        $this->assertSame(Notification::AUDIENCE_OWNER, $completion->audience);
+        $this->assertStringContainsString($employee->name, $completion->message);
+        $this->assertSame($completion->message, mb_convert_encoding($completion->message, 'ASCII'));
 
         // Completing it twice is rejected and adds nothing.
         $this->postJson('/api/tasks/'.$task->id.'/done', [], $headers)->assertStatus(400);
-        $this->assertSame(2, Notification::where('pharmacy_id', $pharmacy->id)->where('type', 'task')->count());
+        $this->assertSame(1, Notification::where('pharmacy_id', $pharmacy->id)->count());
     }
 
     public function test_the_order_lifecycle_raises_notifications_the_owner_can_read(): void

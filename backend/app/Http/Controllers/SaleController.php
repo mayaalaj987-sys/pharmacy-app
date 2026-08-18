@@ -101,11 +101,16 @@ class SaleController extends Controller
                 $this->createStockNotification($pharmacy->id, $medicine);
             }
 
+            // Names the seller. "A sale happened" told the owner nothing they
+            // could act on; who rang it up is the whole point of the message.
+            $seller = $request->user();
             Notification::create([
                 'pharmacy_id' => $pharmacy->id,
-                'title' => 'عملية بيع جديدة',
-                'message' => 'تمت عملية بيع بقيمة '.$totalPrice,
+                'title' => 'New sale',
+                'message' => ($seller?->name ?? 'Someone').' sold '
+                    .count($request->input('items')).' item(s) for '.$totalPrice.'.',
                 'type' => 'sale',
+                'audience' => Notification::AUDIENCE_OWNER,
                 'is_read' => false,
                 'date' => now(),
             ]);
@@ -251,10 +256,11 @@ class SaleController extends Controller
 
         Notification::create([
             'pharmacy_id' => $pharmacyId,
-            'title' => $type === 'out_of_stock' ? 'نفاد المخزون ⚠️' : 'تنبيه نقص مخزون',
+            'audience' => Notification::AUDIENCE_STAFF,
+            'title' => $type === 'out_of_stock' ? 'Out of stock' : 'Running low',
             'message' => $type === 'out_of_stock'
-                ? 'دواء '.$medicine->name.' نفد من المخزون تماماً'
-                : 'دواء '.$medicine->name.' كميته أصبحت '.$medicine->quantity.' فقط',
+                ? $medicine->name.' is out of stock.'
+                : $medicine->name.' is down to '.$medicine->quantity.'.',
             'type' => $type,
             'is_read' => false,
             'date' => now(),

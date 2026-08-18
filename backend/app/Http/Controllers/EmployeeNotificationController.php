@@ -82,9 +82,14 @@ class EmployeeNotificationController extends Controller
             $query->where('employee_id', $employee->id);
 
             if ($employee->isEmployed()) {
+                // Staff-facing only. The owner's business — takings, supplier
+                // orders, stock warnings, who is being hired — is not theirs to
+                // read, and burying their own messages under it was the reason
+                // this bell was useless.
                 $query->orWhere(fn ($scoped) => $scoped
                     ->where('pharmacy_id', $employee->pharmacy_id)
-                    ->whereNull('employee_id'));
+                    ->whereNull('employee_id')
+                    ->where('audience', Notification::AUDIENCE_STAFF));
             }
         });
     }

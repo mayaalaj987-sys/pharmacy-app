@@ -23,7 +23,15 @@ class Notification extends Model
     /** You no longer work at that pharmacy. */
     public const TYPE_EMPLOYMENT_ENDED = 'employment_ended';
 
-    protected $fillable = ['pharmacy_id', 'employee_id', 'title', 'message', 'type', 'is_read', 'date'];
+    /** The pharmacist's business: money, stock, suppliers, staffing. */
+    public const AUDIENCE_OWNER = 'owner';
+
+    /** Anything the people working the counter should see. */
+    public const AUDIENCE_STAFF = 'staff';
+
+    protected $fillable = [
+        'pharmacy_id', 'employee_id', 'title', 'message', 'type', 'audience', 'is_read', 'date',
+    ];
 
     protected function casts(): array
     {
@@ -50,13 +58,19 @@ class Notification extends Model
     }
 
     // helper to create + could be extended to push via broadcasting later
-    public static function notify(int $pharmacyId, string $title, string $message, string $type): self
-    {
+    public static function notify(
+        int $pharmacyId,
+        string $title,
+        string $message,
+        string $type,
+        string $audience = self::AUDIENCE_OWNER,
+    ): self {
         return self::create([
             'pharmacy_id' => $pharmacyId,
             'title' => $title,
             'message' => $message,
             'type' => $type,
+            'audience' => $audience,
             'is_read' => false,
             'date' => now()->toDateString(),
         ]);
