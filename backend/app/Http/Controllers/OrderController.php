@@ -7,6 +7,7 @@ use App\Exceptions\SupplierStockException;
 use App\Models\Medicine;
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Services\OrderPlacementService;
 use App\Services\PharmacyContextResolver;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -88,8 +89,74 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * What is about to arrive, and what it should be priced at.
+     *
+     * Read before receiving, because the pharmacist is the one who sets a shelf
+     * price and until now nobody asked them: the supplier's suggested retail was
+     * copied straight onto the stock row. The supplier's cost is theirs to set;
+     * the margin is the pharmacy's.
+     */
+    public function receivingPlan(Request $request, int $id): JsonResponse
+    {
+        $order = Order::with(['items.medicine', 'supplier'])->findOrFail($id);
+        $this->pharmacyContext->assertMatches($request, (int) $order->pharmacy_id);
+        Gate::forUser($request->user())->authorize('view', $order);
+
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'This order has already been '.$order->status.'.',
+                'code' => 'order_not_pending',
+            ], 409);
+        }
+
+        $onShelf = Medicine::where('pharmacy_id', $order->pharmacy_id)
+            ->whereIn('name', $order->items->map(fn (OrderItem $item) => $item->medicine?->name)->filter())
+            ->get()
+            ->keyBy('name');
+
+        return response()->json([
+            'order' => [
+                'id' => $order->id,
+                'supplier_name' => $order->supplier?->name,
+                'total_price' => (float) $order->total_price,
+                'payment_method' => $order->payment_method,
+            ],
+            'items' => $order->items
+                ->filter(fn (OrderItem $item) => $item->medicine !== null)
+                ->map(function (OrderItem $item) use ($onShelf) {
+                    $existing = $onShelf->get($item->medicine->name);
+
+                    return [
+                        'medicine_id' => $item->medicine_id,
+                        'name' => $item->medicine->name,
+                        'category' => $item->medicine->category_medicine,
+                        'quantity' => $item->quantity,
+                        // The price agreed when the order was placed, not the
+                        // catalogue's price today.
+                        'unit_cost' => (float) $item->price,
+                        // A drug already on the shelf keeps the price the
+                        // pharmacy set for it; only a new one needs deciding.
+                        'is_new' => $existing === null,
+                        'current_selling_price' => $existing ? (float) $existing->selling_price : null,
+                        'suggested_selling_price' => (float) ($existing?->selling_price ?? $item->medicine->selling_price),
+                    ];
+                })->values()->all(),
+        ]);
+    }
+
     public function receiveOrder(Request $request, int $id): JsonResponse
     {
+        $validated = $request->validate([
+            // Keyed by the catalogue medicine id the receiving plan returned.
+            // Absent means "leave the price alone", which is what a restock of
+            // something already on the shelf should do.
+            'selling_prices' => ['sometimes', 'array'],
+            'selling_prices.*' => ['numeric', 'min:0'],
+        ]);
+
+        $sellingPrices = $validated['selling_prices'] ?? [];
+
         DB::beginTransaction();
 
         try {
@@ -114,16 +181,26 @@ class OrderController extends Controller
                     ->where('name', $item->medicine->name)
                     ->first();
 
+                $chosenPrice = $sellingPrices[$item->medicine_id] ?? null;
+
                 if ($existingMedicine) {
-                    $existingMedicine->increment('quantity', $item->quantity);
+                    $existingMedicine->update([
+                        'quantity' => $existingMedicine->quantity + $item->quantity,
+                        'cost_price' => $this->blendedCost($existingMedicine, $item),
+                        'selling_price' => $chosenPrice ?? $existingMedicine->selling_price,
+                    ]);
                 } else {
                     Medicine::create([
                         'pharmacy_id' => $order->pharmacy_id,
                         'supplier_id' => $order->supplier_id,
                         'name' => $item->medicine->name,
                         'category_medicine' => $item->medicine->category_medicine,
-                        'cost_price' => $item->medicine->cost_price,
-                        'selling_price' => $item->medicine->selling_price,
+                        // What was actually paid, not what the catalogue asks
+                        // today — the two drift apart the moment prices move.
+                        'cost_price' => $item->price,
+                        // The pharmacist's margin when they set one; otherwise
+                        // the supplier's suggestion, as before.
+                        'selling_price' => $chosenPrice ?? $item->medicine->selling_price,
                         'manufacturer' => $item->medicine->manufacturer,
                         'quantity' => $item->quantity,
                         'reorder_level' => $item->medicine->reorder_level,
@@ -203,6 +280,33 @@ class OrderController extends Controller
 
             return response()->json(['message' => 'تعذر إلغاء الطلب'], 500);
         }
+    }
+
+    /**
+     * What the stock on the shelf costs once this delivery joins it.
+     *
+     * A weighted average of what is already there and what just arrived, which
+     * is the only figure that is true of the mixed pile. Leaving the old cost
+     * alone made every profit report drift further from reality as prices rose;
+     * overwriting it with the newest price would be just as wrong the other way,
+     * revaluing hundreds of cheaply bought boxes because one expensive one
+     * turned up.
+     *
+     * Profit is revenue minus this figure at the moment of sale, so it is the
+     * number the whole reporting side rests on.
+     */
+    private function blendedCost(Medicine $onShelf, OrderItem $arriving): float
+    {
+        $units = $onShelf->quantity + $arriving->quantity;
+
+        if ($units <= 0) {
+            return (float) $arriving->price;
+        }
+
+        $value = $onShelf->quantity * (float) $onShelf->cost_price
+            + $arriving->quantity * (float) $arriving->price;
+
+        return round($value / $units, 2);
     }
 
     public function getOrders(Request $request): JsonResponse

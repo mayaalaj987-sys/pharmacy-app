@@ -187,6 +187,11 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
         ->whereNumber('item');
 
     Route::post('/orders', [OrderController::class, 'createOrder']);
+    // Read before receiving: says which drugs are new to this pharmacy and what
+    // they cost, so the pharmacist sets their own shelf price rather than
+    // inheriting the supplier's suggestion.
+    Route::get('/orders/{id}/receiving-plan', [OrderController::class, 'receivingPlan'])
+        ->whereNumber('id');
     Route::post('/orders/{id}/receive', [OrderController::class, 'receiveOrder']);
     Route::post('/orders/{id}/cancel', [OrderController::class, 'cancelOrder']);
     Route::get('/orders', [OrderController::class, 'getOrders']);
