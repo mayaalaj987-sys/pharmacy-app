@@ -23,4 +23,20 @@ class NotificationsApi implements NotificationsRemoteDataSource {
   Future<Response<dynamic>> markAllAsRead() {
     return dio.post(ApiConstants.notificationsReadAll);
   }
+
+  @override
+  Future<Response<dynamic>> getEmployeeNotifications() {
+    return dio.get(
+      ApiConstants.employeeNotifications,
+      options: Options(extra: {'skipActivePharmacy': true}),
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> markEmployeeAsRead(int id) {
+    return dio.post(
+      '${ApiConstants.employeeNotifications}/$id/read',
+      options: Options(extra: {'skipActivePharmacy': true}),
+    );
+  }
 }

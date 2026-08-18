@@ -46,6 +46,8 @@ class ApiConstants {
   static const String notificationsReadAll = "/notifications/read-all";
   static const String saleMySales = "/sale/my-sales";
 
+  static const String employeeOffers = "/employee/offers";
+  static const String employeeNotifications = "/employee/notifications";
   static const String employeeProfile = "/employee/profile";
   static const String employeeProfileUpdate = "/employee/profile/update";
   static const String employeePasswordChange = "/employee/password/change";

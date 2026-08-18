@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/models/auth_session_model.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
 import 'account_type_page.dart';
 import 'active_pharmacy_selection_page.dart';
 import 'employee_navigation_page.dart';
 import 'main_navigation_page.dart';
+import 'employee_unattached_shell.dart';
 import 'session_status_page.dart';
 
 class AuthGate extends StatelessWidget {
@@ -36,6 +38,17 @@ class AuthGate extends StatelessWidget {
         }
 
         if (state is AuthAccessRestricted) {
+          // Branch on the access code, not on activePharmacy == null: the
+          // latter would also swallow assigned_pharmacy_unavailable, which
+          // means employed at a suspended pharmacy — a different situation
+          // needing a different screen.
+          final actor = state.session.actor;
+          const looking = {'account_pending', 'no_pharmacy'};
+          if (actor.type == AuthActorType.employee &&
+              looking.contains(state.session.access.code)) {
+            return EmployeeUnattachedShell(session: state.session);
+          }
+
           return SessionStatusPage(session: state.session);
         }
 

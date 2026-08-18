@@ -180,6 +180,11 @@ bool _hasNonAscii(String v) => v.runes.any((r) => r > 127);
 
 class FakeNotificationsApi implements NotificationsRemoteDataSource {
   final List<int> readIds = [];
+
+  /// Records that the employee bell used its own endpoint rather than the
+  /// pharmacy-scoped one, which is gated on an active pharmacy.
+  int employeeFeedCalls = 0;
+  final List<int> employeeReadIds = [];
   int markAllCalls = 0;
   int unreadCount = 2;
   bool failLoad = false;
@@ -256,5 +261,17 @@ class FakeNotificationsApi implements NotificationsRemoteDataSource {
       requestOptions: RequestOptions(path: '/notifications/read-all'),
       data: {'message': 'ok'},
     );
+  }
+
+  @override
+  Future<Response<dynamic>> getEmployeeNotifications() async {
+    employeeFeedCalls++;
+    return getNotifications();
+  }
+
+  @override
+  Future<Response<dynamic>> markEmployeeAsRead(int id) async {
+    employeeReadIds.add(id);
+    return markAsRead(id);
   }
 }

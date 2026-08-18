@@ -23,28 +23,48 @@ class NotificationsRepository {
 
   Future<NotificationFeed> fetchNotifications() async {
     try {
-      final response = await api.getNotifications();
-      final data = response.data;
-      if (data is! Map<String, dynamic>) return NotificationFeed.empty;
-      final raw = data['notifications'];
-      final list = raw is List
-          ? raw
-              .whereType<Map<String, dynamic>>()
-              .map(AppNotification.fromJson)
-              .toList(growable: false)
-          : const <AppNotification>[];
-
-      final rawUnread = data['unread_count'];
-      return NotificationFeed(
-        unreadCount: rawUnread is num
-            ? rawUnread.toInt()
-            : int.tryParse(rawUnread?.toString() ?? '') ??
-                  list.where((n) => !n.isRead).length,
-        notifications: list,
-      );
+      return _parse((await api.getNotifications()).data);
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }
+  }
+
+  /// The employee's own bell, which works without a pharmacy.
+  Future<NotificationFeed> fetchEmployeeNotifications() async {
+    try {
+      return _parse((await api.getEmployeeNotifications()).data);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<void> markEmployeeAsRead(int id) async {
+    try {
+      await api.markEmployeeAsRead(id);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  /// Both feeds return the same envelope, so they share one parser.
+  NotificationFeed _parse(dynamic data) {
+    if (data is! Map<String, dynamic>) return NotificationFeed.empty;
+    final raw = data['notifications'];
+    final list = raw is List
+        ? raw
+              .whereType<Map<String, dynamic>>()
+              .map(AppNotification.fromJson)
+              .toList(growable: false)
+        : const <AppNotification>[];
+
+    final rawUnread = data['unread_count'];
+    return NotificationFeed(
+      unreadCount: rawUnread is num
+          ? rawUnread.toInt()
+          : int.tryParse(rawUnread?.toString() ?? '') ??
+                list.where((n) => !n.isRead).length,
+      notifications: list,
+    );
   }
 
   Future<void> markAsRead(int id) async {

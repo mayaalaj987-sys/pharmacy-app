@@ -42,6 +42,9 @@ import 'features/notifications/data/notifications_api.dart';
 import 'features/notifications/data/notifications_repository.dart';
 import 'features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'features/rating/data/rating_api.dart';
+import 'features/employee_offers/data/employee_offers_api.dart';
+import 'features/employee_offers/data/employee_offers_repository.dart';
+import 'features/employee_offers/presentation/cubit/employee_offers_cubit.dart';
 import 'features/support/data/support_api.dart';
 import 'features/support/data/support_repository.dart';
 import 'features/support/presentation/cubit/support_cubit.dart';
@@ -92,6 +95,10 @@ void main() {
         BlocProvider(
           create: (_) =>
               NotificationsCubit(NotificationsRepository(NotificationsApi())),
+        ),
+        BlocProvider(
+          create: (_) =>
+              EmployeeOffersCubit(EmployeeOffersRepository(EmployeeOffersApi())),
         ),
         BlocProvider(
           create: (_) => SupportCubit(SupportRepository(SupportApi())),

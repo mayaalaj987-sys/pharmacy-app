@@ -31,6 +31,29 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     }
   }
 
+  /// The employee's own bell. Separate entry point rather than a flag on
+  /// [load], because which endpoint to call is decided by the shell that is
+  /// showing — an unattached employee has no pharmacy for the other one.
+  Future<void> loadForEmployee() async {
+    if (state.status == NotificationsStatus.loading) return;
+    emit(state.copyWith(status: NotificationsStatus.loading, clearError: true));
+    try {
+      final feed = await repository.fetchEmployeeNotifications();
+      emit(state.copyWith(status: NotificationsStatus.ready, feed: feed));
+    } on AuthApiException catch (error) {
+      emit(state.copyWith(status: NotificationsStatus.failure, error: error));
+    } catch (_) {
+      emit(
+        state.copyWith(
+          status: NotificationsStatus.failure,
+          error: const AuthApiException(
+            message: 'Unable to load notifications.',
+          ),
+        ),
+      );
+    }
+  }
+
   /// Silent refresh used by the badge; never flips the screen into a
   /// loading/error state.
   Future<void> refreshQuietly() async {

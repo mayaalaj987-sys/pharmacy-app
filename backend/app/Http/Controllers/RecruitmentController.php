@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SendJobOfferRequest;
 use App\Http\Resources\PoolApplicantResource;
 use App\Models\Employee;
 use App\Models\EmployeeDocumentVersion;
@@ -11,6 +12,7 @@ use App\Policies\EmployeeDocumentVersionPolicy;
 use App\Services\PharmacyContextResolver;
 use App\Services\PrivateDocumentService;
 use App\Services\RecruitmentDocumentAccessLogger;
+use App\Services\RecruitmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +33,7 @@ class RecruitmentController extends Controller
         private readonly PharmacyContextResolver $pharmacyContext,
         private readonly PrivateDocumentService $documents,
         private readonly RecruitmentDocumentAccessLogger $accessLog,
+        private readonly RecruitmentService $recruitment,
     ) {}
 
     /**
@@ -116,6 +119,93 @@ class RecruitmentController extends Controller
                 'withdrawn' => $offers->where('status', JobOffer::STATUS_WITHDRAWN)->count(),
             ],
             'free_shifts' => $pharmacy->freeShifts(),
+        ]);
+    }
+
+    /**
+     * Offer someone a named shift.
+     *
+     * Replaces nothing yet — instant hiring still exists until the cutover — but
+     * this is the path that asks rather than tells.
+     */
+    public function sendOffer(SendJobOfferRequest $request): JsonResponse
+    {
+        $pharmacy = $this->pharmacyContext->resolve($request);
+        $applicant = Employee::find($request->validated('employee_id'));
+        $shift = $request->validated('shift');
+
+        if ($applicant === null) {
+            return response()->json([
+                'message' => 'Applicant not found.',
+                'code' => 'employee_not_found',
+            ], 404);
+        }
+
+        if ($applicant->isEmployed()) {
+            return response()->json([
+                'message' => 'This applicant has already taken a job.',
+                'code' => 'employee_not_available',
+            ], 409);
+        }
+
+        $existing = JobOffer::where('pharmacy_id', $pharmacy->id)
+            ->where('employee_id', $applicant->id)
+            ->first();
+
+        if ($existing?->status === JobOffer::STATUS_ACCEPTED) {
+            return response()->json([
+                'message' => 'This offer was already accepted.',
+                'code' => 'offer_already_accepted',
+            ], 409);
+        }
+
+        if (! in_array($shift, $pharmacy->freeShifts(), true)) {
+            return response()->json([
+                'message' => 'The '.$shift.' shift is already covered at this pharmacy.',
+                'code' => 'shift_taken',
+                'free_shifts' => $pharmacy->freeShifts(),
+            ], 409);
+        }
+
+        $offer = $this->recruitment->sendOffer(
+            $pharmacy,
+            $applicant,
+            $request->user(),
+            $shift,
+            $request->validated('salary') === null ? null : (float) $request->validated('salary'),
+        );
+
+        return response()->json([
+            'message' => 'Offer sent to '.$applicant->name.'.',
+            'code' => $existing === null ? 'offer_sent' : 'offer_updated',
+            'offer' => [
+                'id' => $offer->id,
+                'status' => $offer->status,
+                'shift' => $offer->shift,
+                'salary' => $offer->salary,
+                'offered_at' => $offer->offered_at?->toISOString(),
+            ],
+        ], $existing === null ? 201 : 200);
+    }
+
+    /** Pull an offer back. */
+    public function withdrawOffer(Request $request, JobOffer $offer): JsonResponse
+    {
+        $this->pharmacyContext->resolve($request);
+        Gate::forUser($request->user())->authorize('manage', $offer);
+
+        if ($offer->status === JobOffer::STATUS_ACCEPTED) {
+            return response()->json([
+                'message' => 'This offer was already accepted and cannot be withdrawn.',
+                'code' => 'offer_already_accepted',
+            ], 409);
+        }
+
+        $this->recruitment->withdrawOffer($offer);
+
+        return response()->json([
+            'message' => 'The offer was withdrawn.',
+            'code' => 'offer_withdrawn',
         ]);
     }
 

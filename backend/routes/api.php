@@ -5,6 +5,7 @@ use App\Http\Controllers\EmployeeAccountController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeNotificationController;
+use App\Http\Controllers\EmployeeOfferController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
@@ -85,6 +86,9 @@ Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
 
     // The employee's own bell. The pharmacy-scoped notification routes sit
     // behind active.pharmacy, which someone waiting on a job does not have.
+    // Readable without a pharmacy, which is the whole point.
+    Route::get('/employee/offers', [EmployeeOfferController::class, 'index']);
+
     Route::get('/employee/notifications', [EmployeeNotificationController::class, 'index']);
     Route::post('/employee/notifications/{id}/read', [EmployeeNotificationController::class, 'markAsRead'])
         ->whereNumber('id');
@@ -114,6 +118,9 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
         ->name('pharmacy-documents.download');
     Route::get('/employees/pending', [RecruitmentController::class, 'pool']);
     Route::get('/recruitment/offers', [RecruitmentController::class, 'offers']);
+    Route::post('/recruitment/offers', [RecruitmentController::class, 'sendOffer']);
+    Route::delete('/recruitment/offers/{offer}', [RecruitmentController::class, 'withdrawOffer'])
+        ->whereNumber('offer');
 
     // The recruitment authorization model the comment below the employee group
     // was waiting for: a pharmacist may read the current documents of anyone in
