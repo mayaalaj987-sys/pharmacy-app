@@ -29,6 +29,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // There is no login *page* anywhere in this application: the mobile app
+        // and the admin console both authenticate over the API. Laravel's
+        // default guest redirect calls route('login') from inside the auth
+        // middleware, before any exception handler can intervene, so an
+        // unauthenticated request that did not ask for JSON died with a 500 —
+        // and with APP_DEBUG on, a 500 is a full stack trace served to someone
+        // holding no credentials. Returning null lets the handler answer 401.
+        $middleware->redirectGuestsTo(fn () => null);
+
         $middleware->prepend(EnsureAdminOriginAllowed::class);
         $middleware->prepend(AdminRequestCorrelation::class);
         $middleware->alias([
@@ -45,6 +54,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Every /api/* response is JSON, whatever the caller asked for.
+        //
+        // Without this, an api request that does not send Accept:
+        // application/json takes the browser branch of the handler, which tries
+        // to redirect an unauthenticated visitor to route('login') — a route
+        // this app does not have. The result was a 500 instead of a 401, and
+        // with APP_DEBUG on a 500 is a full stack trace, reachable with no
+        // credentials at all. It matters most for the recruitment document
+        // routes, whose preview URLs are meant to be opened in a viewer.
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+        );
+
         $exceptions->render(function (AuthenticationException $exception, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json([

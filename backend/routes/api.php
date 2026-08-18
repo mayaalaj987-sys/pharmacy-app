@@ -70,9 +70,11 @@ Route::middleware(['auth:employee', 'abilities:app', 'active.pharmacy'])->group(
     Route::post('/tasks/{id}/done', [TaskController::class, 'markAsDone']);
 });
 
-// Recruitment documents are strictly employee-self access until a recruitment
-// authorization model is introduced. Pharmacy owners and the legacy Admin key
-// intentionally have no route to these files.
+// Employee self-service. These document routes stay employee-only: a
+// pharmacist presenting a valid token still gets 401 here, and reads an
+// applicant's file through /recruitment/applicants/... instead, where the act
+// is authorized by EmployeeDocumentVersionPolicy::viewAsRecruiter, logged, and
+// reported to the applicant. The legacy Admin key still has no route at all.
 Route::middleware(['auth:employee', 'abilities:app'])->group(function () {
     // Employee self-service account management. Privileged fields are rejected
     // by the Form Requests; the actor is always the authenticated employee.
@@ -112,6 +114,24 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
         ->name('pharmacy-documents.download');
     Route::get('/employees/pending', [RecruitmentController::class, 'pool']);
     Route::get('/recruitment/offers', [RecruitmentController::class, 'offers']);
+
+    // The recruitment authorization model the comment below the employee group
+    // was waiting for: a pharmacist may read the current documents of anyone in
+    // the hiring pool, and of their own staff. Every open is logged and the
+    // applicant is told. The /recruitment prefix keeps these clear of the
+    // /employees/{pharmacy_id} wildcard.
+    Route::get('/recruitment/applicants/{employee}/documents',
+        [RecruitmentController::class, 'applicantDocuments'])->whereNumber('employee');
+    Route::get('/recruitment/applicants/{employee}/documents/{document:public_id}/preview',
+        [RecruitmentController::class, 'previewDocument'])
+        ->whereNumber('employee')
+        ->withoutScopedBindings()
+        ->name('recruitment-documents.preview');
+    Route::get('/recruitment/applicants/{employee}/documents/{document:public_id}/download',
+        [RecruitmentController::class, 'downloadDocument'])
+        ->whereNumber('employee')
+        ->withoutScopedBindings()
+        ->name('recruitment-documents.download');
     Route::post('/employees/approve/{id}', [EmployeeController::class, 'approveEmployee']);
     // Numeric only: this wildcard sits directly below literal siblings such as
     // /employees/pending and would otherwise swallow any word placed after it.

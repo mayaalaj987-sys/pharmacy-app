@@ -4,10 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\PoolApplicantResource;
 use App\Models\Employee;
+use App\Models\EmployeeDocumentVersion;
 use App\Models\JobOffer;
+use App\Models\RecruitmentDocumentAccess;
+use App\Policies\EmployeeDocumentVersionPolicy;
 use App\Services\PharmacyContextResolver;
+use App\Services\PrivateDocumentService;
+use App\Services\RecruitmentDocumentAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The hiring side of recruitment: who is looking, and what this pharmacy has
@@ -19,7 +27,11 @@ class RecruitmentController extends Controller
 
     private const MAX_PER_PAGE = 100;
 
-    public function __construct(private readonly PharmacyContextResolver $pharmacyContext) {}
+    public function __construct(
+        private readonly PharmacyContextResolver $pharmacyContext,
+        private readonly PrivateDocumentService $documents,
+        private readonly RecruitmentDocumentAccessLogger $accessLog,
+    ) {}
 
     /**
      * Everyone currently looking for work.
@@ -105,5 +117,162 @@ class RecruitmentController extends Controller
             ],
             'free_shifts' => $pharmacy->freeShifts(),
         ]);
+    }
+
+    /**
+     * An applicant's current documents.
+     *
+     * Discharges the deferral this codebase carried in routes/api.php: employee
+     * files were self-access only "until a recruitment authorization model is
+     * introduced", because nobody had decided who may read whose CV and when.
+     * They may now, subject to {@see EmployeeDocumentVersionPolicy::viewAsRecruiter()}.
+     */
+    public function applicantDocuments(Request $request, Employee $employee): JsonResponse
+    {
+        $this->pharmacyContext->resolve($request);
+
+        $documents = $employee->documentVersions()
+            ->whereNull('superseded_at')
+            ->orderBy('document_type')
+            ->get()
+            ->filter(fn (EmployeeDocumentVersion $document) => Gate::forUser($request->user())
+                ->allows('viewAsRecruiter', $document));
+
+        if ($documents->isEmpty()) {
+            // Indistinguishable from "this applicant does not exist", on purpose:
+            // a recruiter who may not look should not learn that there is
+            // something to look at.
+            return response()->json([
+                'message' => 'The requested resource was not found.',
+                'code' => 'not_found',
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => $documents->map(fn (EmployeeDocumentVersion $document) => [
+                'id' => $document->public_id,
+                'type' => $document->document_type,
+                'version' => $document->version_number,
+                'mime_type' => $document->verified_mime_type,
+                'size_bytes' => $document->byte_size,
+                'uploaded_at' => $document->created_at?->toISOString(),
+                'preview_url' => route('recruitment-documents.preview', [
+                    'employee' => $employee->id,
+                    'document' => $document->public_id,
+                ]),
+                'download_url' => route('recruitment-documents.download', [
+                    'employee' => $employee->id,
+                    'document' => $document->public_id,
+                ]),
+            ])->values()->all(),
+            'applicant' => ['id' => $employee->id, 'name' => $employee->name, 'role' => $employee->role],
+        ]);
+    }
+
+    public function previewDocument(
+        Request $request,
+        Employee $employee,
+        EmployeeDocumentVersion $document,
+    ): StreamedResponse|JsonResponse {
+        return $this->stream($request, $employee, $document, true);
+    }
+
+    public function downloadDocument(
+        Request $request,
+        Employee $employee,
+        EmployeeDocumentVersion $document,
+    ): StreamedResponse|JsonResponse {
+        return $this->stream($request, $employee, $document, false);
+    }
+
+    /**
+     * Serves the bytes, records who asked, and tells the applicant.
+     *
+     * Headers are copied from the admin document stream rather than reinvented:
+     * `default-src 'none'; sandbox` and `no-referrer` mean a hostile PDF cannot
+     * reach the network or report that it was opened.
+     */
+    private function stream(
+        Request $request,
+        Employee $employee,
+        EmployeeDocumentVersion $document,
+        bool $inline,
+    ): StreamedResponse|JsonResponse {
+        $pharmacy = $this->pharmacyContext->resolve($request);
+
+        // The route uses withoutScopedBindings, so the parent link is checked
+        // here — the same idiom as AdminPharmacyDocumentController.
+        if ((int) $document->employee_id !== (int) $employee->id) {
+            return response()->json([
+                'message' => 'The requested resource was not found.',
+                'code' => 'not_found',
+            ], 404);
+        }
+
+        $document->setRelation('employee', $employee);
+        Gate::forUser($request->user())->authorize('viewAsRecruiter', $document);
+
+        $contents = $this->verifiedContents($document);
+        if ($contents === null) {
+            return response()->json([
+                'message' => 'The document is unavailable.',
+                'code' => 'document_unavailable',
+            ], 404);
+        }
+
+        $this->accessLog->record(
+            $request,
+            $request->user(),
+            $pharmacy,
+            $document,
+            $inline ? RecruitmentDocumentAccess::ACTION_PREVIEWED : RecruitmentDocumentAccess::ACTION_DOWNLOADED,
+        );
+
+        $extension = match ($document->verified_mime_type) {
+            'application/pdf' => 'pdf',
+            'image/png' => 'png',
+            default => 'jpg',
+        };
+
+        return response()->stream(function () use ($contents): void {
+            echo $contents;
+        }, 200, [
+            'Content-Type' => $document->verified_mime_type,
+            'Content-Length' => (string) strlen($contents),
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment')
+                .'; filename="'.$document->document_type.'.'.$extension.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+            'Referrer-Policy' => 'no-referrer',
+        ]);
+    }
+
+    /** The stored bytes, but only if they are still exactly what was uploaded. */
+    private function verifiedContents(EmployeeDocumentVersion $document): ?string
+    {
+        $key = $document->storage_key;
+
+        if (! $this->documents->isOwnedStorageKey($key)) {
+            return null;
+        }
+
+        try {
+            $disk = Storage::disk(PrivateDocumentService::DISK);
+            if (! $disk->exists($key)) {
+                return null;
+            }
+            $contents = $disk->get($key);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (strlen($contents) !== $document->byte_size
+            || ! hash_equals($document->sha256, hash('sha256', $contents))) {
+            return null;
+        }
+
+        return $contents;
     }
 }
