@@ -23,6 +23,9 @@ import 'features/suppliers/presentation/cubit/suppliers_cubit.dart';
 import 'features/orders/data/orders_api.dart';
 import 'features/orders/data/orders_repository.dart';
 import 'features/orders/presentation/cubit/orders_cubit.dart';
+import 'features/purchase_cart/data/purchase_cart_api.dart';
+import 'features/purchase_cart/data/purchase_cart_repository.dart';
+import 'features/purchase_cart/presentation/cubit/purchase_cart_cubit.dart';
 import 'features/sales/data/sales_api.dart';
 import 'features/sales/data/sales_repository.dart';
 import 'features/sales/presentation/cubit/sales_cubit.dart';
@@ -79,6 +82,13 @@ void main() {
           create: (_) => SuppliersCubit(SuppliersRepository(SuppliersApi())),
         ),
         BlocProvider(create: (_) => OrdersCubit(OrdersRepository(OrdersApi()))),
+        // App-wide, not per screen: the badge on the buying screens, the cart
+        // page and the restock suggestions all read the same count, and a
+        // second copy would immediately start disagreeing with the first.
+        BlocProvider(
+          create: (_) =>
+              PurchaseCartCubit(PurchaseCartRepository(PurchaseCartApi())),
+        ),
         BlocProvider(create: (_) => SalesCubit(SalesRepository(SalesApi()))),
         BlocProvider(
           create: (_) => ReportsCubit(ReportsRepository(ReportsApi())),

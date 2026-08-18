@@ -2,8 +2,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../auth/data/models/auth_api_exception.dart';
 import '../../data/orders_repository.dart';
+import '../../domain/receiving_plan.dart';
 import 'orders_state.dart';
 
+/// Orders once they exist: listed, received, cancelled.
+///
+/// Deliberately cannot create one. Orders are placed by checking out the
+/// purchase cart, which is the only path that lets the pharmacist compare
+/// suppliers first — a second way in would be a second copy of the reservation
+/// rules, quietly diverging.
 class OrdersCubit extends Cubit<OrdersState> {
   final OrdersRepository repository;
 
@@ -27,26 +34,23 @@ class OrdersCubit extends Cubit<OrdersState> {
     }
   }
 
-  Future<bool> createOrder({
-    required int supplierId,
-    required int medicineId,
-    required int quantity,
-    String paymentMethod = 'cash',
-  }) {
-    return _mutate(
-      null,
-      () => repository.createOrder(
-        supplierId: supplierId,
-        items: [
-          {'medicine_id': medicineId, 'quantity': quantity},
-        ],
-        paymentMethod: paymentMethod,
-      ),
-    );
+  /// What is about to arrive, so the pharmacist can price it before it lands.
+  ///
+  /// Not held in state: it is read once, shown in a sheet and acted on. Keeping
+  /// it would only let a stale copy be received against.
+  Future<ReceivingPlan?> receivingPlan(int id) async {
+    try {
+      return await repository.fetchReceivingPlan(id);
+    } catch (_) {
+      return null;
+    }
   }
 
-  Future<bool> receiveOrder(int id) =>
-      _mutate(id, () => repository.receiveOrder(id));
+  Future<bool> receiveOrder(int id, {Map<int, double>? sellingPrices}) =>
+      _mutate(
+        id,
+        () => repository.receiveOrder(id, sellingPrices: sellingPrices),
+      );
 
   Future<bool> cancelOrder(int id) =>
       _mutate(id, () => repository.cancelOrder(id));
@@ -54,12 +58,7 @@ class OrdersCubit extends Cubit<OrdersState> {
   /// Runs a write then reloads authoritative server state. Single-flight per order.
   Future<bool> _mutate(int? orderId, Future<void> Function() action) async {
     if (state.mutatingOrderId != null) return false;
-    emit(
-      state.copyWith(
-        mutatingOrderId: orderId ?? -1,
-        clearError: true,
-      ),
-    );
+    emit(state.copyWith(mutatingOrderId: orderId ?? -1, clearError: true));
     try {
       await action();
       final orders = await repository.fetchOrders();
@@ -77,9 +76,7 @@ class OrdersCubit extends Cubit<OrdersState> {
     } catch (_) {
       emit(
         state.copyWith(
-          error: const AuthApiException(
-            message: 'Unable to update the order.',
-          ),
+          error: const AuthApiException(message: 'Unable to update the order.'),
           clearMutating: true,
         ),
       );

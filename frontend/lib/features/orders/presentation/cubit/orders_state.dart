@@ -35,8 +35,9 @@ class OrdersState {
       status: status ?? this.status,
       orders: orders ?? this.orders,
       error: clearError ? null : (error ?? this.error),
-      mutatingOrderId:
-          clearMutating ? null : (mutatingOrderId ?? this.mutatingOrderId),
+      mutatingOrderId: clearMutating
+          ? null
+          : (mutatingOrderId ?? this.mutatingOrderId),
     );
   }
 }

@@ -25,6 +25,12 @@ class ApiConstants {
   static const String suppliers = "/suppliers";
   static const String orders = "/orders";
 
+  /// What the pharmacy means to buy, across every supplier at once. Nothing is
+  /// reserved or owed until [purchaseCartCheckout], which splits it into one
+  /// order per supplier.
+  static const String purchaseCart = "/purchase-cart";
+  static const String purchaseCartCheckout = "/purchase-cart/checkout";
+
   static const String saleCreate = "/sale/create";
   static const String saleAll = "/sale/all";
   static const String saleDaily = "/sale/daily";

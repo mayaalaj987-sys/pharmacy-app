@@ -23,14 +23,13 @@ class PurchaseOrder {
 
   /// Title-cased label the existing status badge/UI expects.
   String get statusLabel => switch (status) {
-        'received' => 'Received',
-        'cancelled' => 'Cancelled',
-        'pending' => 'Pending',
-        _ => status,
-      };
+    'received' => 'Received',
+    'cancelled' => 'Cancelled',
+    'pending' => 'Pending',
+    _ => status,
+  };
 
-  int get totalQuantity =>
-      items.fold(0, (sum, item) => sum + item.quantity);
+  int get totalQuantity => items.fold(0, (sum, item) => sum + item.quantity);
 
   /// The existing card shows one medicine line; summarise multi-item orders.
   String get medicinesSummary {
@@ -63,9 +62,9 @@ class PurchaseOrder {
           : DateTime.tryParse(rawDate),
       items: rawItems is List
           ? rawItems
-              .whereType<Map<String, dynamic>>()
-              .map(PurchaseOrderItem.fromJson)
-              .toList(growable: false)
+                .whereType<Map<String, dynamic>>()
+                .map(PurchaseOrderItem.fromJson)
+                .toList(growable: false)
           : const <PurchaseOrderItem>[],
     );
   }

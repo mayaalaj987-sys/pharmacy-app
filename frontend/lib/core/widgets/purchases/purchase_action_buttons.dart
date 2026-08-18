@@ -5,6 +5,7 @@ import 'package:phamacy_managment/core/theme/app_colors.dart';
 import '../../../features/orders/domain/purchase_order.dart';
 import '../../../features/orders/presentation/cubit/orders_cubit.dart';
 import '../../../features/orders/presentation/cubit/orders_state.dart';
+import '../../../features/orders/presentation/widgets/receiving_sheet.dart';
 
 class PurchaseActionButtons extends StatelessWidget {
   final PurchaseOrder purchase;
@@ -22,18 +23,7 @@ class PurchaseActionButtons extends StatelessWidget {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: busy
-                    ? null
-                    : () => _confirm(
-                          context,
-                          title: 'Receive order',
-                          message:
-                              'Receiving adds these items to your inventory. Continue?',
-                          action: () =>
-                              context.read<OrdersCubit>().receiveOrder(
-                                    purchase.id,
-                                  ),
-                        ),
+                onPressed: busy ? null : () => _receive(context),
                 icon: busyThis
                     ? const SizedBox.square(
                         dimension: 16,
@@ -54,14 +44,13 @@ class PurchaseActionButtons extends StatelessWidget {
                 onPressed: busy
                     ? null
                     : () => _confirm(
-                          context,
-                          title: 'Cancel order',
-                          message: 'This cancels the order. Continue?',
-                          action: () =>
-                              context.read<OrdersCubit>().cancelOrder(
-                                    purchase.id,
-                                  ),
+                        context,
+                        title: 'Cancel order',
+                        message: 'This cancels the order. Continue?',
+                        action: () => context.read<OrdersCubit>().cancelOrder(
+                          purchase.id,
                         ),
+                      ),
                 icon: const Icon(Icons.close),
                 label: const Text("Cancel"),
               ),
@@ -70,6 +59,37 @@ class PurchaseActionButtons extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Confirms prices, then takes the delivery into stock.
+  ///
+  /// The sheet comes first because receiving is the only moment the pharmacy
+  /// gets to set its margin on anything new — after this the stock is on the
+  /// shelf, priced by whatever the supplier suggested.
+  Future<void> _receive(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final orders = context.read<OrdersCubit>();
+
+    final plan = await orders.receivingPlan(purchase.id);
+    if (!context.mounted) return;
+
+    if (plan == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not read this order.')),
+      );
+
+      return;
+    }
+
+    final prices = await showReceivingSheet(context, plan);
+    if (prices == null || !context.mounted) return;
+
+    final ok = await orders.receiveOrder(purchase.id, sellingPrices: prices);
+    if (!ok) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('The order could not be updated.')),
+      );
+    }
   }
 
   Future<void> _confirm(

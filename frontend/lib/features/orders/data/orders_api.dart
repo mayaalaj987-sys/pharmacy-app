@@ -15,13 +15,13 @@ class OrdersApi implements OrdersRemoteDataSource {
   }
 
   @override
-  Future<Response<dynamic>> createOrder(Map<String, dynamic> data) {
-    return dio.post(ApiConstants.orders, data: data);
+  Future<Response<dynamic>> getReceivingPlan(int id) {
+    return dio.get('${ApiConstants.orders}/$id/receiving-plan');
   }
 
   @override
-  Future<Response<dynamic>> receiveOrder(int id) {
-    return dio.post('${ApiConstants.orders}/$id/receive');
+  Future<Response<dynamic>> receiveOrder(int id, Map<String, dynamic> data) {
+    return dio.post('${ApiConstants.orders}/$id/receive', data: data);
   }
 
   @override

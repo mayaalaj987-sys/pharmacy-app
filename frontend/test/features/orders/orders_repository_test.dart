@@ -26,23 +26,6 @@ void main() {
     expect(received.medicinesSummary, 'Panadol');
   });
 
-  test('createOrder posts the backend contract shape', () async {
-    final api = FakeOrdersApi();
-
-    await OrdersRepository(api).createOrder(
-      supplierId: 3,
-      items: [
-        {'medicine_id': 11, 'quantity': 50},
-      ],
-    );
-
-    expect(api.lastCreatePayload!['supplier_id'], 3);
-    expect(api.lastCreatePayload!['payment_method'], 'cash');
-    expect(api.lastCreatePayload!['items'], [
-      {'medicine_id': 11, 'quantity': 50},
-    ]);
-  });
-
   test('cubit load exposes ready state and status counts', () async {
     final cubit = OrdersCubit(OrdersRepository(FakeOrdersApi()));
 
@@ -69,38 +52,54 @@ void main() {
     await cubit.close();
   });
 
-  test('the requested quantity is sent, not a hardcoded one', () async {
+  test('the receiving plan says which drugs are new to the pharmacy', () async {
+    // What the sheet needs in order to ask for a price only where one is
+    // genuinely missing.
+    final plan = await OrdersCubit(
+      OrdersRepository(FakeOrdersApi()),
+    ).receivingPlan(1);
+
+    expect(plan, isNotNull);
+    expect(plan!.supplierName, 'Medical Pharma');
+    expect(plan.newCount, 1);
+
+    final known = plan.items.first;
+    expect(known.isNew, isFalse);
+    expect(known.currentSellingPrice, 9000.0);
+    // Their own price is the suggestion; there is nothing to decide.
+    expect(known.suggestedSellingPrice, 9000.0);
+    // What was paid on this order, not the catalogue's price today.
+    expect(known.unitCost, 7000.0);
+
+    final fresh = plan.items.last;
+    expect(fresh.isNew, isTrue);
+    expect(fresh.currentSellingPrice, isNull);
+    expect(fresh.suggestedSellingPrice, 22000.0);
+  });
+
+  test('chosen shelf prices are sent keyed by medicine id', () async {
     final api = FakeOrdersApi();
     final cubit = OrdersCubit(OrdersRepository(api));
 
-    await cubit.createOrder(supplierId: 3, medicineId: 11, quantity: 7);
+    await cubit.receiveOrder(1, sellingPrices: {11: 13000, 12: 25000});
 
-    final items = api.lastCreatePayload!['items'] as List;
-    expect(items.single, {'medicine_id': 11, 'quantity': 7});
+    expect(api.lastReceivePayload!['selling_prices'], {
+      '11': 13000.0,
+      '12': 25000.0,
+    });
     await cubit.close();
   });
 
-  test(
-    'a supplier stock rejection surfaces the real available figure',
-    () async {
-      // The catalogue is shared, so the figure the screen showed can be stale by
-      // the time the order lands. The backend answers with the truth.
-      final api = FakeOrdersApi()..supplierOutOfStock = true;
-      final cubit = OrdersCubit(OrdersRepository(api));
+  test('receiving without prices sends none, leaving them alone', () async {
+    // A restock is not a reason to revisit a margin the pharmacy already set.
+    final api = FakeOrdersApi();
+    final cubit = OrdersCubit(OrdersRepository(api));
 
-      final ok = await cubit.createOrder(
-        supplierId: 3,
-        medicineId: 11,
-        quantity: 20,
-      );
+    await cubit.receiveOrder(1);
 
-      expect(ok, isFalse);
-      expect(cubit.state.error, isNotNull);
-      expect(cubit.state.error!.code, 'supplier_stock_insufficient');
-      expect(cubit.state.error!.message, contains('Only 5 units'));
-      await cubit.close();
-    },
-  );
+    expect(api.lastReceivePayload!.containsKey('selling_prices'), isFalse);
+    await cubit.close();
+  });
 
   test('a rejected cancel surfaces the backend message', () async {
     final api = FakeOrdersApi()..failMutation = true;
@@ -116,11 +115,10 @@ void main() {
 }
 
 class FakeOrdersApi implements OrdersRemoteDataSource {
-  Map<String, dynamic>? lastCreatePayload;
+  Map<String, dynamic>? lastReceivePayload;
   final List<int> receivedIds = [];
   bool failMutation = false;
   int listCalls = 0;
-  bool supplierOutOfStock = false;
 
   @override
   Future<Response<dynamic>> getOrders() async {
@@ -172,40 +170,47 @@ class FakeOrdersApi implements OrdersRemoteDataSource {
   }
 
   @override
-  Future<Response<dynamic>> createOrder(Map<String, dynamic> data) async {
-    lastCreatePayload = data;
-    if (supplierOutOfStock) {
-      throw DioException(
-        requestOptions: RequestOptions(path: '/orders'),
-        response: Response<dynamic>(
-          requestOptions: RequestOptions(path: '/orders'),
-          statusCode: 400,
-          data: {
-            'message':
-                'Only 5 units of Amoxicillin 500mg are available from '
-                'this supplier.',
-            'code': 'supplier_stock_insufficient',
-            'medicine': {
-              'id': 11,
-              'name': 'Amoxicillin 500mg',
-              'available_quantity': 5,
-              'requested_quantity': 20,
-            },
-          },
-        ),
-        type: DioExceptionType.badResponse,
-      );
-    }
+  Future<Response<dynamic>> getReceivingPlan(int id) async {
     return Response<dynamic>(
-      requestOptions: RequestOptions(path: '/orders'),
-      statusCode: 201,
-      data: {'order_id': 9, 'total_price': 200, 'status': 'pending'},
+      requestOptions: RequestOptions(path: '/orders/$id/receiving-plan'),
+      data: {
+        'order': {
+          'id': id,
+          'supplier_name': 'Medical Pharma',
+          'total_price': 240,
+          'payment_method': 'cash',
+        },
+        'items': [
+          {
+            'medicine_id': 11,
+            'name': 'Amoxicillin 500mg',
+            'quantity': 10,
+            'unit_cost': 7000,
+            'is_new': false,
+            'current_selling_price': 9000,
+            'suggested_selling_price': 9000,
+          },
+          {
+            'medicine_id': 12,
+            'name': 'Cefixime 400mg',
+            'quantity': 10,
+            'unit_cost': 15000,
+            'is_new': true,
+            'current_selling_price': null,
+            'suggested_selling_price': 22000,
+          },
+        ],
+      },
     );
   }
 
   @override
-  Future<Response<dynamic>> receiveOrder(int id) async {
+  Future<Response<dynamic>> receiveOrder(
+    int id,
+    Map<String, dynamic> data,
+  ) async {
     if (failMutation) throw _error('/orders/$id/receive');
+    lastReceivePayload = data;
     receivedIds.add(id);
     return Response<dynamic>(
       requestOptions: RequestOptions(path: '/orders/$id/receive'),

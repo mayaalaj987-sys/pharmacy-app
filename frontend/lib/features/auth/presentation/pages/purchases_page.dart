@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/widgets/purchases/cart_fab.dart';
 import '../../../../core/widgets/purchases/purchase_card.dart';
 import '../../../../core/widgets/purchases/purchase_stat_card.dart';
 import '../../../../core/network/user_facing_error.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../../../orders/presentation/cubit/orders_state.dart';
+import '../../../purchase_cart/presentation/cubit/purchase_cart_cubit.dart';
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -21,6 +23,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
   void initState() {
     super.initState();
     context.read<OrdersCubit>().load();
+    // Orders are placed from the cart, so its count belongs on this screen.
+    context.read<PurchaseCartCubit>().load();
   }
 
   @override
@@ -33,6 +37,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
 
         child: CustomAppBar(title: "Purchases"),
       ),
+
+      floatingActionButton: const PurchaseCartFab(),
 
       body: BlocBuilder<OrdersCubit, OrdersState>(
         builder: (context, state) {

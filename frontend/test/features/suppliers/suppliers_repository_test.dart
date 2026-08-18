@@ -27,7 +27,11 @@ void main() {
     expect(medicines, hasLength(1));
     expect(medicines.first.name, 'Augmentin');
     expect(medicines.first.category, 'Antibiotics');
-    expect(medicines.first.price, 12.0);
+    // The price is what the pharmacy pays, not what the supplier reckons it
+    // sells for. A buying screen showing the retail figure quotes a number the
+    // pharmacist will never be charged.
+    expect(medicines.first.price, 8.0);
+    expect(medicines.first.suggestedRetail, 12.0);
     expect(medicines.first.availableQuantity, 200);
   });
 
@@ -41,17 +45,20 @@ void main() {
     await cubit.close();
   });
 
-  test('loadMedicines caches per supplier and clears the loading flag', () async {
-    final api = FakeSuppliersApi();
-    final cubit = SuppliersCubit(SuppliersRepository(api));
+  test(
+    'loadMedicines caches per supplier and clears the loading flag',
+    () async {
+      final api = FakeSuppliersApi();
+      final cubit = SuppliersCubit(SuppliersRepository(api));
 
-    await cubit.loadMedicines(3);
+      await cubit.loadMedicines(3);
 
-    expect(cubit.state.loadingMedicinesFor, isNull);
-    expect(cubit.medicinesFor(3), hasLength(1));
-    expect(api.medicineCalls, 1);
-    await cubit.close();
-  });
+      expect(cubit.state.loadingMedicinesFor, isNull);
+      expect(cubit.medicinesFor(3), hasLength(1));
+      expect(api.medicineCalls, 1);
+      await cubit.close();
+    },
+  );
 
   test('a supplier list failure surfaces an error state', () async {
     final cubit = SuppliersCubit(
@@ -111,6 +118,7 @@ class FakeSuppliersApi implements SuppliersRemoteDataSource {
             'id': 11,
             'name': 'Augmentin',
             'category_medicine': 'Antibiotics',
+            'cost_price': '8.00',
             'selling_price': '12.00',
             'quantity': 200,
           },
