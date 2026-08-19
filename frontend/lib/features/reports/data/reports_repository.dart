@@ -57,6 +57,50 @@ class ReportsRepository {
     }
   }
 
+  Future<List<CategoryRevenue>> fetchCategoryRevenue(String filter) async {
+    try {
+      final data = await _map(api.getMostSoldByCategory(filter));
+      final raw = data['categories'];
+      if (raw is! List) return const <CategoryRevenue>[];
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(CategoryRevenue.fromJson)
+          .toList(growable: false);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<SalesAverage> fetchAverageSales(String filter) async {
+    try {
+      return SalesAverage.fromJson(await _map(api.getAverageSales(filter)));
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<CashFlow> fetchCashFlow(String filter) async {
+    try {
+      return CashFlow.fromJson(await _map(api.getCashFlow(filter)));
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<List<PaymentMethodShare>> fetchPaymentMethods(String filter) async {
+    try {
+      final data = await _map(api.getPaymentMethods(filter));
+      final raw = data['methods'];
+      if (raw is! List) return const <PaymentMethodShare>[];
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(PaymentMethodShare.fromJson)
+          .toList(growable: false);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
   Future<Map<String, dynamic>> _map(Future<Response<dynamic>> call) async {
     final response = await call;
     final data = response.data;

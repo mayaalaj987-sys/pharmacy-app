@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:phamacy_managment/core/theme/app_colors.dart';
 
-import '../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/format/money.dart';
 import '../../../../core/network/user_facing_error.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../reports/presentation/cubit/reports_cubit.dart';
 import '../../../reports/presentation/cubit/reports_state.dart';
-import '../../../../core/format/money.dart';
+import '../../../reports/presentation/widgets/analytics_pieces.dart';
 
+/// What the pharmacy is actually doing, in one screen.
+///
+/// Two figures lead it and they answer different questions. Profit says whether
+/// the shop traded well; cash says whether there is money in the drawer. A
+/// pharmacy that spends two million on a delivery has an untouched profit and
+/// an empty till, and showing only one of those is how that goes unnoticed.
+///
+/// Everything else qualifies those two: what was lost to expiry, how much of
+/// the inventory can no longer be sold, which drugs and which shelves earn the
+/// money, and in what form it arrives.
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
 
@@ -28,41 +39,74 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
-        child: CustomAppBar(title: "Analytics"),
+        child: CustomAppBar(title: 'Analytics'),
       ),
       body: BlocBuilder<ReportsCubit, ReportsState>(
-        builder: (context, state) {
-          return Column(
-            children: [
-              _filters(context, state),
-              Expanded(child: _body(context, state)),
-            ],
-          );
-        },
+        builder: (context, state) => Column(
+          children: [
+            _periods(context, state),
+            Expanded(child: _body(context, state)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _filters(BuildContext context, ReportsState state) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          for (final filter in ReportsCubit.revenueFilters)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(filter[0].toUpperCase() + filter.substring(1)),
-                selected: state.analyticsFilter == filter,
-                onSelected: (_) =>
-                    context.read<ReportsCubit>().loadAnalytics(filter: filter),
+  Widget _periods(BuildContext context, ReportsState state) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: .04),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            for (final filter in ReportsCubit.revenueFilters)
+              Expanded(
+                child: GestureDetector(
+                  key: ValueKey('analytics-period-$filter'),
+                  onTap: () => context.read<ReportsCubit>().loadAnalytics(
+                    filter: filter,
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(vertical: 9),
+                    decoration: BoxDecoration(
+                      color: state.analyticsFilter == filter
+                          ? AppColors.white
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Text(
+                      _periodLabel(filter),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: state.analyticsFilter == filter
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: state.analyticsFilter == filter
+                            ? AppColors.darkGreen
+                            : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+  String _periodLabel(String filter) => switch (filter) {
+    'daily' => 'Today',
+    'weekly' => 'Week',
+    'monthly' => 'Month',
+    _ => 'Year',
+  };
 
   Widget _body(BuildContext context, ReportsState state) {
     if (state.analyticsStatus == ReportsStatus.loading ||
@@ -98,81 +142,208 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       );
     }
 
-    final profits = state.profits;
-    final inventory = state.inventoryValue;
-
     return RefreshIndicator(
       onRefresh: () => context.read<ReportsCubit>().loadAnalytics(),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          const Text(
-            "Profit breakdown",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          _row("Revenue", profits.revenue, Colors.blue),
-          _row("Cost of goods", profits.costOfGoods, AppColors.pendingOrange),
-          _row("Salaries", profits.salaries, AppColors.pendingOrange),
-          const Divider(height: 24),
-          _row(
-            "Profit",
-            profits.profit,
-            profits.profit >= 0 ? AppColors.lightGreen : AppColors.errorRed,
-            bold: true,
-          ),
-
-          const SizedBox(height: 24),
-          const Text(
-            "Inventory value",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          _row("At cost", inventory.totalCostValue, Colors.blueGrey),
-          _row("At selling price", inventory.totalSellingValue, Colors.teal),
-
-          const SizedBox(height: 24),
-          const Text(
-            "Most sold medicines",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          if (state.mostSold.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text("No sales in this period"),
-            )
-          else
-            ...state.mostSold.map(
-              (item) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: Text(item.medicine),
-                subtitle: Text(item.category),
-                trailing: Text(
-                  "${item.totalSold} sold",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+          _headline(state),
+          _profitBreakdown(state),
+          AnalyticsSection(
+            title: 'Revenue by period',
+            child: RevenueBars(
+              byPeriod: state.revenueByFilter,
+              selected: state.analyticsFilter,
             ),
+          ),
+          AnalyticsSection(
+            title: 'How customers paid',
+            subtitle: 'Cash is in the drawer today. The rest settles later.',
+            child: PaymentDonut(
+              slices: state.paymentMethods
+                  .map(
+                    (method) => (
+                      label: method.label,
+                      share: method.share,
+                      value: money(method.total),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          AnalyticsSection(
+            title: 'Top medicines',
+            subtitle: 'Ranked by what they earned, not by boxes moved.',
+            child: RankedBars(
+              emptyMessage: 'Nothing sold in this period.',
+              rows: state.mostSold
+                  .take(5)
+                  .map(
+                    (item) => (
+                      label: '${item.medicine} · ${item.totalSold} sold',
+                      value: money(item.revenue),
+                      weight: item.revenue,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          AnalyticsSection(
+            title: 'Revenue by category',
+            child: RankedBars(
+              emptyMessage: 'Nothing sold in this period.',
+              rows: state.categoryRevenue
+                  .map(
+                    (row) => (
+                      label: row.category,
+                      value: money(row.revenue),
+                      weight: row.revenue,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _row(String label, double value, Color color, {bool bold = false}) {
-    final style = TextStyle(
-      color: color,
-      fontWeight: bold ? FontWeight.bold : FontWeight.w600,
-      fontSize: bold ? 16 : 14,
+  Widget _headline(ReportsState state) {
+    final profits = state.profits;
+    final cash = state.cashFlow;
+    final inventory = state.inventoryValue;
+    final dead = inventory.expiredCostValue;
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 1.45,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      padding: const EdgeInsets.only(top: 12),
+      children: [
+        StatCard(
+          key: const ValueKey('analytics-profit-card'),
+          title: 'Profit',
+          value: money(profits.profit),
+          icon: Icons.trending_up,
+          colour: analyticsPalette[0],
+          alarming: profits.profit < 0,
+          footnote: 'After stock, wages and losses',
+        ),
+        StatCard(
+          key: const ValueKey('analytics-cash-card'),
+          title: 'Cash in hand',
+          value: money(cash.net),
+          icon: Icons.account_balance_wallet_outlined,
+          colour: analyticsPalette[1],
+          alarming: cash.net < 0,
+          // The distinction the whole screen turns on: buying stock is cash
+          // gone and no cost at all, so the two figures move independently.
+          footnote: cash.net < 0
+              ? 'Spent more than came in'
+              : 'In ${money(cash.moneyIn)} · out ${money(cash.moneyOut)}',
+        ),
+        StatCard(
+          key: const ValueKey('analytics-revenue-card'),
+          title: 'Revenue',
+          value: money(profits.revenue),
+          icon: Icons.receipt_long,
+          colour: analyticsPalette[5],
+          footnote:
+              '${state.salesAverage.salesCount} sales · '
+              'avg ${money(state.salesAverage.averageSale)}',
+        ),
+        StatCard(
+          key: const ValueKey('analytics-inventory-card'),
+          title: 'Inventory value',
+          value: money(inventory.totalCostValue),
+          icon: Icons.inventory_2_outlined,
+          colour: analyticsPalette[2],
+          alarming: dead > 0,
+          // Without this the headline claims the pharmacy holds money the till
+          // will not let it get at.
+          footnote: dead > 0 ? '${money(dead)} of it expired' : 'At cost price',
+        ),
+      ],
     );
+  }
+
+  Widget _profitBreakdown(ReportsState state) {
+    final profits = state.profits;
+    final inventory = state.inventoryValue;
+
+    return AnalyticsSection(
+      title: 'Where the profit went',
+      child: Column(
+        children: [
+          _line('Revenue', profits.revenue, analyticsPalette[1]),
+          if (profits.refunds > 0)
+            _line('Refunds', -profits.refunds, AppColors.pendingOrange),
+          _line('Cost of goods', -profits.costOfGoods, AppColors.pendingOrange),
+          _line('Salaries', -profits.salaries, AppColors.pendingOrange),
+          if (profits.writeOffs > 0)
+            _line(
+              'Expired and damaged',
+              -profits.writeOffs,
+              AppColors.errorRed,
+            ),
+          const Divider(height: 22),
+          _line(
+            'Profit',
+            profits.profit,
+            profits.profit >= 0 ? AppColors.darkGreen : AppColors.errorRed,
+            bold: true,
+          ),
+          if (inventory.expiringCostValue > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.pendingOrange.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.schedule,
+                    size: 15,
+                    color: AppColors.pendingOrange,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${money(inventory.expiringCostValue)} of stock expires '
+                      'within three months. Sell or discount it before it '
+                      'becomes a loss.',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _line(String label, double value, Color colour, {bool bold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: bold ? 16 : 14)),
-          Text(money(value), style: style),
+          Text(label, style: TextStyle(fontSize: bold ? 15 : 13)),
+          Text(
+            money(value),
+            style: TextStyle(
+              color: colour,
+              fontSize: bold ? 16 : 13,
+              fontWeight: bold ? FontWeight.bold : FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

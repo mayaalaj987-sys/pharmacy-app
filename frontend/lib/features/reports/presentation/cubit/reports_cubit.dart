@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../auth/data/models/auth_api_exception.dart';
 import '../../data/reports_repository.dart';
+import '../../domain/reports.dart';
 import 'reports_state.dart';
 
 class ReportsCubit extends Cubit<ReportsState> {
@@ -54,16 +55,39 @@ class ReportsCubit extends Cubit<ReportsState> {
       ),
     );
     try {
-      final profits = await repository.fetchProfits(selected);
-      final inventoryValue = await repository.fetchInventoryValue();
-      final mostSold = await repository.fetchMostSold(selected);
+      // Fetched together rather than one after another: seven sequential
+      // round trips on a Syrian mobile connection is a screen that appears to
+      // hang, and none of these depends on another.
+      final results = await Future.wait([
+        repository.fetchProfits(selected),
+        repository.fetchInventoryValue(),
+        repository.fetchMostSold(selected),
+        repository.fetchCashFlow(selected),
+        repository.fetchAverageSales(selected),
+        repository.fetchPaymentMethods(selected),
+        repository.fetchCategoryRevenue(selected),
+      ]);
+
+      // The period chart compares all four windows, so it needs all four —
+      // and this screen can be opened without ever visiting the dashboard
+      // that used to be the only thing loading them.
+      final points = await Future.wait(
+        revenueFilters.map(repository.fetchRevenue),
+      );
 
       emit(
         state.copyWith(
           analyticsStatus: ReportsStatus.ready,
-          profits: profits,
-          inventoryValue: inventoryValue,
-          mostSold: mostSold,
+          revenueByFilter: {
+            for (final point in points) point.filter: point.revenue,
+          },
+          profits: results[0] as ProfitReport,
+          inventoryValue: results[1] as InventoryValue,
+          mostSold: results[2] as List<MostSoldMedicine>,
+          cashFlow: results[3] as CashFlow,
+          salesAverage: results[4] as SalesAverage,
+          paymentMethods: results[5] as List<PaymentMethodShare>,
+          categoryRevenue: results[6] as List<CategoryRevenue>,
         ),
       );
     } on AuthApiException catch (error) {

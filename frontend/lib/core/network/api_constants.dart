@@ -40,6 +40,11 @@ class ApiConstants {
   static const String reportsProfits = "/reports/profits";
   static const String reportsInventoryValue = "/reports/inventory-value";
   static const String reportsMostSold = "/reports/most-sold";
+  static const String reportsMostSoldCategory = "/reports/most-sold-category";
+  static const String reportsAverageSales = "/reports/average-sales";
+  // Liquidity, which profit deliberately does not measure.
+  static const String reportsCashFlow = "/reports/cash-flow";
+  static const String reportsPaymentMethods = "/reports/payment-methods";
 
   static const String employees = "/employees";
   static const String employeesPending = "/employees/pending";

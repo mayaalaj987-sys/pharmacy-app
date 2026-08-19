@@ -10,4 +10,12 @@ abstract class ReportsRemoteDataSource {
   Future<Response<dynamic>> getInventoryValue();
 
   Future<Response<dynamic>> getMostSold(String filter);
+
+  Future<Response<dynamic>> getMostSoldByCategory(String filter);
+
+  Future<Response<dynamic>> getAverageSales(String filter);
+
+  Future<Response<dynamic>> getCashFlow(String filter);
+
+  Future<Response<dynamic>> getPaymentMethods(String filter);
 }

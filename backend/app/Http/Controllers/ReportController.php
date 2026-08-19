@@ -92,33 +92,38 @@ class ReportController extends Controller
         ]);
     }
 
-    // ===== متوسط المبيعات =====
-    // ✅ FIX: الحين بيرجع متوسط عدد العمليات ÷ 7 (متوسط يومي خلال الأسبوع)
+    /**
+     * What a typical sale is worth, and how many there were.
+     *
+     * Rewritten. It used to count sales rather than value them, divide by seven
+     * regardless, and ignore the requested period entirely — so a screen
+     * showing "Year" was handed this week's figure. What a pharmacist wants
+     * from "average order" is the size of a typical basket, which is the number
+     * that tells them whether people are buying one box or five.
+     */
     public function getAverageSales(Request $request)
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
-        // دائماً weekly — متوسط يومي خلال الأسبوع الحالي
-        $start = now()->startOfWeek();
-        $end = now()->endOfWeek();
+        [$start, $end] = $this->getDateRange($request->filter);
 
-        $totalSalesThisWeek = Sale::where('pharmacy_id', $pharmacyId)
-            ->whereBetween('created_at', [$start, $end])
-            ->count();
+        $sales = Sale::where('pharmacy_id', $pharmacyId)
+            ->whereBetween('created_at', [$start, $end]);
 
-        // عدد الأيام اللي مرت من الأسبوع (بحيث ما نقسم على أيام مستقبلية)
-        $daysPassed = now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek; // الأحد = 0 نعتبره 7
-
-        $dailyAverage = round($totalSalesThisWeek / 7, 2); // متوسط على 7 أيام
+        $count = (clone $sales)->count();
+        $total = (float) (clone $sales)->sum('total_price');
 
         return response()->json([
-            'week_start' => $start->toDateString(),
-            'week_end' => $end->toDateString(),
-            'total_sales_week' => $totalSalesThisWeek,   // إجمالي عمليات الأسبوع
-            'daily_average' => $dailyAverage,          // متوسط يومي = عدد العمليات ÷ 7
+            'filter' => $request->filter,
+            'sales_count' => $count,
+            'total' => round($total, 2),
+            // Gross, not net of refunds: the question is how big a basket is,
+            // and a basket that was later brought back was still that big.
+            'average_sale' => $count > 0 ? round($total / $count, 2) : 0,
         ]);
     }
 
@@ -350,16 +355,26 @@ class ReportController extends Controller
             $query->where('pharmacy_id', $pharmacyId)
                 ->whereBetween('created_at', [$start, $end]);
         })
-            ->selectRaw('medicine_id, SUM(quantity) as total_sold')
+            ->selectRaw('medicine_id, SUM(quantity) as total_sold, SUM(quantity * price) as revenue')
             ->groupBy('medicine_id')
-            ->orderByDesc('total_sold')
+            ->orderByDesc('revenue')
             ->with('medicine:id,name,category_medicine')
             ->get()
-            ->map(fn ($item) => [
-                'medicine' => $item->medicine->name,
-                'category' => $item->medicine->category_medicine,
-                'total_sold' => $item->total_sold,
-            ]);
+            // Grouped back up by name: a drug held in two batches is two rows
+            // here, and a top-sellers list that shows the same drug twice is
+            // reporting the shelf's filing system rather than the business.
+            ->groupBy(fn ($item) => $item->medicine?->name ?? '')
+            ->map(fn ($rows, $name) => [
+                'medicine' => $name,
+                'category' => $rows->first()->medicine?->category_medicine,
+                'total_sold' => (int) $rows->sum('total_sold'),
+                // Ranked by money, not by count. Selling four hundred boxes of
+                // paracetamol matters less than the inhalers, and a list
+                // ordered by units says the opposite.
+                'revenue' => round((float) $rows->sum('revenue'), 2),
+            ])
+            ->sortByDesc('revenue')
+            ->values();
 
         return response()->json([
             'filter' => $request->filter,
@@ -382,11 +397,18 @@ class ReportController extends Controller
             $query->where('pharmacy_id', $pharmacyId)
                 ->whereBetween('created_at', [$start, $end]);
         })
-            ->selectRaw('medicines.category_medicine, SUM(sale_items.quantity) as total_sold')
+            ->selectRaw('medicines.category_medicine, SUM(sale_items.quantity) as total_sold, SUM(sale_items.quantity * sale_items.price) as revenue')
             ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
             ->groupBy('medicines.category_medicine')
-            ->orderByDesc('total_sold')
-            ->get();
+            // By money. Which shelf earns the most is a different question from
+            // which shelf moves the most boxes, and it is the useful one.
+            ->orderByDesc('revenue')
+            ->get()
+            ->map(fn ($row) => [
+                'category_medicine' => $row->category_medicine,
+                'total_sold' => (int) $row->total_sold,
+                'revenue' => round((float) $row->revenue, 2),
+            ]);
 
         return response()->json([
             'filter' => $request->filter,

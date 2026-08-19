@@ -42,4 +42,36 @@ class ReportsApi implements ReportsRemoteDataSource {
       queryParameters: {'filter': filter},
     );
   }
+
+  @override
+  Future<Response<dynamic>> getMostSoldByCategory(String filter) {
+    return dio.get(
+      ApiConstants.reportsMostSoldCategory,
+      queryParameters: {'filter': filter},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> getAverageSales(String filter) {
+    return dio.get(
+      ApiConstants.reportsAverageSales,
+      queryParameters: {'filter': filter},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> getCashFlow(String filter) {
+    return dio.get(
+      ApiConstants.reportsCashFlow,
+      queryParameters: {'filter': filter},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> getPaymentMethods(String filter) {
+    return dio.get(
+      ApiConstants.reportsPaymentMethods,
+      queryParameters: {'filter': filter},
+    );
+  }
 }
