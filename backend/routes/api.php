@@ -19,6 +19,7 @@ use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SaleReturnController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\StockWriteOffController;
 use App\Http\Controllers\SupplierController;
@@ -162,6 +163,14 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     Route::post('/employees/{id}/promote', [EmployeeController::class, 'promoteEmployee'])
         ->whereNumber('id');
     Route::delete('/employees/{id}/dismiss', [EmployeeController::class, 'dismissEmployee']);
+
+    // A customer bringing something back. Its own record pointing at the line
+    // it reverses — a sale is never edited, because it is the evidence of what
+    // actually left the shop.
+    Route::get('/sale/{sale}/returnable', [SaleReturnController::class, 'show'])
+        ->whereNumber('sale');
+    Route::post('/sale/{sale}/return', [SaleReturnController::class, 'store'])
+        ->whereNumber('sale');
 
     Route::get('/sale/daily', [SaleController::class, 'getDailySales']);
     Route::get('/sale/all', [SaleController::class, 'getAllSales']);

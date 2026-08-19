@@ -2,14 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Employee;
+use App\Models\Medicine;
 use App\Models\Order;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\Medicine;
-use App\Models\Employee;
+use App\Models\SaleReturn;
 use App\Models\StockWriteOff;
 use App\Services\PharmacyContextResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -17,12 +19,12 @@ class ReportController extends Controller
 
     private function getDateRange(string $filter): array
     {
-        return match($filter) {
-            'daily'   => [now()->startOfDay(),   now()->endOfDay()],
-            'weekly'  => [now()->startOfWeek(),  now()->endOfWeek()],
+        return match ($filter) {
+            'daily' => [now()->startOfDay(),   now()->endOfDay()],
+            'weekly' => [now()->startOfWeek(),  now()->endOfWeek()],
             'monthly' => [now()->startOfMonth(), now()->endOfMonth()],
-            'yearly'  => [now()->startOfYear(),  now()->endOfYear()],
-            default   => [now()->startOfDay(),   now()->endOfDay()],
+            'yearly' => [now()->startOfYear(),  now()->endOfYear()],
+            default => [now()->startOfDay(),   now()->endOfDay()],
         };
     }
 
@@ -31,7 +33,7 @@ class ReportController extends Controller
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
@@ -41,9 +43,16 @@ class ReportController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->sum('total_price');
 
+        // Booked in the period the customer brought it back, which is standard
+        // and also the only workable rule: a refund given today against a sale
+        // from last month cannot retrospectively change last month's takings.
+        $refunds = $this->refundsIn($pharmacyId, $start, $end);
+
         return response()->json([
-            'filter'  => $request->filter,
-            'revenue' => $revenue,
+            'filter' => $request->filter,
+            'revenue' => round((float) $revenue - $refunds, 2),
+            'gross_revenue' => round((float) $revenue, 2),
+            'refunds' => round($refunds, 2),
         ]);
     }
 
@@ -76,9 +85,9 @@ class ReportController extends Controller
             ->value('at_risk') ?? 0;
 
         return response()->json([
-            'total_cost_value'    => $inventoryValue->total_cost    ?? 0,
+            'total_cost_value' => $inventoryValue->total_cost ?? 0,
             'total_selling_value' => $inventoryValue->total_selling ?? 0,
-            'expired_cost_value'  => round((float) $expired, 2),
+            'expired_cost_value' => round((float) $expired, 2),
             'expiring_cost_value' => round((float) $expiringSoon, 2),
         ]);
     }
@@ -94,7 +103,7 @@ class ReportController extends Controller
 
         // دائماً weekly — متوسط يومي خلال الأسبوع الحالي
         $start = now()->startOfWeek();
-        $end   = now()->endOfWeek();
+        $end = now()->endOfWeek();
 
         $totalSalesThisWeek = Sale::where('pharmacy_id', $pharmacyId)
             ->whereBetween('created_at', [$start, $end])
@@ -106,10 +115,10 @@ class ReportController extends Controller
         $dailyAverage = round($totalSalesThisWeek / 7, 2); // متوسط على 7 أيام
 
         return response()->json([
-            'week_start'           => $start->toDateString(),
-            'week_end'             => $end->toDateString(),
-            'total_sales_week'     => $totalSalesThisWeek,   // إجمالي عمليات الأسبوع
-            'daily_average'        => $dailyAverage,          // متوسط يومي = عدد العمليات ÷ 7
+            'week_start' => $start->toDateString(),
+            'week_end' => $end->toDateString(),
+            'total_sales_week' => $totalSalesThisWeek,   // إجمالي عمليات الأسبوع
+            'daily_average' => $dailyAverage,          // متوسط يومي = عدد العمليات ÷ 7
         ]);
     }
 
@@ -118,7 +127,7 @@ class ReportController extends Controller
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
@@ -155,22 +164,33 @@ class ReportController extends Controller
             ->where('role', Employee::ROLE_EMPLOYEE)
             ->sum('salary');
 
-        $salaryForPeriod = match($request->filter) {
-            'daily'   => $monthlySalaries / 30,
-            'weekly'  => $monthlySalaries / 4,
+        $salaryForPeriod = match ($request->filter) {
+            'daily' => $monthlySalaries / 30,
+            'weekly' => $monthlySalaries / 4,
             'monthly' => $monthlySalaries,
-            'yearly'  => $monthlySalaries * 12,
+            'yearly' => $monthlySalaries * 12,
         };
 
-        $profit = $revenue - ($costOfGoods->total_cost ?? 0) - $salaryForPeriod - $losses;
+        // Both sides of a return come off. The money went back to the customer
+        // and, unless the box came back broken, so did the stock — and when it
+        // did come back broken the write-off above already carries that cost.
+        // Reversing only the revenue would charge the pharmacy twice.
+        $refunds = $this->refundsIn($pharmacyId, $start, $end);
+        $returnedCost = $this->returnedCostIn($pharmacyId, $start, $end);
+
+        $netRevenue = (float) $revenue - $refunds;
+        $netCost = (float) ($costOfGoods->total_cost ?? 0) - $returnedCost;
+
+        $profit = $netRevenue - $netCost - $salaryForPeriod - $losses;
 
         return response()->json([
-            'filter'          => $request->filter,
-            'revenue'         => $revenue,
-            'cost_of_goods'   => $costOfGoods->total_cost ?? 0,
-            'salaries'        => round($salaryForPeriod, 2),
-            'write_offs'      => round((float) $losses, 2),
-            'profit'          => round($profit, 2),
+            'filter' => $request->filter,
+            'revenue' => round($netRevenue, 2),
+            'refunds' => round($refunds, 2),
+            'cost_of_goods' => round($netCost, 2),
+            'salaries' => round($salaryForPeriod, 2),
+            'write_offs' => round((float) $losses, 2),
+            'profit' => round($profit, 2),
         ]);
     }
 
@@ -196,7 +216,7 @@ class ReportController extends Controller
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
@@ -212,7 +232,10 @@ class ReportController extends Controller
             ->groupBy('payment_method')
             ->pluck('total', 'payment_method');
 
-        $moneyIn = (float) (clone $sales)->sum('total_price');
+        // A refund is money leaving the drawer, so it comes straight off what
+        // came in rather than being listed as a cost of doing business.
+        $moneyIn = (float) (clone $sales)->sum('total_price')
+            - $this->refundsIn($pharmacyId, $start, $end);
 
         // Cancelled orders were never paid for, so they are not money out.
         $purchases = (float) Order::where('pharmacy_id', $pharmacyId)
@@ -226,10 +249,10 @@ class ReportController extends Controller
             ->sum('salary');
 
         $salaries = match ($request->filter) {
-            'daily'   => $monthlySalaries / 30,
-            'weekly'  => $monthlySalaries / 4,
+            'daily' => $monthlySalaries / 30,
+            'weekly' => $monthlySalaries / 4,
             'monthly' => $monthlySalaries,
-            'yearly'  => $monthlySalaries * 12,
+            'yearly' => $monthlySalaries * 12,
         };
 
         $moneyOut = $purchases + $salaries;
@@ -238,14 +261,14 @@ class ReportController extends Controller
             'filter' => $request->filter,
             'money_in' => round($moneyIn, 2),
             'money_in_by_method' => [
-                'cash'      => round((float) ($byMethod['cash'] ?? 0), 2),
-                'card'      => round((float) ($byMethod['card'] ?? 0), 2),
+                'cash' => round((float) ($byMethod['cash'] ?? 0), 2),
+                'card' => round((float) ($byMethod['card'] ?? 0), 2),
                 'insurance' => round((float) ($byMethod['insurance'] ?? 0), 2),
             ],
             'money_out' => round($moneyOut, 2),
             'purchases' => round($purchases, 2),
-            'salaries'  => round($salaries, 2),
-            'net'       => round($moneyIn - $moneyOut, 2),
+            'salaries' => round($salaries, 2),
+            'net' => round($moneyIn - $moneyOut, 2),
         ]);
     }
 
@@ -261,7 +284,7 @@ class ReportController extends Controller
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
@@ -276,8 +299,8 @@ class ReportController extends Controller
         $total = (float) $rows->sum('total');
 
         return response()->json([
-            'filter'  => $request->filter,
-            'total'   => round($total, 2),
+            'filter' => $request->filter,
+            'total' => round($total, 2),
             'methods' => $rows->map(fn ($row) => [
                 'payment_method' => $row->payment_method,
                 'sales' => (int) $row->sales,
@@ -289,12 +312,35 @@ class ReportController extends Controller
         ]);
     }
 
+    /** What was handed back to customers in this period. */
+    private function refundsIn(int $pharmacyId, $start, $end): float
+    {
+        return (float) SaleReturn::where('pharmacy_id', $pharmacyId)
+            ->whereBetween('created_at', [$start, $end])
+            ->sum('refund_amount');
+    }
+
+    /**
+     * What the returned goods had cost, so cost of goods can be undone too.
+     *
+     * Read off the sale line, which froze the cost of the exact boxes that left
+     * the shop. Reversing at today's cost would leave a residue behind every
+     * return that changed nothing.
+     */
+    private function returnedCostIn(int $pharmacyId, $start, $end): float
+    {
+        return (float) SaleReturn::where('sale_returns.pharmacy_id', $pharmacyId)
+            ->whereBetween('sale_returns.created_at', [$start, $end])
+            ->join('sale_items', 'sale_items.id', '=', 'sale_returns.sale_item_id')
+            ->sum(DB::raw('sale_returns.quantity * sale_items.cost_price'));
+    }
+
     // ===== الأدوية الأكثر مبيعاً =====
     public function getMostSoldMedicines(Request $request)
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
@@ -309,14 +355,14 @@ class ReportController extends Controller
             ->orderByDesc('total_sold')
             ->with('medicine:id,name,category_medicine')
             ->get()
-            ->map(fn($item) => [
-                'medicine'   => $item->medicine->name,
-                'category'   => $item->medicine->category_medicine,
+            ->map(fn ($item) => [
+                'medicine' => $item->medicine->name,
+                'category' => $item->medicine->category_medicine,
                 'total_sold' => $item->total_sold,
             ]);
 
         return response()->json([
-            'filter'    => $request->filter,
+            'filter' => $request->filter,
             'medicines' => $medicines,
         ]);
     }
@@ -326,7 +372,7 @@ class ReportController extends Controller
     {
         $request->validate([
             'pharmacy_id' => 'required|exists:pharmacies,id',
-            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+            'filter' => 'required|in:daily,weekly,monthly,yearly',
         ]);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
 
@@ -343,7 +389,7 @@ class ReportController extends Controller
             ->get();
 
         return response()->json([
-            'filter'     => $request->filter,
+            'filter' => $request->filter,
             'categories' => $categories,
         ]);
     }
@@ -357,9 +403,9 @@ class ReportController extends Controller
         ]);
 
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
-        $today      = now()->toDateString();
-        $start      = now()->startOfDay();
-        $end        = now()->endOfDay();
+        $today = now()->toDateString();
+        $start = now()->startOfDay();
+        $end = now()->endOfDay();
 
         // عدد مبيعات اليوم
         $todaySalesCount = Sale::where('pharmacy_id', $pharmacyId)
@@ -380,9 +426,9 @@ class ReportController extends Controller
             ->first();
 
         $dailySalary = Employee::where('pharmacy_id', $pharmacyId)
-                ->where('status', Employee::STATUS_APPROVED)
-                ->where('role', Employee::ROLE_EMPLOYEE)
-                ->sum('salary') / 30;
+            ->where('status', Employee::STATUS_APPROVED)
+            ->where('role', Employee::ROLE_EMPLOYEE)
+            ->sum('salary') / 30;
 
         $todayProfit = $todayRevenue - ($costOfGoods->total_cost ?? 0) - $dailySalary;
 
@@ -398,12 +444,12 @@ class ReportController extends Controller
             ->count();
 
         return response()->json([
-            'date'              => $today,
+            'date' => $today,
             'today_sales_count' => $todaySalesCount,
-            'today_revenue'     => round($todayRevenue, 2),
-            'today_profit'      => round($todayProfit, 2),
-            'expiring_count'    => $expiringCount,
-            'low_stock_count'   => $lowStockCount,
+            'today_revenue' => round($todayRevenue, 2),
+            'today_profit' => round($todayProfit, 2),
+            'expiring_count' => $expiringCount,
+            'low_stock_count' => $lowStockCount,
         ]);
     }
 }
