@@ -20,3 +20,10 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::command('catalogue:refresh')
     ->dailyAt('03:00')
     ->withoutOverlapping();
+
+// Expiry costs a pharmacy real money and used to say nothing until the till
+// refused a box, months after the last moment anything could be done. Early
+// enough in the day that a warning is actionable before the shop is busy.
+Schedule::command('stock:expiry-check')
+    ->dailyAt('06:00')
+    ->withoutOverlapping();

@@ -20,6 +20,7 @@ use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\StockWriteOffController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\TaskController;
@@ -164,6 +165,12 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
 
     Route::get('/sale/daily', [SaleController::class, 'getDailySales']);
     Route::get('/sale/all', [SaleController::class, 'getAllSales']);
+
+    // Stock that left the shelf without being sold. The only path that records
+    // both the quantity and what it cost — editing the number does neither.
+    Route::get('/medicines/write-offs', [StockWriteOffController::class, 'index']);
+    Route::post('/medicines/{medicine}/write-off', [StockWriteOffController::class, 'store'])
+        ->whereNumber('medicine');
 
     Route::post('/medicines/add', [MedicineController::class, 'addMedicine']);
     Route::post('/medicines/edit/{id}', [MedicineController::class, 'editMedicine']);

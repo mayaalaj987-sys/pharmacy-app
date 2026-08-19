@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Medicine;
 use App\Models\Employee;
+use App\Models\StockWriteOff;
 use App\Services\PharmacyContextResolver;
 use Illuminate\Http\Request;
 
@@ -57,9 +58,27 @@ class ReportController extends Controller
             ->selectRaw('SUM(cost_price * quantity) as total_cost, SUM(selling_price * quantity) as total_selling')
             ->first();
 
+        // Stock past its date is counted in the total but broken out beside it.
+        // The till refuses to sell it, so calling it inventory value without
+        // qualification tells the pharmacist they hold money they do not.
+        $expired = Medicine::where('pharmacy_id', $pharmacyId)
+            ->whereNotNull('expire_date')
+            ->whereDate('expire_date', '<', now()->startOfDay())
+            ->selectRaw('SUM(cost_price * quantity) as dead_cost')
+            ->value('dead_cost') ?? 0;
+
+        $expiringSoon = Medicine::where('pharmacy_id', $pharmacyId)
+            ->whereNotNull('expire_date')
+            ->whereDate('expire_date', '>=', now()->startOfDay())
+            ->whereDate('expire_date', '<=', now()->addMonths(3))
+            ->selectRaw('SUM(cost_price * quantity) as at_risk')
+            ->value('at_risk') ?? 0;
+
         return response()->json([
             'total_cost_value'    => $inventoryValue->total_cost    ?? 0,
             'total_selling_value' => $inventoryValue->total_selling ?? 0,
+            'expired_cost_value'  => round((float) $expired, 2),
+            'expiring_cost_value' => round((float) $expiringSoon, 2),
         ]);
     }
 
@@ -108,13 +127,26 @@ class ReportController extends Controller
             ->whereBetween('created_at', [$start, $end])
             ->sum('total_price');
 
+        // Read off the sale line, not off the medicine. Receiving blends a
+        // drug's recorded cost when fresh stock arrives, so joining back to
+        // `medicines` made a finished sale reprice itself and last year's
+        // profit stop being last year's number.
         $costOfGoods = SaleItem::whereHas('sale', function ($query) use ($pharmacyId, $start, $end) {
             $query->where('pharmacy_id', $pharmacyId)
                 ->whereBetween('created_at', [$start, $end]);
         })
-            ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
-            ->selectRaw('SUM(sale_items.quantity * medicines.cost_price) as total_cost')
+            ->selectRaw('SUM(sale_items.quantity * sale_items.cost_price) as total_cost')
             ->first();
+
+        // Stock bought and thrown away rather than sold. It never entered cost
+        // of goods, so without this its cost left the books entirely: it did
+        // not reduce profit when bought, did not reduce profit when discarded,
+        // and sat in the inventory valuation as an asset. Real money, invisible.
+        $losses = StockWriteOff::where('pharmacy_id', $pharmacyId)
+            ->counted()
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('SUM(quantity * unit_cost) as total_loss')
+            ->value('total_loss') ?? 0;
 
         // ✅ FIX: الرواتب نحسبها نسبة للفترة الزمنية مو كاملة
         $monthlySalaries = Employee::where('pharmacy_id', $pharmacyId)
@@ -129,13 +161,14 @@ class ReportController extends Controller
             'yearly'  => $monthlySalaries * 12,
         };
 
-        $profit = $revenue - ($costOfGoods->total_cost ?? 0) - $salaryForPeriod;
+        $profit = $revenue - ($costOfGoods->total_cost ?? 0) - $salaryForPeriod - $losses;
 
         return response()->json([
             'filter'          => $request->filter,
             'revenue'         => $revenue,
             'cost_of_goods'   => $costOfGoods->total_cost ?? 0,
             'salaries'        => round($salaryForPeriod, 2),
+            'write_offs'      => round((float) $losses, 2),
             'profit'          => round($profit, 2),
         ]);
     }
