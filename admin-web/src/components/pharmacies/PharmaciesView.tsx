@@ -106,7 +106,7 @@ export function PharmaciesView() {
                 <th className="text-left font-medium px-5 py-3">Pharmacy</th>
                 <th className="text-left font-medium px-5 py-3">Owner</th>
                 <th className="text-left font-medium px-5 py-3">Branches</th>
-                <th className="text-left font-medium px-5 py-3">App rating</th>
+                <th className="text-left font-medium px-5 py-3">App feedback</th>
                 <th className="text-left font-medium px-5 py-3">Status</th>
                 <th className="text-right font-medium px-5 py-3">Actions</th>
               </tr>
@@ -133,7 +133,11 @@ export function PharmaciesView() {
                   </td>
                   <td className="px-5 py-3 tabular-nums">{pharmacy.owner.branches}</td>
                   <td className="px-5 py-3">
-                    <Rating value={pharmacy.owner.app_rating} />
+                    <Rating
+                      value={pharmacy.owner.app_rating}
+                      note={pharmacy.owner.app_rating_note}
+                      ratedAt={pharmacy.owner.app_rated_at}
+                    />
                   </td>
                   <td className="px-5 py-3">
                     <StatusBadge
@@ -215,19 +219,44 @@ export function PharmaciesView() {
   );
 }
 
-function Rating({ value }: { value: number | null }) {
+/**
+ * The owner's verdict on the app, and what they said about it.
+ *
+ * The note is the point. A star tells an admin somebody was unhappy and
+ * nothing else; what they wrote is the only part anyone can act on, so it is
+ * shown in full rather than hidden behind a hover — a tooltip is not somewhere
+ * feedback gets read.
+ */
+function Rating({
+  value,
+  note,
+  ratedAt,
+}: {
+  value: number | null;
+  note: string | null;
+  ratedAt: string | null;
+}) {
   if (value === null) {
     return <span className="text-[11px] text-muted-foreground">Not rated</span>;
   }
 
   return (
-    <span
-      className="inline-flex items-center gap-1"
-      title={`The owner rated the app ${value} out of 5`}
-    >
-      <Star size={13} className="fill-amber-400 text-amber-400" />
-      <span className="tabular-nums">{value}/5</span>
-    </span>
+    <div className="max-w-[22rem] space-y-1">
+      <span
+        className="inline-flex items-center gap-1"
+        title={ratedAt ? `Rated on ${ratedAt}` : undefined}
+      >
+        <Star size={13} className="fill-amber-400 text-amber-400" />
+        <span className="tabular-nums">{value}/5</span>
+      </span>
+      {note ? (
+        <p className="text-[11px] leading-snug text-muted-foreground whitespace-pre-line">
+          “{note}”
+        </p>
+      ) : (
+        <p className="text-[11px] text-muted-foreground/70">No comment left</p>
+      )}
+    </div>
   );
 }
 

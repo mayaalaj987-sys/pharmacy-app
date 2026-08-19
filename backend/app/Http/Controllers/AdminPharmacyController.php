@@ -51,31 +51,43 @@ class AdminPharmacyController extends Controller
             ->pluck('total', 'pharmacist_id');
 
         // The star rating is the *owner's rating of the app*, not a customer
-        // review of the pharmacy. Owners rate once, so it is one value each.
+        // review of the pharmacy. One per owner, revisable.
+        //
+        // The note comes with it. A star tells an admin somebody was unhappy
+        // and nothing else; what they wrote is the only part anybody can act
+        // on, and leaving it in the database unread makes asking for it a
+        // waste of the owner's time.
         $ratings = Rating::query()
             ->whereIn('pharmacist_id', $ownerIds)
-            ->pluck('stars', 'pharmacist_id');
+            ->get(['pharmacist_id', 'stars', 'note', 'date'])
+            ->keyBy('pharmacist_id');
 
         return response()->json([
             'data' => $paginator->getCollection()
-                ->map(fn (Pharmacy $pharmacy) => [
-                    'id' => $pharmacy->id,
-                    'name' => $pharmacy->pharmacy_name,
-                    'address' => $pharmacy->pharmacy_address,
-                    'status' => $pharmacy->status,
-                    'is_blocked' => $pharmacy->isBlocked(),
-                    'blocked_reason' => $pharmacy->blocked_reason,
-                    'blocked_at' => $pharmacy->blocked_at?->toIso8601String(),
-                    'owner' => [
-                        'id' => $pharmacy->pharmacist_id,
-                        'name' => $pharmacy->pharmacist?->name,
-                        'email' => $pharmacy->pharmacist?->email,
-                        'branches' => (int) ($branchCounts[$pharmacy->pharmacist_id] ?? 0),
-                        'app_rating' => isset($ratings[$pharmacy->pharmacist_id])
-                            ? (int) $ratings[$pharmacy->pharmacist_id]
-                            : null,
-                    ],
-                ])->values(),
+                ->map(function (Pharmacy $pharmacy) use ($branchCounts, $ratings) {
+                    // `get`, not `[]`: a Collection throws on a missing key and
+                    // most owners have never rated anything.
+                    $rating = $ratings->get($pharmacy->pharmacist_id);
+
+                    return [
+                        'id' => $pharmacy->id,
+                        'name' => $pharmacy->pharmacy_name,
+                        'address' => $pharmacy->pharmacy_address,
+                        'status' => $pharmacy->status,
+                        'is_blocked' => $pharmacy->isBlocked(),
+                        'blocked_reason' => $pharmacy->blocked_reason,
+                        'blocked_at' => $pharmacy->blocked_at?->toIso8601String(),
+                        'owner' => [
+                            'id' => $pharmacy->pharmacist_id,
+                            'name' => $pharmacy->pharmacist?->name,
+                            'email' => $pharmacy->pharmacist?->email,
+                            'branches' => (int) ($branchCounts[$pharmacy->pharmacist_id] ?? 0),
+                            'app_rating' => $rating ? (int) $rating->stars : null,
+                            'app_rating_note' => $rating?->note,
+                            'app_rated_at' => $rating?->date?->toDateString(),
+                        ],
+                    ];
+                })->values(),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),

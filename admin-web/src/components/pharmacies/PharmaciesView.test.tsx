@@ -23,6 +23,8 @@ const trading = {
     email: "maya@example.test",
     branches: 2,
     app_rating: 4,
+    app_rating_note: "The purchase cart is good. The till is slow to search.",
+    app_rated_at: "2026-08-19",
   },
 };
 
@@ -33,7 +35,14 @@ const suspended = {
   is_blocked: true,
   blocked_reason: "Licence expired.",
   blocked_at: "2026-08-17T10:00:00+00:00",
-  owner: { ...trading.owner, id: 5, name: "Rana", app_rating: null },
+  owner: {
+    ...trading.owner,
+    id: 5,
+    name: "Rana",
+    app_rating: null,
+    app_rating_note: null,
+    app_rated_at: null,
+  },
 };
 
 function page(rows: unknown[], blockedTotal = 0) {
@@ -74,6 +83,32 @@ describe("PharmaciesView", () => {
     expect(within(row).getByText("2")).toBeInTheDocument();
     // The stars are the owner's rating of the app, so the label says /5.
     expect(within(row).getByText("4/5")).toBeInTheDocument();
+  });
+
+  it("shows what the owner wrote, not just the stars", async () => {
+    // A star says somebody was unhappy and nothing else. What they wrote is
+    // the only part an admin can act on, so it is on the row rather than
+    // hidden behind a hover.
+    server.use(http.get(`${BASE}/api/admin/pharmacies`, () => page([trading])));
+    renderView();
+
+    await waitFor(() => expect(screen.getByText("Alhajj Pharmacy")).toBeInTheDocument());
+
+    const row = screen.getByText("Alhajj Pharmacy").closest("tr")!;
+    expect(
+      within(row).getByText(/The purchase cart is good\. The till is slow to search\./),
+    ).toBeInTheDocument();
+  });
+
+  it("says when a rating came with no comment", async () => {
+    server.use(
+      http.get(`${BASE}/api/admin/pharmacies`, () =>
+        page([{ ...trading, owner: { ...trading.owner, app_rating_note: null } }]),
+      ),
+    );
+    renderView();
+
+    await waitFor(() => expect(screen.getByText("No comment left")).toBeInTheDocument());
   });
 
   it("says so when an owner never rated the app, rather than showing zero", async () => {

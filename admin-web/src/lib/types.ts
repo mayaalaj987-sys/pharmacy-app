@@ -217,6 +217,15 @@ export interface ControlledPharmacy {
     branches: number;
     /** The owner's rating of the app, 1-5. Null when they never rated it. */
     app_rating: number | null;
+    /**
+     * What they wrote alongside the stars.
+     *
+     * Null when they rated without explaining. A star says somebody was
+     * unhappy; this is the only part anyone can act on.
+     */
+    app_rating_note: string | null;
+    /** When the rating was last left or revised, as YYYY-MM-DD. */
+    app_rated_at: string | null;
   };
 }
 
