@@ -36,6 +36,8 @@ class EmployeeNotificationController extends Controller
                 'title' => $notification->title,
                 'message' => $notification->message,
                 'type' => $notification->type,
+                // What it is about, so tapping it can go there.
+                'reference_id' => $notification->reference_id,
                 'is_read' => $notification->is_read,
                 // Which inbox it came from, so the client can badge a personal
                 // message differently from pharmacy traffic.

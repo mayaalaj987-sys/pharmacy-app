@@ -33,7 +33,8 @@ class Notification extends Model
     public const AUDIENCE_STAFF = 'staff';
 
     protected $fillable = [
-        'pharmacy_id', 'employee_id', 'title', 'message', 'type', 'audience', 'is_read', 'date',
+        'pharmacy_id', 'employee_id', 'title', 'message', 'type',
+        'reference_id', 'audience', 'is_read', 'date',
     ];
 
     protected function casts(): array
@@ -67,15 +68,22 @@ class Notification extends Model
         string $message,
         string $type,
         string $audience = self::AUDIENCE_OWNER,
+        ?int $referenceId = null,
     ): self {
         return self::create([
             'pharmacy_id' => $pharmacyId,
             'title' => $title,
             'message' => $message,
             'type' => $type,
+            // What it is about, so tapping it can go there rather than being a
+            // dead end that only marks itself read.
+            'reference_id' => $referenceId,
             'audience' => $audience,
             'is_read' => false,
-            'date' => now()->toDateString(),
+            // The full moment, not the day. Half the callers wrote a datetime
+            // and this wrote a date, so the same column held both and anything
+            // ordering or displaying it disagreed depending on who created it.
+            'date' => now(),
         ]);
     }
 
@@ -86,16 +94,27 @@ class Notification extends Model
      * reason this exists. Leaving `pharmacy_id` null is also what keeps these
      * rows out of every pharmacy-scoped query without a new guard.
      */
-    public static function notifyEmployee(int $employeeId, string $title, string $message, string $type): self
-    {
+    public static function notifyEmployee(
+        int $employeeId,
+        string $title,
+        string $message,
+        string $type,
+        ?int $referenceId = null,
+    ): self {
         return self::create([
             'pharmacy_id' => null,
             'employee_id' => $employeeId,
             'title' => $title,
             'message' => $message,
             'type' => $type,
+            'reference_id' => $referenceId,
+            // Addressed to a person, so the audience is that person. It used to
+            // fall through to the 'owner' default, which made every one of
+            // these read as the owner's in the table while being routed by
+            // employee_id — the column said one thing and the code did another.
+            'audience' => self::AUDIENCE_STAFF,
             'is_read' => false,
-            'date' => now()->toDateString(),
+            'date' => now(),
         ]);
     }
 }

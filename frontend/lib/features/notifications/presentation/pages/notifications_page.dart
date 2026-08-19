@@ -6,6 +6,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
 import '../../../auth/data/models/auth_session_model.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../auth/presentation/pages/purchases_page.dart';
+import '../../../auth/presentation/pages/sale_history_page.dart';
+import '../../../inventory/presentation/pages/inventory_page.dart';
+import '../../../purchase_cart/presentation/pages/purchase_cart_page.dart';
 import '../../domain/app_notification.dart';
 import '../cubit/notifications_cubit.dart';
 import '../cubit/notifications_state.dart';
@@ -36,7 +40,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
-        child: CustomAppBar(title: "Notifications", showNotificationBell: false),
+        child: CustomAppBar(
+          title: "Notifications",
+          showNotificationBell: false,
+        ),
       ),
 
       body: BlocBuilder<NotificationsCubit, NotificationsState>(
@@ -87,7 +94,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
         child: ListView(
           children: const [
             SizedBox(height: 120),
-            Center(child: Icon(Icons.notifications_none, size: 48, color: Colors.grey)),
+            Center(
+              child: Icon(
+                Icons.notifications_none,
+                size: 48,
+                color: Colors.grey,
+              ),
+            ),
             SizedBox(height: 12),
             Center(child: Text("You have no notifications yet")),
           ],
@@ -111,7 +124,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   key: const ValueKey('mark-all-read-button'),
                   onPressed: state.busy
                       ? null
-                      : () => context.read<NotificationsCubit>().markAllAsRead(),
+                      : () =>
+                            context.read<NotificationsCubit>().markAllAsRead(),
                   icon: state.markingAll
                       ? const SizedBox.square(
                           dimension: 14,
@@ -139,6 +153,31 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
+  /// Marks the notification read, then opens what it is about.
+  ///
+  /// Read first and regardless of where it goes, because tapping it is the
+  /// pharmacist saying they have seen it. A row that concerns nothing openable
+  /// — an announcement, an approval — just goes quiet, which is honest: sending
+  /// them to an arbitrary screen would be worse than leaving it inert.
+  Future<void> _open(BuildContext context, AppNotification item) async {
+    final navigator = Navigator.of(context);
+    final cubit = context.read<NotificationsCubit>();
+
+    if (!item.isRead) await cubit.markAsRead(item.id);
+
+    final page = switch (item.destination) {
+      NotificationDestination.purchaseCart => const PurchaseCartPage(),
+      NotificationDestination.purchases => const PurchasesPage(),
+      NotificationDestination.inventory => const InventoryPage(),
+      NotificationDestination.salesHistory => const SaleHistoryPage(),
+      NotificationDestination.none => null,
+    };
+
+    if (page == null) return;
+
+    await navigator.push(MaterialPageRoute(builder: (_) => page));
+  }
+
   Widget _tile(
     BuildContext context,
     NotificationsState state,
@@ -151,9 +190,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
-        onTap: item.isRead || state.busy
-            ? null
-            : () => context.read<NotificationsCubit>().markAsRead(item.id),
+        // Marks it read and then goes where it is pointing. A notification
+        // that only marks itself read is a chore: the pharmacist still has to
+        // find the cart, the delivery or the shelf on their own.
+        onTap: state.busy ? null : () => _open(context, item),
         leading: CircleAvatar(
           backgroundColor: (item.isRead ? Colors.grey : AppColors.lightGreen)
               .withValues(alpha: .15),
@@ -173,6 +213,27 @@ class _NotificationsPageState extends State<NotificationsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(item.displayMessage, style: const TextStyle(fontSize: 13)),
+            if (item.destination.isActionable)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      item.destination.label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkGreen,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 14,
+                      color: AppColors.darkGreen,
+                    ),
+                  ],
+                ),
+              ),
             if (item.date != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),

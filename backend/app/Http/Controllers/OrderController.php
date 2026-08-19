@@ -53,14 +53,19 @@ class OrderController extends Controller
                 $request->payment_method,
             );
 
-            Notification::create([
-                'pharmacy_id' => $pharmacy->id,
-                'title' => 'طلب جديد',
-                'message' => 'تم إنشاء طلب جديد من '.$order->supplier->name,
-                'type' => 'order',
-                'is_read' => false,
-                'date' => now(),
-            ]);
+            // Its own type, not a shared 'order'. Placed, arrived and
+            // cancelled are three different things to know about, and the
+            // client replaces any non-English text with one generic line per
+            // type — so all three used to read "a purchase order status has
+            // changed" and told the pharmacist nothing.
+            Notification::notify(
+                $pharmacy->id,
+                'Order placed',
+                'Ordered from '.$order->supplier->name.' for '.$order->total_price.'.',
+                'order_placed',
+                Notification::AUDIENCE_OWNER,
+                $order->id,
+            );
 
             DB::commit();
 
@@ -243,14 +248,15 @@ class OrderController extends Controller
             }
 
             $order->update(['status' => 'received']);
-            Notification::create([
-                'pharmacy_id' => $order->pharmacy_id,
-                'title' => 'تم استلام الطلب',
-                'message' => 'تم استلام الطلب رقم '.$order->id.' وإضافته للمخزون',
-                'type' => 'order',
-                'is_read' => false,
-                'date' => now(),
-            ]);
+            Notification::notify(
+                $order->pharmacy_id,
+                'Delivery received',
+                'Order #'.$order->id.' from '.($order->supplier?->name ?? 'the supplier')
+                    .' is on the shelf.',
+                'order_received',
+                Notification::AUDIENCE_OWNER,
+                $order->id,
+            );
             DB::commit();
 
             return response()->json(['message' => 'تم استلام الطلب وتحديث المخزون بنجاح']);
@@ -290,14 +296,14 @@ class OrderController extends Controller
             }
 
             $order->update(['status' => 'cancelled']);
-            Notification::create([
-                'pharmacy_id' => $order->pharmacy_id,
-                'title' => 'تم إلغاء الطلب',
-                'message' => 'تم إلغاء الطلب رقم '.$order->id,
-                'type' => 'order',
-                'is_read' => false,
-                'date' => now(),
-            ]);
+            Notification::notify(
+                $order->pharmacy_id,
+                'Order cancelled',
+                'Order #'.$order->id.' was cancelled and the units released.',
+                'order_cancelled',
+                Notification::AUDIENCE_OWNER,
+                $order->id,
+            );
 
             DB::commit();
 

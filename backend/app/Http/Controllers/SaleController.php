@@ -107,19 +107,27 @@ class SaleController extends Controller
                 }
             }
 
-            // Names the seller. "A sale happened" told the owner nothing they
-            // could act on; who rang it up is the whole point of the message.
+            // Only when somebody else rang it up.
+            //
+            // A notification for every sale made the bell useless: a working
+            // pharmacy rings up a hundred a day, and "a sale happened" told the
+            // owner nothing they did not already know — while burying the one
+            // message that mattered. What an owner cannot see for themselves is
+            // what their staff sold while they were out, so that is the only
+            // sale worth interrupting them for.
             $seller = $request->user();
-            Notification::create([
-                'pharmacy_id' => $pharmacy->id,
-                'title' => 'New sale',
-                'message' => ($seller?->name ?? 'Someone').' sold '
-                    .count($request->input('items')).' item(s) for '.$totalPrice.'.',
-                'type' => 'sale',
-                'audience' => Notification::AUDIENCE_OWNER,
-                'is_read' => false,
-                'date' => now(),
-            ]);
+
+            if ($employeeId !== null) {
+                Notification::notify(
+                    $pharmacy->id,
+                    'Sale by '.($seller?->name ?? 'staff'),
+                    ($seller?->name ?? 'A member of staff').' sold '
+                        .count($request->input('items')).' item(s) for '.$totalPrice.'.',
+                    'sale',
+                    Notification::AUDIENCE_OWNER,
+                    $sale->id,
+                );
+            }
 
             DB::commit();
 
@@ -284,23 +292,36 @@ class SaleController extends Controller
 
         $type = $onHand === 0 ? 'out_of_stock' : ($onHand <= $medicine->reorder_level ? 'low_stock' : null);
 
-        if (! $type || Notification::where('pharmacy_id', $pharmacyId)
-            ->where('type', $type)
-            ->where('message', 'LIKE', '%'.$medicine->name.'%')
-            ->exists()) {
+        if (! $type) {
             return;
         }
 
-        Notification::create([
-            'pharmacy_id' => $pharmacyId,
-            'audience' => Notification::AUDIENCE_STAFF,
-            'title' => $type === 'out_of_stock' ? 'Out of stock' : 'Running low',
-            'message' => $type === 'out_of_stock'
+        // Only silent about a warning already given recently.
+        //
+        // This used to search the whole history, so a drug reported low once
+        // was never reported again — restock it, sell it out, restock it, and
+        // the pharmacy is never told a second time. A week is long enough that
+        // the same shortage is not repeated daily and short enough that the
+        // next one is heard.
+        $recentlyWarned = Notification::where('pharmacy_id', $pharmacyId)
+            ->where('type', $type)
+            ->where('message', 'LIKE', $medicine->name.' %')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->exists();
+
+        if ($recentlyWarned) {
+            return;
+        }
+
+        Notification::notify(
+            $pharmacyId,
+            $type === 'out_of_stock' ? 'Out of stock' : 'Running low',
+            $type === 'out_of_stock'
                 ? $medicine->name.' is out of stock.'
                 : $medicine->name.' is down to '.$onHand.'.',
-            'type' => $type,
-            'is_read' => false,
-            'date' => now(),
-        ]);
+            $type,
+            Notification::AUDIENCE_STAFF,
+            $medicine->id,
+        );
     }
 }

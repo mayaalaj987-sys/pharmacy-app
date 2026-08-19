@@ -74,19 +74,21 @@ class PurchaseCartAutoStocker
             'added_by' => PurchaseCartItem::ADDED_BY_APP,
         ]);
 
-        Notification::create([
-            'pharmacy_id' => $pharmacy->id,
-            'title' => $onHand === 0 ? 'Out of stock' : 'Running low',
-            'message' => $stock->name.' is '
+        Notification::notify(
+            $pharmacy->id,
+            $onHand === 0 ? 'Out of stock' : 'Running low',
+            $stock->name.' is '
                 .($onHand === 0 ? 'out of stock' : 'down to '.$onHand)
                 .'. '.$quantity.' added to your purchase cart from '
                 .($offer->supplier?->name ?? 'a supplier')
                 .'. Review it before buying.',
-            'type' => $onHand === 0 ? 'out_of_stock' : 'low_stock',
-            'audience' => Notification::AUDIENCE_OWNER,
-            'is_read' => false,
-            'date' => now(),
-        ]);
+            $onHand === 0 ? 'out_of_stock' : 'low_stock',
+            Notification::AUDIENCE_OWNER,
+            // The cart, not the drug: the action this asks for is a review of
+            // what was queued, and sending the pharmacist to the medicine
+            // record would leave them to find the cart themselves.
+            $stock->id,
+        );
 
         return true;
     }

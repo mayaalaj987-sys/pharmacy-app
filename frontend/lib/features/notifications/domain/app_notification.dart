@@ -10,6 +10,13 @@ class AppNotification {
   final String title;
   final String message;
   final String type;
+
+  /// Which record it is about, when there is one.
+  ///
+  /// The type says what kind of thing; this says which. Together they are what
+  /// makes tapping a notification go somewhere instead of only marking it read.
+  final int? referenceId;
+
   final bool isRead;
   final DateTime? date;
   final DateTime? createdAt;
@@ -20,9 +27,29 @@ class AppNotification {
     required this.message,
     required this.type,
     required this.isRead,
+    this.referenceId,
     this.date,
     this.createdAt,
   });
+
+  /// Where tapping this should take the pharmacist.
+  ///
+  /// Derived from the type rather than stored, because the destination is a
+  /// property of the app's layout and would go stale in the database the first
+  /// time a screen moved.
+  NotificationDestination get destination => switch (type) {
+    'low_stock' || 'out_of_stock' => NotificationDestination.purchaseCart,
+    'order_placed' ||
+    'order_received' ||
+    'order_cancelled' ||
+    'order' => NotificationDestination.purchases,
+    'expiring_60' ||
+    'expiring_14' ||
+    'expired_stock' ||
+    'write_off' => NotificationDestination.inventory,
+    'sale' || 'sale_return' => NotificationDestination.salesHistory,
+    _ => NotificationDestination.none,
+  };
 
   static const _titlesByType = <String, String>{
     'admin_announcement': 'Announcement',
@@ -31,6 +58,14 @@ class AppNotification {
     'employee_approved': 'Employee approved',
     'employee': 'Employee update',
     'order': 'Purchase order update',
+    'order_placed': 'Order placed',
+    'order_received': 'Delivery received',
+    'order_cancelled': 'Order cancelled',
+    'sale_return': 'Sale returned',
+    'write_off': 'Stock written off',
+    'expiring_60': 'Expiring in two months',
+    'expiring_14': 'Expiring in two weeks',
+    'expired_stock': 'Expired stock',
     'sale': 'Sale completed',
     'task': 'Task update',
     'low_stock': 'Low stock',
@@ -84,8 +119,35 @@ class AppNotification {
       isRead: rawRead is bool
           ? rawRead
           : (rawRead?.toString() == '1' || rawRead?.toString() == 'true'),
+      referenceId: json['reference_id'] == null
+          ? null
+          : toInt(json['reference_id']),
       date: toDate(json['date']),
       createdAt: toDate(json['created_at']),
     );
   }
+}
+
+/// The screen a notification is asking the pharmacist to look at.
+///
+/// [none] is honest rather than a fallback: an announcement or an approval
+/// concerns nothing they can open, and sending them somewhere arbitrary is
+/// worse than leaving the row inert.
+enum NotificationDestination {
+  purchaseCart,
+  purchases,
+  inventory,
+  salesHistory,
+  none;
+
+  bool get isActionable => this != NotificationDestination.none;
+
+  /// What the row should invite them to do.
+  String get label => switch (this) {
+    NotificationDestination.purchaseCart => 'Open the cart',
+    NotificationDestination.purchases => 'Open purchases',
+    NotificationDestination.inventory => 'Open inventory',
+    NotificationDestination.salesHistory => 'Open sales',
+    NotificationDestination.none => '',
+  };
 }

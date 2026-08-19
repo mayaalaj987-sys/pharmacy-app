@@ -27,3 +27,10 @@ Schedule::command('catalogue:refresh')
 Schedule::command('stock:expiry-check')
     ->dailyAt('06:00')
     ->withoutOverlapping();
+
+// Nothing ever deleted a notification, so the table grew without limit and the
+// bell with it. Read ones go after a month; unread ones stay however old they
+// are, because an unread notification is still asking for something.
+Schedule::command('notifications:prune')
+    ->dailyAt('04:00')
+    ->withoutOverlapping();

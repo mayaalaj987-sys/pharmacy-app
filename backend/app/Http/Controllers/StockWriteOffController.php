@@ -121,18 +121,17 @@ class StockWriteOffController extends Controller
             $batch->decrement('quantity', $validated['quantity']);
 
             // The owner should hear about money leaving, whoever booked it.
-            Notification::create([
-                'pharmacy_id' => $pharmacy->id,
-                'title' => 'Stock written off',
-                'message' => ($actor?->name ?? 'Someone').' wrote off '
+            Notification::notify(
+                $pharmacy->id,
+                'Stock written off',
+                ($actor?->name ?? 'Someone').' wrote off '
                     .$validated['quantity'].' x '.$batch->name
                     .' ('.str_replace('_', ' ', $validated['reason']).') — '
                     .$writeOff->value().' lost.',
-                'type' => 'write_off',
-                'audience' => Notification::AUDIENCE_OWNER,
-                'is_read' => false,
-                'date' => now(),
-            ]);
+                'write_off',
+                Notification::AUDIENCE_OWNER,
+                $batch->id,
+            );
 
             return response()->json([
                 'message' => 'Written off. The loss has been recorded.',

@@ -9,8 +9,9 @@ import 'package:phamacy_managment/features/notifications/presentation/cubit/noti
 void main() {
   group('parsing', () {
     test('parses the envelope, unread count and read flags', () async {
-      final feed =
-          await NotificationsRepository(FakeNotificationsApi()).fetchNotifications();
+      final feed = await NotificationsRepository(
+        FakeNotificationsApi(),
+      ).fetchNotifications();
 
       expect(feed.unreadCount, 2);
       expect(feed.notifications, hasLength(3));
@@ -22,25 +23,101 @@ void main() {
 
     test('accepts integer 1/0 for is_read', () {
       expect(
-        AppNotification.fromJson({'id': 1, 'is_read': 1, 'type': 'sale'}).isRead,
+        AppNotification.fromJson({
+          'id': 1,
+          'is_read': 1,
+          'type': 'sale',
+        }).isRead,
         isTrue,
       );
       expect(
-        AppNotification.fromJson({'id': 2, 'is_read': 0, 'type': 'sale'}).isRead,
+        AppNotification.fromJson({
+          'id': 2,
+          'is_read': 0,
+          'type': 'sale',
+        }).isRead,
         isFalse,
       );
     });
   });
 
+  group('where a notification takes you', () {
+    // Every notification used to be a dead end: tapping it marked it read and
+    // left the pharmacist to go and find the thing themselves.
+    AppNotification of(String type, {int? reference}) => AppNotification(
+      id: 1,
+      title: 't',
+      message: 'm',
+      type: type,
+      isRead: false,
+      referenceId: reference,
+    );
+
+    test('a shortage sends you to the cart, where the restock is waiting', () {
+      expect(of('low_stock').destination, NotificationDestination.purchaseCart);
+      expect(
+        of('out_of_stock').destination,
+        NotificationDestination.purchaseCart,
+      );
+    });
+
+    test('anything about an order opens purchases', () {
+      for (final type in [
+        'order_placed',
+        'order_received',
+        'order_cancelled',
+      ]) {
+        expect(of(type).destination, NotificationDestination.purchases);
+      }
+    });
+
+    test('expiry and write-offs open the shelf', () {
+      for (final type in [
+        'expiring_60',
+        'expiring_14',
+        'expired_stock',
+        'write_off',
+      ]) {
+        expect(of(type).destination, NotificationDestination.inventory);
+      }
+    });
+
+    test('a notification about nothing openable stays inert', () {
+      // Honest rather than a fallback: an announcement concerns no screen, and
+      // sending them somewhere arbitrary is worse than doing nothing.
+      expect(of('admin_announcement').destination.isActionable, isFalse);
+      expect(of('pharmacy_approved').destination.isActionable, isFalse);
+    });
+
+    test('the reference identifies which record it is about', () {
+      expect(of('order_received', reference: 42).referenceId, 42);
+      expect(
+        AppNotification.fromJson({
+          'id': 1,
+          'type': 'order_received',
+          'reference_id': 42,
+        }).referenceId,
+        42,
+      );
+      expect(
+        AppNotification.fromJson({'id': 1, 'type': 'sale'}).referenceId,
+        isNull,
+      );
+    });
+  });
+
   group('English display mapping', () {
-    AppNotification build(String type, {String title = '', String message = ''}) =>
-        AppNotification(
-          id: 1,
-          title: title,
-          message: message,
-          type: type,
-          isRead: false,
-        );
+    AppNotification build(
+      String type, {
+      String title = '',
+      String message = '',
+    }) => AppNotification(
+      id: 1,
+      title: title,
+      message: message,
+      type: type,
+      isRead: false,
+    );
 
     test('Arabic backend text is never shown; type drives English copy', () {
       final n = build(
@@ -85,18 +162,22 @@ void main() {
       expect(n.displayMessage, 'Your pharmacy registration has been approved.');
     });
 
-    test('unknown type with Arabic text falls back to a safe English default', () {
-      final n = build('something_new', title: 'غير معروف', message: 'رسالة');
+    test(
+      'unknown type with Arabic text falls back to a safe English default',
+      () {
+        final n = build('something_new', title: 'غير معروف', message: 'رسالة');
 
-      expect(n.displayTitle, 'Notification');
-      expect(n.displayMessage, 'You have a new notification.');
-    });
+        expect(n.displayTitle, 'Notification');
+        expect(n.displayMessage, 'You have a new notification.');
+      },
+    );
   });
 
   group('cubit', () {
     test('load exposes ready state with the unread count', () async {
-      final cubit =
-          NotificationsCubit(NotificationsRepository(FakeNotificationsApi()));
+      final cubit = NotificationsCubit(
+        NotificationsRepository(FakeNotificationsApi()),
+      );
 
       await cubit.load();
 

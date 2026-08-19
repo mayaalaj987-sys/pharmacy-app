@@ -7,7 +7,8 @@ import 'notifications_state.dart';
 class NotificationsCubit extends Cubit<NotificationsState> {
   final NotificationsRepository repository;
 
-  NotificationsCubit(this.repository) : super(const NotificationsState.initial());
+  NotificationsCubit(this.repository)
+    : super(const NotificationsState.initial());
 
   /// Fetches the feed. Called on app/screen open and after mutations.
   /// No polling: the backend has no push channel and polling is not warranted.

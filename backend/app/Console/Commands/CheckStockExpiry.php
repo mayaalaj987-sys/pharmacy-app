@@ -57,15 +57,14 @@ class CheckStockExpiry extends Command
             $sent++;
 
             if (! $dryRun) {
-                Notification::create([
-                    'pharmacy_id' => $batch->pharmacy_id,
-                    'title' => $this->title($stage['days']),
-                    'message' => $this->message($batch, $stage['days']),
-                    'type' => $stage['type'],
-                    'audience' => Notification::AUDIENCE_OWNER,
-                    'is_read' => false,
-                    'date' => now(),
-                ]);
+                Notification::notify(
+                    $batch->pharmacy_id,
+                    $this->title($stage['days']),
+                    $this->message($batch, $stage['days']),
+                    $stage['type'],
+                    Notification::AUDIENCE_OWNER,
+                    $batch->id,
+                );
             }
         }
 

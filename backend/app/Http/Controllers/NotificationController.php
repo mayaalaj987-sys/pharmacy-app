@@ -16,10 +16,20 @@ class NotificationController extends Controller
     {
         $request->validate(['pharmacy_id' => 'required|exists:pharmacies,id']);
         $pharmacyId = $this->pharmacyContext->resolve($request)->id;
-        $notifications = Notification::where('pharmacy_id', $pharmacyId)->latest()->get();
+        // Capped. This used to fetch every notification the pharmacy had ever
+        // received and count the unread ones in PHP, which grew slower every
+        // month the app ran — and nobody scrolls back a thousand rows.
+        $notifications = Notification::where('pharmacy_id', $pharmacyId)
+            ->latest()
+            ->limit(100)
+            ->get();
 
         return response()->json([
-            'unread_count' => $notifications->where('is_read', false)->count(),
+            // Counted in the database, not over the page, so the badge stays
+            // right once there are more than a hundred.
+            'unread_count' => Notification::where('pharmacy_id', $pharmacyId)
+                ->where('is_read', false)
+                ->count(),
             'notifications' => $notifications,
         ]);
     }

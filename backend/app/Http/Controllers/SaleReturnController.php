@@ -173,17 +173,16 @@ class SaleReturnController extends Controller
                 ]);
             }
 
-            Notification::create([
-                'pharmacy_id' => $pharmacy->id,
-                'title' => 'Sale returned',
-                'message' => ($actor?->name ?? 'Someone').' refunded '
+            Notification::notify(
+                $pharmacy->id,
+                'Sale returned',
+                ($actor?->name ?? 'Someone').' refunded '
                     .$validated['quantity'].' x '.($line->medicine?->name ?? 'an item')
                     .' from sale #'.$record->id.' — '.$refund.' returned to the customer.',
-                'type' => 'sale_return',
-                'audience' => Notification::AUDIENCE_OWNER,
-                'is_read' => false,
-                'date' => now(),
-            ]);
+                'sale_return',
+                Notification::AUDIENCE_OWNER,
+                $record->id,
+            );
 
             return response()->json([
                 'message' => 'Refunded.',

@@ -261,17 +261,19 @@ class PurchaseCartController extends Controller
 
             // One message for one act of buying. A notification per supplier
             // would bury the fact that this was a single decision.
-            Notification::create([
-                'pharmacy_id' => $pharmacy->id,
-                'title' => 'Purchase placed',
-                'message' => count($placed) === 1
+            Notification::notify(
+                $pharmacy->id,
+                'Purchase placed',
+                count($placed) === 1
                     ? 'Ordered '.$items->count().' item(s) from '.$placed[0]['supplier_name'].' for '.$total.'.'
                     : 'Ordered '.$items->count().' item(s) from '.count($placed).' suppliers for '.$total.'.',
-                'type' => 'order',
-                'audience' => Notification::AUDIENCE_OWNER,
-                'is_read' => false,
-                'date' => now(),
-            ]);
+                'order_placed',
+                Notification::AUDIENCE_OWNER,
+                // One order when there is one, nothing when the cart split
+                // across suppliers — pointing at an arbitrary one of several
+                // would be worse than opening the list.
+                count($placed) === 1 ? $placed[0]['id'] : null,
+            );
 
             DB::commit();
 
