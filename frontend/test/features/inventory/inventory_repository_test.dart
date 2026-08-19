@@ -58,19 +58,22 @@ void main() {
     await cubit.close();
   });
 
-  test('a failed add surfaces an error and does not corrupt the list', () async {
-    final api = FakeInventoryApi()..failAdd = true;
-    final cubit = InventoryCubit(InventoryRepository(api));
-    await cubit.load();
+  test(
+    'a failed add surfaces an error and does not corrupt the list',
+    () async {
+      final api = FakeInventoryApi()..failAdd = true;
+      final cubit = InventoryCubit(InventoryRepository(api));
+      await cubit.load();
 
-    final ok = await cubit.addMedicine({'name': 'bad'});
+      final ok = await cubit.addMedicine({'name': 'bad'});
 
-    expect(ok, isFalse);
-    expect(cubit.state.error, isNotNull);
-    expect(cubit.state.saving, isFalse);
-    expect(cubit.state.medicines, hasLength(1));
-    await cubit.close();
-  });
+      expect(ok, isFalse);
+      expect(cubit.state.error, isNotNull);
+      expect(cubit.state.saving, isFalse);
+      expect(cubit.state.medicines, hasLength(1));
+      await cubit.close();
+    },
+  );
 
   test('a successful add refetches authoritative server state', () async {
     final api = FakeInventoryApi();

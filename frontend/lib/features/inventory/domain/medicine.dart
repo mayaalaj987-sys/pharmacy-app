@@ -96,6 +96,70 @@ class Medicine {
     return MedicineStatus.healthy;
   }
 
+  /// Collapses a shelf of batches into one entry per drug, for the till.
+  ///
+  /// A delivery with a different expiry date is stored as its own row, so the
+  /// same drug appears several times. That is exactly what the inventory screen
+  /// should show — a pharmacist needs to know fifty boxes expire in March — but
+  /// at the counter it is two identical-looking lines and a decision nobody
+  /// should have to make.
+  ///
+  /// Each entry stands for the batch that will actually be sold: the earliest
+  /// one still in date. Its price is the price charged, and its expiry is the
+  /// one worth warning about. The quantity is the whole shelf, since a sale
+  /// spills into the next batch when the first runs out.
+  ///
+  /// This mirrors the server's allocation exactly. Diverging would mean quoting
+  /// a price the sale does not charge.
+  static List<Medicine> collapseBatches(List<Medicine> batches) {
+    final byDrug = <String, List<Medicine>>{};
+
+    for (final batch in batches) {
+      byDrug.putIfAbsent(batch.name, () => <Medicine>[]).add(batch);
+    }
+
+    final shelf = <Medicine>[];
+
+    for (final group in byDrug.values) {
+      final sellable = group.where((batch) => !batch.isExpired).toList()
+        ..sort((a, b) {
+          // Undated stock last: it has no claim to being urgent, and putting it
+          // first is how a dated batch ends up thrown away.
+          if ((a.expireDate == null) != (b.expireDate == null)) {
+            return a.expireDate == null ? 1 : -1;
+          }
+          if (a.expireDate == null) return 0;
+
+          return a.expireDate!.compareTo(b.expireDate!);
+        });
+
+      if (sellable.isEmpty) continue;
+
+      final first = sellable.first;
+      final onHand = sellable.fold<int>(
+        0,
+        (sum, batch) => sum + batch.quantity,
+      );
+
+      shelf.add(
+        Medicine(
+          id: first.id,
+          name: first.name,
+          category: first.category,
+          manufacturer: first.manufacturer,
+          sellingPrice: first.sellingPrice,
+          costPrice: first.costPrice,
+          quantity: onHand,
+          reorderLevel: first.reorderLevel,
+          expireDate: first.expireDate,
+          supplierId: first.supplierId,
+        ),
+      );
+    }
+
+    return shelf;
+  }
+
   static double _toDouble(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '') ?? 0;

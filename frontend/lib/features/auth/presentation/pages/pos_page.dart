@@ -65,13 +65,22 @@ class _PosPageState extends State<PosPage> {
   }
 
   /// Search over authoritative server stock, never a local list.
+  /// Search results, one line per drug rather than one per batch.
+  ///
+  /// The shelf holds a separate row for every expiry date, which the inventory
+  /// screen should show and the counter should not: two identical-looking lines
+  /// is a decision nobody at a till should have to make. Each result stands for
+  /// the batch that will actually be sold — the earliest still in date — which
+  /// is the same one the server allocates from.
   List<Medicine> filteredMedicines(List<Medicine> stock) {
     final query = searchController.text.trim().toLowerCase();
     if (query.isEmpty) return const <Medicine>[];
 
-    return stock
-        .where((medicine) => medicine.name.toLowerCase().contains(query))
-        .toList();
+    return Medicine.collapseBatches(
+      stock
+          .where((medicine) => medicine.name.toLowerCase().contains(query))
+          .toList(),
+    );
   }
 
   double get total {

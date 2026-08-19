@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\StockAllocationException;
 use App\Models\Employee;
 use App\Models\Medicine;
 use App\Models\Notification;
@@ -10,6 +11,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Services\PharmacyContextResolver;
 use App\Services\PurchaseCartAutoStocker;
+use App\Services\StockAllocator;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +24,7 @@ class SaleController extends Controller
     public function __construct(
         private readonly PharmacyContextResolver $pharmacyContext,
         private readonly PurchaseCartAutoStocker $autoStocker,
+        private readonly StockAllocator $allocator,
     ) {}
 
     public function createSale(Request $request): JsonResponse
@@ -44,38 +47,25 @@ class SaleController extends Controller
         DB::beginTransaction();
 
         try {
-            $medicines = [];
+            // Worked out for the whole basket before anything is written, so a
+            // shortage on the last line does not leave the earlier ones sold.
+            $plans = [];
             $totalPrice = 0;
 
-            foreach ($request->input('items') as $item) {
-                $medicine = Medicine::where('pharmacy_id', $pharmacy->id)
-                    ->lockForUpdate()
-                    ->findOrFail($item['medicine_id']);
-                $medicines[$medicine->id] = $medicine;
+            foreach ($request->input('items') as $index => $item) {
+                $plan = $this->allocator->allocate(
+                    $pharmacy,
+                    (int) $item['medicine_id'],
+                    (int) $item['quantity'],
+                );
 
-                if ($medicine->quantity < $item['quantity']) {
-                    DB::rollBack();
+                // One price for the line however many batches fill it. The
+                // batch about to be sold sets it — which is the price the till
+                // displayed, since the screen shows what it will sell first.
+                $unitPrice = (float) $plan[0]['batch']->selling_price;
 
-                    return response()->json(['message' => 'الكمية غير متوفرة: '.$medicine->name], 400);
-                }
-
-                // Expired stock must never leave the pharmacy. The client also
-                // blocks this, but the guarantee has to live on the server.
-                if ($medicine->expire_date !== null && $medicine->expire_date->isBefore(now()->startOfDay())) {
-                    DB::rollBack();
-
-                    return response()->json([
-                        'message' => $medicine->name.' has expired and cannot be sold.',
-                        'code' => 'medicine_expired',
-                        'medicine' => [
-                            'id' => $medicine->id,
-                            'name' => $medicine->name,
-                            'expire_date' => $medicine->expire_date->toDateString(),
-                        ],
-                    ], 400);
-                }
-
-                $totalPrice += $medicine->selling_price * $item['quantity'];
+                $plans[$index] = ['plan' => $plan, 'unit_price' => $unitPrice];
+                $totalPrice += $unitPrice * (int) $item['quantity'];
             }
 
             if ($request->payment_method === 'insurance') {
@@ -92,22 +82,28 @@ class SaleController extends Controller
                 'date' => now()->toDateString(),
             ]);
 
-            foreach ($request->input('items') as $item) {
-                $medicine = $medicines[$item['medicine_id']];
-                SaleItem::create([
-                    'sale_id' => $sale->id,
-                    'medicine_id' => $medicine->id,
-                    'quantity' => $item['quantity'],
-                    'price' => $medicine->selling_price,
-                ]);
-                $medicine->decrement('quantity', $item['quantity']);
-                $medicine->refresh();
+            foreach ($plans as ['plan' => $plan, 'unit_price' => $unitPrice]) {
+                foreach ($plan as ['batch' => $batch, 'quantity' => $taken]) {
+                    SaleItem::create([
+                        'sale_id' => $sale->id,
+                        'medicine_id' => $batch->id,
+                        'quantity' => $taken,
+                        'price' => $unitPrice,
+                        // The cost of these particular boxes, frozen. Receiving
+                        // blends the recorded cost when fresh stock arrives, so
+                        // reading it back later would reprice a finished sale.
+                        'cost_price' => $batch->cost_price,
+                    ]);
+                    $batch->decrement('quantity', $taken);
+                }
 
-                // Queuing the restock says everything the bare warning said and
-                // acts on it, so the plain warning only fires when nothing
-                // could be queued.
-                if (! $this->autoStocker->consider($pharmacy, $medicine)) {
-                    $this->createStockNotification($pharmacy->id, $medicine);
+                // Judged on the drug, not on the batch that happened to run
+                // out: a pharmacy holding 200 boxes across two batches is not
+                // low because the older one is down to three.
+                $anchor = $plan[0]['batch']->fresh();
+
+                if (! $this->autoStocker->consider($pharmacy, $anchor)) {
+                    $this->createStockNotification($pharmacy->id, $anchor);
                 }
             }
 
@@ -135,6 +131,30 @@ class SaleController extends Controller
                 'payment_method' => $request->payment_method,
                 'date' => $sale->date,
             ], 201);
+        } catch (StockAllocationException $exception) {
+            DB::rollBack();
+
+            // Expired stock must never leave the pharmacy. The till blocks it
+            // too, but the guarantee has to live on the server.
+            if ($exception->reason === StockAllocationException::EXPIRED) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'code' => 'medicine_expired',
+                    'medicine' => [
+                        'name' => $exception->drug,
+                        'expire_date' => $exception->expiredOn,
+                    ],
+                ], 400);
+            }
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'insufficient_stock',
+                'medicine' => [
+                    'name' => $exception->drug,
+                    'available_quantity' => $exception->available,
+                ],
+            ], 400);
         } catch (ModelNotFoundException $exception) {
             DB::rollBack();
 
@@ -255,7 +275,14 @@ class SaleController extends Controller
 
     private function createStockNotification(int $pharmacyId, Medicine $medicine): void
     {
-        $type = $medicine->quantity === 0 ? 'out_of_stock' : ($medicine->quantity <= $medicine->reorder_level ? 'low_stock' : null);
+        // Every batch of the drug, not the one this sale drew from. A delivery
+        // with a different expiry date is its own row, so the batch that just
+        // ran out says nothing about what is left on the shelf.
+        $onHand = (int) Medicine::where('pharmacy_id', $pharmacyId)
+            ->where('name', $medicine->name)
+            ->sum('quantity');
+
+        $type = $onHand === 0 ? 'out_of_stock' : ($onHand <= $medicine->reorder_level ? 'low_stock' : null);
 
         if (! $type || Notification::where('pharmacy_id', $pharmacyId)
             ->where('type', $type)
@@ -270,7 +297,7 @@ class SaleController extends Controller
             'title' => $type === 'out_of_stock' ? 'Out of stock' : 'Running low',
             'message' => $type === 'out_of_stock'
                 ? $medicine->name.' is out of stock.'
-                : $medicine->name.' is down to '.$medicine->quantity.'.',
+                : $medicine->name.' is down to '.$onHand.'.',
             'type' => $type,
             'is_read' => false,
             'date' => now(),

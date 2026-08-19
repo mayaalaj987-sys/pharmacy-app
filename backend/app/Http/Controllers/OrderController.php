@@ -188,8 +188,18 @@ class OrderController extends Controller
             }
 
             foreach ($order->items as $item) {
+                // Matched on the batch, not just the drug. Two deliveries with
+                // different expiry dates are two physical piles on the shelf,
+                // and merging them forces a single date that is wrong either
+                // way: keep the old one and good stock is blocked, take the new
+                // one and expired stock becomes sellable.
                 $existingMedicine = Medicine::where('pharmacy_id', $order->pharmacy_id)
                     ->where('name', $item->medicine->name)
+                    ->where(function ($query) use ($item) {
+                        $item->medicine->expire_date === null
+                            ? $query->whereNull('expire_date')
+                            : $query->whereDate('expire_date', $item->medicine->expire_date);
+                    })
                     ->first();
 
                 $chosenPrice = $sellingPrices[$item->medicine_id] ?? null;
@@ -201,6 +211,13 @@ class OrderController extends Controller
                         'selling_price' => $chosenPrice ?? $existingMedicine->selling_price,
                     ]);
                 } else {
+                    // A fresh batch of a drug already on the shelf keeps the
+                    // shelf's price. Only a drug the pharmacy has never stocked
+                    // falls back to what the supplier suggests.
+                    $shelfPrice = Medicine::where('pharmacy_id', $order->pharmacy_id)
+                        ->where('name', $item->medicine->name)
+                        ->value('selling_price');
+
                     Medicine::create([
                         'pharmacy_id' => $order->pharmacy_id,
                         'supplier_id' => $order->supplier_id,
@@ -210,8 +227,8 @@ class OrderController extends Controller
                         // today — the two drift apart the moment prices move.
                         'cost_price' => $item->price,
                         // The pharmacist's margin when they set one; otherwise
-                        // the supplier's suggestion, as before.
-                        'selling_price' => $chosenPrice ?? $item->medicine->selling_price,
+                        // whatever this drug already sells for here.
+                        'selling_price' => $chosenPrice ?? $shelfPrice ?? $item->medicine->selling_price,
                         'manufacturer' => $item->medicine->manufacturer,
                         'quantity' => $item->quantity,
                         'reorder_level' => $item->medicine->reorder_level,

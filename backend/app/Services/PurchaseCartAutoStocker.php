@@ -39,7 +39,12 @@ class PurchaseCartAutoStocker
      */
     public function consider(Pharmacy $pharmacy, Medicine $stock): bool
     {
-        if ($stock->quantity > $stock->reorder_level) {
+        // Across every batch, not just the one the sale drew from. A pharmacy
+        // holding two hundred boxes in a fresh batch is not running low because
+        // the older batch beside it is down to three.
+        $onHand = $this->onHand($pharmacy, $stock->name);
+
+        if ($onHand > $stock->reorder_level) {
             return false;
         }
 
@@ -53,7 +58,7 @@ class PurchaseCartAutoStocker
             return true;
         }
 
-        $wanted = self::TARGET_MULTIPLE * $stock->reorder_level - $stock->quantity;
+        $wanted = self::TARGET_MULTIPLE * $stock->reorder_level - $onHand;
         $offer = $this->bestOffer($stock->name, $wanted);
 
         if (! $offer) {
@@ -71,19 +76,32 @@ class PurchaseCartAutoStocker
 
         Notification::create([
             'pharmacy_id' => $pharmacy->id,
-            'title' => $stock->quantity === 0 ? 'Out of stock' : 'Running low',
+            'title' => $onHand === 0 ? 'Out of stock' : 'Running low',
             'message' => $stock->name.' is '
-                .($stock->quantity === 0 ? 'out of stock' : 'down to '.$stock->quantity)
+                .($onHand === 0 ? 'out of stock' : 'down to '.$onHand)
                 .'. '.$quantity.' added to your purchase cart from '
                 .($offer->supplier?->name ?? 'a supplier')
                 .'. Review it before buying.',
-            'type' => $stock->quantity === 0 ? 'out_of_stock' : 'low_stock',
+            'type' => $onHand === 0 ? 'out_of_stock' : 'low_stock',
             'audience' => Notification::AUDIENCE_OWNER,
             'is_read' => false,
             'date' => now(),
         ]);
 
         return true;
+    }
+
+    /**
+     * Every box of this drug the pharmacy holds, across all its batches.
+     *
+     * A delivery with a different expiry date lands as its own row, so one drug
+     * is several rows and no single one of them speaks for the shelf.
+     */
+    private function onHand(Pharmacy $pharmacy, string $name): int
+    {
+        return (int) Medicine::where('pharmacy_id', $pharmacy->id)
+            ->where('name', $name)
+            ->sum('quantity');
     }
 
     /**
