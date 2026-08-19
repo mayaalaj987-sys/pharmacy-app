@@ -24,7 +24,15 @@ class PurchaseCartFab extends StatelessWidget {
 
         return FloatingActionButton.extended(
           key: const ValueKey('open-cart-fab'),
-          heroTag: 'purchase-cart-fab',
+          // No hero. This button sits on three screens, two of which stack —
+          // the supplier list pushes the supplier's catalogue — and a shared
+          // tag makes Flutter fly the button between them, reparenting its
+          // subtree across the two routes. On the way back that leaves an
+          // inherited element being torn down while something still depends on
+          // it, which is the "_dependents.isEmpty" assertion. Nothing here was
+          // ever meant to animate between screens; the button simply belongs
+          // to each of them.
+          heroTag: null,
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const PurchaseCartPage()),
