@@ -8,6 +8,7 @@ import '../../../../core/widgets/custom_app_bar.dart';
 import '../../domain/medicine.dart';
 import '../cubit/inventory_cubit.dart';
 import '../cubit/inventory_state.dart';
+import '../widgets/write_off_sheet.dart';
 
 /// Stock overview grouped by shelf status.
 ///
@@ -192,6 +193,12 @@ class _InventoryPageState extends State<InventoryPage> {
 
     return ListTile(
       key: ValueKey('inventory-row-${medicine.id}'),
+      // Stock that expired or broke has to leave the shelf somehow. Editing the
+      // quantity down was the only way and it recorded nothing — not what
+      // happened, not what it cost.
+      onTap: medicine.quantity > 0
+          ? () => showWriteOffSheet(context, medicine)
+          : null,
       title: Text(
         medicine.name,
         style: const TextStyle(fontWeight: FontWeight.w600),

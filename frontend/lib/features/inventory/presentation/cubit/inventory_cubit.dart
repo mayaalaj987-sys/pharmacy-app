@@ -14,9 +14,7 @@ class InventoryCubit extends Cubit<InventoryState> {
     emit(state.copyWith(status: InventoryStatus.loading, clearError: true));
     try {
       final medicines = await repository.fetchMedicines();
-      emit(
-        state.copyWith(status: InventoryStatus.ready, medicines: medicines),
-      );
+      emit(state.copyWith(status: InventoryStatus.ready, medicines: medicines));
     } on AuthApiException catch (error) {
       emit(state.copyWith(status: InventoryStatus.failure, error: error));
     } catch (_) {
@@ -31,6 +29,23 @@ class InventoryCubit extends Cubit<InventoryState> {
 
   Future<bool> addMedicine(Map<String, dynamic> payload) {
     return _mutate(() => repository.addMedicine(payload));
+  }
+
+  /// Books stock off the shelf as a loss, then reloads so the counts are real.
+  Future<bool> writeOff(
+    int medicineId, {
+    required int quantity,
+    required String reason,
+    String? note,
+  }) {
+    return _mutate(
+      () => repository.writeOff(
+        medicineId,
+        quantity: quantity,
+        reason: reason,
+        note: note,
+      ),
+    );
   }
 
   Future<bool> editMedicine(int id, Map<String, dynamic> payload) {

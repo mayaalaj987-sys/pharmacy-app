@@ -6,6 +6,31 @@ import 'package:phamacy_managment/features/inventory/presentation/cubit/inventor
 import 'package:phamacy_managment/features/inventory/presentation/cubit/inventory_state.dart';
 
 void main() {
+  test('a write-off posts the quantity, the reason and nothing else', () async {
+    // The note is optional and an empty one is not a note. Sending it would
+    // store a blank string that reads as "somebody explained" in the history.
+    final api = FakeInventoryApi();
+
+    await InventoryRepository(
+      api,
+    ).writeOff(7, quantity: 41, reason: 'expired', note: '');
+
+    expect(api.lastWriteOffPayload, {'quantity': 41, 'reason': 'expired'});
+  });
+
+  test('a note is sent when there is one', () async {
+    final api = FakeInventoryApi();
+
+    await InventoryRepository(api).writeOff(
+      7,
+      quantity: 2,
+      reason: 'damaged',
+      note: 'fridge failed overnight',
+    );
+
+    expect(api.lastWriteOffPayload!['note'], 'fridge failed overnight');
+  });
+
   test('fetchMedicines parses the Laravel medicines envelope', () async {
     final repo = InventoryRepository(FakeInventoryApi());
 
@@ -91,8 +116,22 @@ void main() {
 
 class FakeInventoryApi implements InventoryRemoteDataSource {
   Map<String, dynamic>? lastAddPayload;
+  Map<String, dynamic>? lastWriteOffPayload;
   bool failAdd = false;
   int listCalls = 0;
+
+  @override
+  Future<Response<dynamic>> writeOff(
+    int medicineId,
+    Map<String, dynamic> data,
+  ) async {
+    lastWriteOffPayload = data;
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/medicines/$medicineId/write-off'),
+      statusCode: 201,
+      data: {'code': 'stock_written_off'},
+    );
+  }
 
   @override
   Future<Response<dynamic>> getMedicines() async {

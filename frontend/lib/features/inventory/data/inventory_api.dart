@@ -23,4 +23,15 @@ class InventoryApi implements InventoryRemoteDataSource {
   Future<Response<dynamic>> editMedicine(int id, Map<String, dynamic> data) {
     return dio.post('${ApiConstants.medicineEdit}/$id', data: data);
   }
+
+  @override
+  Future<Response<dynamic>> writeOff(
+    int medicineId,
+    Map<String, dynamic> data,
+  ) {
+    return dio.post(
+      '${ApiConstants.medicines}/$medicineId/write-off',
+      data: data,
+    );
+  }
 }
