@@ -33,6 +33,10 @@ class OrderController extends Controller
             'supplier_id' => 'required|exists:suppliers,id',
             'pharmacy_id' => 'required|exists:pharmacies,id',
             'payment_method' => 'required|in:cash,card',
+            // Same rule the till applies to a customer paying by card. It is
+            // checked and then discarded — a card number is not something a
+            // pharmacy management system has any business keeping.
+            'card_number' => 'required_if:payment_method,card|digits:10',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
             'items.*.quantity' => 'required|integer|min:1',

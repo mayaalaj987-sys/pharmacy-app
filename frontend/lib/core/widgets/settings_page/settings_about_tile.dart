@@ -51,13 +51,11 @@ class SettingsAboutTile extends StatelessWidget {
                   ),
                 ),
 
-
                 actionsPadding: const EdgeInsets.only(
                   left: 16,
                   right: 20,
                   bottom: 16,
                 ),
-
               );
             },
           );

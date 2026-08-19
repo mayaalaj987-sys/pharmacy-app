@@ -31,7 +31,14 @@ String userFacingError(
 }
 
 /// Where the failure happened, so a bare HTTP status can be explained usefully.
-enum ErrorContext { generic, sendOffer, acceptOffer, dismissEmployee, sale, order }
+enum ErrorContext {
+  generic,
+  sendOffer,
+  acceptOffer,
+  dismissEmployee,
+  sale,
+  order,
+}
 
 const _messagesByCode = <String, String>{
   'validation_failed': 'Please check the highlighted fields and try again.',
@@ -55,6 +62,20 @@ const _messagesByCode = <String, String>{
   'not_employed': 'You do not currently have a job to leave.',
   'already_an_employee': 'They are already listed as an employee.',
   'employee_not_active': 'This person does not work at your pharmacy.',
+  'pharmacy_limit_reached':
+      'You can run at most two pharmacies on this account.',
+  'medicine_expired': 'That stock has expired and cannot be sold or bought.',
+  'insufficient_stock': 'There is not enough of that on the shelf.',
+  'return_window_closed':
+      'Returns are only accepted within 48 hours of the sale.',
+  'nothing_left_to_return': 'That line has already been returned.',
+  'stock_written_off': 'The loss has been recorded.',
+  'cart_empty': 'There is nothing in the cart to buy.',
+  'not_a_supplier_offer': 'No supplier offers that medicine.',
+  'not_the_same_drug': 'That supplier does not stock the same medicine.',
+  'supplier_stock_insufficient':
+      'The supplier does not have that many. Lower the quantity and try again.',
+  'order_not_pending': 'This order has already been received or cancelled.',
 };
 
 String? _messageForStatus(int? status, ErrorContext context) {

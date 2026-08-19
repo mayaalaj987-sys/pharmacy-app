@@ -57,8 +57,12 @@ class PurchaseCheckoutTest extends SecurityTestCase
         $this->inCart($pharmacy, $offer, 30);
 
         Sanctum::actingAs($owner, ['*'], 'pharmacist');
-        $this->postJson('/api/purchase-cart/checkout', ['payment_method' => 'card'], $this->at($pharmacy))
-            ->assertCreated();
+        // Paying a wholesaler by card asks for the card, exactly as the till
+        // does when a customer pays by one.
+        $this->postJson('/api/purchase-cart/checkout', [
+            'payment_method' => 'card',
+            'card_number' => '1234567890',
+        ], $this->at($pharmacy))->assertCreated();
 
         $this->assertSame(0, PurchaseCartItem::count());
         // Reserved against the shared catalogue, so the next pharmacy sees the truth.

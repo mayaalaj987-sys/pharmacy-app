@@ -140,6 +140,28 @@ void main() {
     expect(soon.expiringSoon, isTrue);
   });
 
+  test('a card payment carries the card number', () async {
+    // The server demands it exactly as the till does from a customer, and the
+    // number is validated and discarded at both ends.
+    final api = FakeCartApi();
+    final cubit = PurchaseCartCubit(PurchaseCartRepository(api));
+
+    await cubit.checkout('card', cardNumber: '1234567890');
+
+    expect(api.lastCardNumber, '1234567890');
+    await cubit.close();
+  });
+
+  test('a cash payment sends no card number at all', () async {
+    final api = FakeCartApi();
+    final cubit = PurchaseCartCubit(PurchaseCartRepository(api));
+
+    await cubit.checkout('cash');
+
+    expect(api.lastCardNumber, isNull);
+    await cubit.close();
+  });
+
   test('one write at a time', () async {
     // Two overlapping quantity changes would race, and the loser would win.
     final api = FakeCartApi();
@@ -159,6 +181,7 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
   Map<String, dynamic>? lastAdd;
   List<int>? lastSwitch;
   int quantityCalls = 0;
+  String? lastCardNumber;
   bool supplierShort = false;
 
   @override
@@ -192,7 +215,12 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
   }
 
   @override
-  Future<Response<dynamic>> checkout(String paymentMethod) async {
+  Future<Response<dynamic>> checkout(
+    String paymentMethod,
+    String? cardNumber,
+  ) async {
+    lastCardNumber = cardNumber;
+
     if (supplierShort) {
       throw DioException(
         requestOptions: RequestOptions(path: '/purchase-cart/checkout'),

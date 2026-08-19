@@ -13,5 +13,5 @@ abstract class PurchaseCartRemoteDataSource {
 
   Future<Response<dynamic>> switchSupplier(int itemId, int medicineId);
 
-  Future<Response<dynamic>> checkout(String paymentMethod);
+  Future<Response<dynamic>> checkout(String paymentMethod, String? cardNumber);
 }

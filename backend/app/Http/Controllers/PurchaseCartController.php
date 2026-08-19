@@ -209,6 +209,11 @@ class PurchaseCartController extends Controller
     {
         $validated = $request->validate([
             'payment_method' => ['required', 'in:cash,card'],
+            // Paying a wholesaler by card asks for the card, exactly as the
+            // till does when a customer pays by one. Validated and then thrown
+            // away: a card number is not something this system should keep, and
+            // no column anywhere stores it.
+            'card_number' => ['required_if:payment_method,card', 'digits:10'],
         ]);
 
         $pharmacy = $this->pharmacyContext->resolve($request);

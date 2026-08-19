@@ -32,11 +32,21 @@ class RatingController extends Controller
         ]);
     }
 
+    /**
+     * Leaves or revises this pharmacist's rating of the app.
+     *
+     * Revisable, where it used to refuse a second attempt outright. Holding
+     * somebody to one bad afternoon forever is not feedback, and it also made
+     * the note unreachable for everyone who had already left a star.
+     */
     public function submitRating(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'pharmacist_id' => 'required|exists:pharmacists,id',
             'stars' => 'required|integer|min:1|max:5',
+            // What actually happened. A star says somebody was unhappy; this is
+            // the only part anyone can act on.
+            'note' => 'nullable|string|max:1000',
         ]);
         $pharmacist = $request->user();
 
@@ -44,24 +54,23 @@ class RatingController extends Controller
             throw new AuthorizationException('The pharmacist identifier does not match the authenticated user.');
         }
 
-        $alreadyRated = Rating::where('pharmacist_id', $pharmacist->id)
-            ->exists();
+        $existing = Rating::where('pharmacist_id', $pharmacist->id)->first();
 
-        if ($alreadyRated) {
-            return response()->json([
-                'message' => 'You have already rated the app',
-            ], 400);
-        }
-
-        $rating = Rating::create([
-            'pharmacist_id' => $pharmacist->id,
-            'stars' => $request->stars,
-            'date' => now()->toDateString(),
-        ]);
+        $rating = Rating::updateOrCreate(
+            ['pharmacist_id' => $pharmacist->id],
+            [
+                'stars' => $validated['stars'],
+                'note' => $validated['note'] ?? null,
+                'date' => now()->toDateString(),
+            ],
+        );
 
         return response()->json([
-            'message' => 'Rating submitted successfully',
+            'message' => $existing
+                ? 'Your rating has been updated.'
+                : 'Thanks — your rating has been recorded.',
+            'code' => $existing ? 'rating_updated' : 'rating_recorded',
             'rating' => $rating,
-        ], 201);
+        ], $existing ? 200 : 201);
     }
 }

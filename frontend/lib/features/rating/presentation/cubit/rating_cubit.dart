@@ -27,12 +27,23 @@ class RatingCubit extends Cubit<RatingState> {
     }
   }
 
-  /// Submits once; the backend returns 400 if this pharmacist already rated.
-  Future<bool> submit({required int pharmacistId, required int stars}) async {
+  /// Leaves or revises the rating, then re-reads it.
+  ///
+  /// Revisable now, where it used to be a one-shot the backend refused a second
+  /// time. Holding somebody to one bad afternoon forever is not feedback.
+  Future<bool> submit({
+    required int pharmacistId,
+    required int stars,
+    String? note,
+  }) async {
     if (state.submitting) return false;
     emit(state.copyWith(submitting: true, clearError: true));
     try {
-      await repository.submitRating(pharmacistId: pharmacistId, stars: stars);
+      await repository.submitRating(
+        pharmacistId: pharmacistId,
+        stars: stars,
+        note: note,
+      );
       final rating = await repository.fetchMyRating();
       emit(
         state.copyWith(

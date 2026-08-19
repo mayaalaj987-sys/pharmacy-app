@@ -8,8 +8,11 @@ use Tests\Feature\Security\SecurityTestCase;
 
 class RatingTest extends SecurityTestCase
 {
-    public function test_pharmacist_submits_an_app_rating_once(): void
+    public function test_a_pharmacist_holds_one_rating_and_may_revise_it(): void
     {
+        // It used to refuse a second attempt outright. Holding somebody to one
+        // bad afternoon forever is not feedback — and it also put the note out
+        // of reach of everyone who had already left a star.
         $owner = $this->pharmacist('rate-once');
         $this->pharmacy($owner, 'rate-once');
         Sanctum::actingAs($owner, ['*'], 'pharmacist');
@@ -17,19 +20,54 @@ class RatingTest extends SecurityTestCase
         $this->postJson('/api/rating', [
             'pharmacist_id' => $owner->id,
             'stars' => 5,
-        ])->assertCreated();
-
-        $this->assertDatabaseHas('ratings', [
-            'pharmacist_id' => $owner->id,
-            'stars' => 5,
-        ]);
+        ])->assertCreated()->assertJsonPath('code', 'rating_recorded');
 
         $this->postJson('/api/rating', [
             'pharmacist_id' => $owner->id,
             'stars' => 3,
-        ])->assertStatus(400);
+        ])->assertOk()->assertJsonPath('code', 'rating_updated');
 
         $this->assertSame(1, Rating::where('pharmacist_id', $owner->id)->count());
+        $this->assertSame(3, (int) Rating::sole()->stars);
+    }
+
+    public function test_a_rating_can_carry_the_reason_behind_it(): void
+    {
+        // A star records that somebody was unhappy without recording why, which
+        // is the one thing feedback has to do.
+        $owner = $this->pharmacist('rate-note');
+        $this->pharmacy($owner, 'rate-note');
+        Sanctum::actingAs($owner, ['*'], 'pharmacist');
+
+        $this->postJson('/api/rating', [
+            'pharmacist_id' => $owner->id,
+            'stars' => 2,
+            'note' => 'The purchase cart is good but the till is slow to search.',
+        ])->assertCreated();
+
+        $this->assertSame(
+            'The purchase cart is good but the till is slow to search.',
+            Rating::sole()->note,
+        );
+
+        $this->getJson('/api/rating')
+            ->assertOk()
+            ->assertJsonPath('rating.note', 'The purchase cart is good but the till is slow to search.');
+    }
+
+    public function test_a_note_longer_than_the_column_is_refused(): void
+    {
+        $owner = $this->pharmacist('rate-long');
+        $this->pharmacy($owner, 'rate-long');
+        Sanctum::actingAs($owner, ['*'], 'pharmacist');
+
+        $this->postJson('/api/rating', [
+            'pharmacist_id' => $owner->id,
+            'stars' => 4,
+            'note' => str_repeat('a', 1001),
+        ])->assertUnprocessable()->assertJsonValidationErrors('note');
+
+        $this->assertSame(0, Rating::count());
     }
 
     public function test_my_rating_reports_state_and_average(): void

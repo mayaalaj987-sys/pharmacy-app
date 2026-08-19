@@ -7,11 +7,14 @@ import '../../../features/rating/presentation/cubit/rating_state.dart';
 import '../../network/user_facing_error.dart';
 import '../../theme/app_colors.dart';
 
-/// Rate the application (1-5 stars, once per pharmacist).
+/// Rate the application: stars, and room to say why.
 ///
-/// Backed by `GET /rating` and `POST /rating`. The pharmacist id is taken from
-/// the authenticated session; the backend rejects any mismatch and returns 400
-/// when a rating already exists, which is surfaced honestly rather than faked.
+/// Backed by `GET /rating` and `POST /rating`. The pharmacist id comes from the
+/// authenticated session; the backend rejects any mismatch.
+///
+/// Re-openable. It used to lock after the first submission, which held somebody
+/// to one bad afternoon forever and — once the note existed — put it out of
+/// reach of everyone who had already left a star.
 class SettingsRateTile extends StatefulWidget {
   const SettingsRateTile({super.key});
 
@@ -34,7 +37,9 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
 
         return Card(
           color: AppColors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: ListTile(
             leading: const Icon(Icons.star, color: AppColors.pendingOrange),
             title: const Text(
@@ -45,21 +50,19 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
                 ? const Text("Loading...")
                 : Text(
                     rating.hasRated
-                        ? "You rated ${rating.myStars}/5"
+                        ? "You rated ${rating.myStars}/5 — tap to change it"
                         : rating.ratingsCount > 0
                         ? "Average ${rating.averageStars}/5 from ${rating.ratingsCount} ratings"
                         : "Not rated yet",
                   ),
             trailing: rating.hasRated
-                ? const Icon(Icons.check_circle, color: AppColors.lightGreen)
+                ? const Icon(Icons.edit_outlined, color: AppColors.tealGreen)
                 : const Icon(
                     Icons.arrow_forward_ios,
                     size: 18,
                     color: AppColors.tealGreen,
                   ),
-            onTap: rating.hasRated || state.submitting
-                ? null
-                : () => _openDialog(context),
+            onTap: state.submitting ? null : () => _openDialog(context),
           ),
         );
       },
@@ -78,18 +81,22 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
       return;
     }
 
-    var selectedRating = 0;
+    // Seeded from whatever they said last, so revising is an edit rather than
+    // starting over.
+    final existing = cubit.state.rating;
+    var selectedRating = existing.myStars ?? 0;
+    final note = TextEditingController(text: existing.myNote ?? '');
 
-    final stars = await showDialog<int>(
+    final result = await showDialog<(int, String)>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.white,
-              title: const Text(
-                "Rate Application",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              title: Text(
+                existing.hasRated ? "Change your rating" : "Rate Application",
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -120,6 +127,21 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.tealGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // The part anyone can act on. A star says somebody was
+                  // unhappy; this says what to fix.
+                  TextField(
+                    key: const ValueKey('rating-note-field'),
+                    controller: note,
+                    maxLines: 3,
+                    maxLength: 1000,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'What worked, what did not (optional)',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],
@@ -166,10 +188,13 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
                         ),
                         onPressed: selectedRating == 0
                             ? null
-                            : () => Navigator.pop(dialogContext, selectedRating),
-                        child: const Text(
-                          "Submit",
-                          style: TextStyle(fontSize: 13),
+                            : () => Navigator.pop(dialogContext, (
+                                selectedRating,
+                                note.text,
+                              )),
+                        child: Text(
+                          existing.hasRated ? "Update" : "Submit",
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ),
                     ),
@@ -182,16 +207,22 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
       },
     );
 
-    if (stars == null) return;
+    // Disposed once the route is gone, never while it animates out.
+    note.dispose();
+    if (result == null || !mounted) return;
 
-    final ok = await cubit.submit(pharmacistId: pharmacistId, stars: stars);
+    final ok = await cubit.submit(
+      pharmacistId: pharmacistId,
+      stars: result.$1,
+      note: result.$2,
+    );
 
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: ok ? AppColors.tealGreen : AppColors.errorRed,
+        backgroundColor: ok ? null : AppColors.errorRed,
         content: Text(
           ok
-              ? "Thanks for rating $stars stars"
+              ? 'Thanks — your feedback has been recorded.'
               : userFacingError(
                   cubit.state.error,
                   fallback: 'Unable to submit your rating.',

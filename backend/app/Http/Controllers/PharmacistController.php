@@ -170,6 +170,17 @@ class PharmacistController extends Controller
 
     public function addPharmacy(AddPharmacyRequest $request): JsonResponse
     {
+        // Checked before the uploads are stored, so a refused application does
+        // not leave two orphaned documents on disk.
+        if (! $request->user()->hasRoomForAnotherPharmacy()) {
+            return response()->json([
+                'message' => 'A pharmacist may run at most '
+                    .Pharmacist::MAX_PHARMACIES.' pharmacies.',
+                'code' => 'pharmacy_limit_reached',
+                'limit' => Pharmacist::MAX_PHARMACIES,
+            ], 409);
+        }
+
         $certificate = null;
         $license = null;
         try {

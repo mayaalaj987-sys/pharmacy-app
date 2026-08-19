@@ -7,6 +7,11 @@ import 'rating_remote_data_source.dart';
 class AppRating {
   final bool hasRated;
   final int? myStars;
+
+  /// What they wanted to say. A star records that somebody was unhappy without
+  /// recording why, which is the one thing feedback has to do.
+  final String? myNote;
+
   final double averageStars;
   final int ratingsCount;
 
@@ -15,6 +20,7 @@ class AppRating {
     required this.averageStars,
     required this.ratingsCount,
     this.myStars,
+    this.myNote,
   });
 
   static const empty = AppRating(
@@ -37,12 +43,14 @@ class RatingRepository {
 
       final rating = data['rating'];
       final stars = rating is Map<String, dynamic> ? rating['stars'] : null;
+      final note = rating is Map<String, dynamic> ? rating['note'] : null;
 
       return AppRating(
         hasRated: data['has_rated'] == true,
         myStars: stars == null
             ? null
             : (stars is num ? stars.toInt() : int.tryParse(stars.toString())),
+        myNote: note?.toString(),
         averageStars: _toDouble(data['average_stars']),
         ratingsCount: _toInt(data['ratings_count']),
       );
@@ -51,14 +59,23 @@ class RatingRepository {
     }
   }
 
+  /// Leaves or revises the rating.
+  ///
   /// [pharmacistId] must be the authenticated pharmacist; the backend rejects
-  /// any mismatch, so it is taken from the session rather than user input.
+  /// any mismatch, so it is taken from the session rather than user input. An
+  /// empty note is omitted rather than sent as a blank string, which would read
+  /// as "they explained" in the feedback anyone reads later.
   Future<void> submitRating({
     required int pharmacistId,
     required int stars,
+    String? note,
   }) async {
     try {
-      await api.submitRating({'pharmacist_id': pharmacistId, 'stars': stars});
+      await api.submitRating({
+        'pharmacist_id': pharmacistId,
+        'stars': stars,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }

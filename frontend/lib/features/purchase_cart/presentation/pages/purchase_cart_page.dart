@@ -25,6 +25,17 @@ class PurchaseCartPage extends StatefulWidget {
 class _PurchaseCartPageState extends State<PurchaseCartPage> {
   String _paymentMethod = 'cash';
 
+  /// Only asked for when paying by card, and only ever sent — the server
+  /// validates it and throws it away, and nothing here keeps it either.
+  final _cardNumber = TextEditingController();
+  String? _cardError;
+
+  @override
+  void dispose() {
+    _cardNumber.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -484,6 +495,28 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
               Expanded(child: _payment('card', 'Card', Icons.credit_card)),
             ],
           ),
+          // Asked for only when it is needed, and only ever sent: the server
+          // validates the number and discards it, and nothing keeps it here
+          // either.
+          if (_paymentMethod == 'card') ...[
+            const SizedBox(height: 10),
+            TextField(
+              key: const ValueKey('cart-card-number'),
+              controller: _cardNumber,
+              keyboardType: TextInputType.number,
+              maxLength: 10,
+              onChanged: (_) {
+                if (_cardError != null) setState(() => _cardError = null);
+              },
+              decoration: InputDecoration(
+                labelText: 'Card number (10 digits)',
+                errorText: _cardError,
+                isDense: true,
+                counterText: '',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -645,6 +678,17 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
   Future<void> _confirmBuy() async {
     final cart = context.read<PurchaseCartCubit>().state.cart;
 
+    // Checked here so the pharmacist is told at the button rather than by a
+    // rejected request after the confirmation dialog.
+    if (_paymentMethod == 'card') {
+      final digits = _cardNumber.text.trim();
+      if (!RegExp(r'^\d{10}$').hasMatch(digits)) {
+        setState(() => _cardError = 'Enter the 10 digits on the card.');
+
+        return;
+      }
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -677,7 +721,10 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
     final cubit = context.read<PurchaseCartCubit>();
     final orders = context.read<OrdersCubit>();
 
-    final placed = await cubit.checkout(_paymentMethod);
+    final placed = await cubit.checkout(
+      _paymentMethod,
+      cardNumber: _paymentMethod == 'card' ? _cardNumber.text.trim() : null,
+    );
     if (!mounted) return;
 
     // The purchases screen is where they are received, so it must not be stale.

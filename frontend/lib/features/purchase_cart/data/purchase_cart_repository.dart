@@ -31,9 +31,13 @@ class PurchaseCartRepository {
       _cart(() => api.switchSupplier(itemId, medicineId));
 
   /// Buys the cart. Returns how many orders it became — one per supplier.
-  Future<int> checkout(String paymentMethod) async {
+  ///
+  /// [cardNumber] is required by the server when paying by card, exactly as the
+  /// till requires it from a customer. It is validated and discarded; nothing
+  /// stores it.
+  Future<int> checkout(String paymentMethod, {String? cardNumber}) async {
     try {
-      final response = await api.checkout(paymentMethod);
+      final response = await api.checkout(paymentMethod, cardNumber);
       final data = response.data;
       final orders = data is Map<String, dynamic> ? data['orders'] : null;
 

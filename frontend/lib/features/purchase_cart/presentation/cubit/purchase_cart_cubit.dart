@@ -56,12 +56,15 @@ class PurchaseCartCubit extends Cubit<PurchaseCartState> {
   ///
   /// All or nothing on the server, so a failure leaves the cart exactly as it
   /// was and the pharmacist can fix one line and try again.
-  Future<int?> checkout(String paymentMethod) async {
+  Future<int?> checkout(String paymentMethod, {String? cardNumber}) async {
     if (state.busy) return null;
     emit(state.copyWith(mutatingItemId: -1, clearError: true));
 
     try {
-      final orders = await repository.checkout(paymentMethod);
+      final orders = await repository.checkout(
+        paymentMethod,
+        cardNumber: cardNumber,
+      );
       emit(
         state.copyWith(
           status: PurchaseCartStatus.ready,
