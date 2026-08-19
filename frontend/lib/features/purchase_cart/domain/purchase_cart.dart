@@ -23,12 +23,21 @@ class PurchaseCart {
   /// Lines the supplier can no longer fill in full.
   final int unavailableCount;
 
+  /// Lines that have already expired. Checkout refuses these outright.
+  final int expiredCount;
+
+  /// Lines close enough to expiry to be worth a second thought, but allowed:
+  /// short dating is sometimes exactly what a pharmacy wants.
+  final int expiringSoonCount;
+
   const PurchaseCart({
     this.groups = const <CartSupplierGroup>[],
     this.total = 0,
     this.itemCount = 0,
     this.suggestedCount = 0,
     this.unavailableCount = 0,
+    this.expiredCount = 0,
+    this.expiringSoonCount = 0,
   });
 
   const PurchaseCart.empty() : this();
@@ -49,6 +58,8 @@ class PurchaseCart {
       itemCount: _toInt(json['item_count']),
       suggestedCount: _toInt(json['suggested_count']),
       unavailableCount: _toInt(json['unavailable_count']),
+      expiredCount: _toInt(json['expired_count']),
+      expiringSoonCount: _toInt(json['expiring_soon_count']),
     );
   }
 }
@@ -108,6 +119,14 @@ class CartLine {
   /// True when the app queued this line and the pharmacist has not touched it.
   final bool suggested;
 
+  /// Out of date already: the POS would refuse to sell it, so checkout refuses
+  /// to buy it.
+  final bool expired;
+
+  /// Close to expiry, allowed, but worth seeing before paying.
+  final bool expiringSoon;
+  final String? expiresOn;
+
   final CheaperOffer? cheaperElsewhere;
 
   const CartLine({
@@ -121,6 +140,9 @@ class CartLine {
     required this.availableQuantity,
     required this.available,
     required this.suggested,
+    required this.expired,
+    required this.expiringSoon,
+    this.expiresOn,
     this.cheaperElsewhere,
   });
 
@@ -141,6 +163,9 @@ class CartLine {
       availableQuantity: _toInt(medicine['available_quantity']),
       available: json['available'] == true,
       suggested: json['added_by']?.toString() == 'app',
+      expired: json['expired'] == true,
+      expiringSoon: json['expiring_soon'] == true,
+      expiresOn: medicine['expire_date']?.toString(),
       cheaperElsewhere: cheaper is Map<String, dynamic>
           ? CheaperOffer.fromJson(cheaper)
           : null,

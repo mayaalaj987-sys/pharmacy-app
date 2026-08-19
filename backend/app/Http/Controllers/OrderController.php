@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ExpiredOfferException;
 use App\Exceptions\PharmacyContextException;
 use App\Exceptions\SupplierStockException;
 use App\Models\Medicine;
@@ -71,6 +72,16 @@ class OrderController extends Controller
             return response()->json([
                 'message' => $exception->getMessage(),
                 'code' => 'supplier_stock_insufficient',
+                'medicine' => $exception->details(),
+            ], 400);
+        } catch (ExpiredOfferException $exception) {
+            DB::rollBack();
+
+            // Same code the POS answers with when an expired box is scanned, so
+            // the client has one rule to recognise rather than two.
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'medicine_expired',
                 'medicine' => $exception->details(),
             ], 400);
         } catch (InvalidArgumentException) {

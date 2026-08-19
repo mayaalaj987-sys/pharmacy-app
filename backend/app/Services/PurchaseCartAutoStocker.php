@@ -108,12 +108,20 @@ class PurchaseCartAutoStocker
      * saving worth taking automatically. If nobody can, the one holding the
      * most — a part delivery from a stocked supplier beats a token handful from
      * a cheap one who has almost nothing left.
+     *
+     * Expired offers are excluded outright. Checkout refuses them anyway, so
+     * queuing one would put a line in the cart that can never be bought — and
+     * an expired box is often the cheapest, which is exactly how it would win.
      */
     private function bestOffer(string $name, int $wanted): ?Medicine
     {
         $offers = Medicine::whereNull('pharmacy_id')
             ->where('name', $name)
             ->where('quantity', '>', 0)
+            ->where(function ($query) {
+                $query->whereNull('expire_date')
+                    ->orWhereDate('expire_date', '>=', now()->startOfDay());
+            })
             ->with('supplier:id,name')
             ->get();
 

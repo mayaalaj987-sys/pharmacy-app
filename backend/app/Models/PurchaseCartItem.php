@@ -58,4 +58,31 @@ class PurchaseCartItem extends Model
     {
         return $this->medicine->quantity >= $this->quantity;
     }
+
+    /**
+     * Whether this offer is already out of date.
+     *
+     * Checkout refuses it outright: the POS will not sell an expired box, so
+     * buying one spends money on stock that can never leave the shelf.
+     */
+    public function isExpired(): bool
+    {
+        return $this->medicine->expire_date !== null
+            && $this->medicine->expire_date->isBefore(now()->startOfDay());
+    }
+
+    /**
+     * Whether it expires soon enough to be worth a second thought.
+     *
+     * Flagged rather than refused. Short dating is sometimes exactly what a
+     * pharmacy wants — a fast mover at a discount — and that judgement is the
+     * pharmacist's, not the app's. Three months matches the window the
+     * inventory screens already treat as expiring soon.
+     */
+    public function isExpiringSoon(): bool
+    {
+        return ! $this->isExpired()
+            && $this->medicine->expire_date !== null
+            && $this->medicine->expire_date->isBefore(now()->addMonths(3));
+    }
 }

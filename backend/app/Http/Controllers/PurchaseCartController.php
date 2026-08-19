@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ExpiredOfferException;
 use App\Exceptions\SupplierStockException;
 use App\Models\Medicine;
 use App\Models\Notification;
@@ -285,6 +286,14 @@ class PurchaseCartController extends Controller
                 'code' => 'supplier_stock_insufficient',
                 'medicine' => $exception->details(),
             ], 409);
+        } catch (ExpiredOfferException $exception) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'medicine_expired',
+                'medicine' => $exception->details(),
+            ], 409);
         } catch (Throwable $exception) {
             DB::rollBack();
             report($exception);
@@ -327,6 +336,8 @@ class PurchaseCartController extends Controller
                     'subtotal' => $item->subtotal(),
                     'added_by' => $item->added_by,
                     'available' => $item->isAvailable(),
+                    'expired' => $item->isExpired(),
+                    'expiring_soon' => $item->isExpiringSoon(),
                     'medicine' => [
                         'id' => $item->medicine->id,
                         'name' => $item->medicine->name,
@@ -335,6 +346,7 @@ class PurchaseCartController extends Controller
                         'cost_price' => (float) $item->medicine->cost_price,
                         'suggested_retail' => (float) $item->medicine->selling_price,
                         'available_quantity' => $item->medicine->quantity,
+                        'expire_date' => $item->medicine->expire_date?->toDateString(),
                     ],
                     'cheaper_elsewhere' => $alternatives[$item->id] ?? null,
                 ])->values()->all(),
@@ -351,6 +363,10 @@ class PurchaseCartController extends Controller
             // can say "3 items added for you" rather than making them hunt.
             'suggested_count' => $items->where('added_by', PurchaseCartItem::ADDED_BY_APP)->count(),
             'unavailable_count' => $items->reject(fn (PurchaseCartItem $item) => $item->isAvailable())->count(),
+            // Checkout will refuse these outright, so the cart has to say so
+            // before the pharmacist presses Buy and is turned away.
+            'expired_count' => $items->filter(fn (PurchaseCartItem $item) => $item->isExpired())->count(),
+            'expiring_soon_count' => $items->filter(fn (PurchaseCartItem $item) => $item->isExpiringSoon())->count(),
         ];
     }
 
@@ -364,7 +380,8 @@ class PurchaseCartController extends Controller
      * Matched on the drug's name, which is also how {@see OrderController} maps
      * an arriving order onto existing stock. An alternative that cannot fill the
      * line in full is not an alternative, so short suppliers are skipped rather
-     * than advertised and then refused at checkout.
+     * than advertised and then refused at checkout — as are expired ones, which
+     * are frequently the cheapest and would otherwise win every comparison.
      *
      * @param  Collection<int, PurchaseCartItem>  $items
      * @return array<int, array<string, mixed>>
@@ -378,6 +395,10 @@ class PurchaseCartController extends Controller
         $offers = Medicine::query()
             ->whereNull('pharmacy_id')
             ->whereIn('name', $items->map(fn (PurchaseCartItem $item) => $item->medicine->name)->unique())
+            ->where(function ($query) {
+                $query->whereNull('expire_date')
+                    ->orWhereDate('expire_date', '>=', now()->startOfDay());
+            })
             ->with('supplier:id,name')
             ->get()
             ->groupBy('name');

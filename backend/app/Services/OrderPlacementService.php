@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ExpiredOfferException;
 use App\Exceptions\SupplierStockException;
 use App\Models\Medicine;
 use App\Models\Order;
@@ -53,6 +54,15 @@ class OrderPlacementService
 
             if ($medicine->quantity < $quantity) {
                 throw new SupplierStockException($medicine, $quantity);
+            }
+
+            // The POS refuses to sell an expired box, so buying one spends money
+            // on stock that can never leave the shelf. Checked here rather than
+            // trusted to the client, since the catalogue ages on its own and
+            // every offer eventually crosses this line.
+            if ($medicine->expire_date !== null
+                && $medicine->expire_date->isBefore(now()->startOfDay())) {
+                throw new ExpiredOfferException($medicine);
             }
 
             $priced[] = [$medicine, $quantity];

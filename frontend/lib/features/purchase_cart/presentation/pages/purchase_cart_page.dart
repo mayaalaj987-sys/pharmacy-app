@@ -133,6 +133,7 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         children: [
           if (cart.suggestedCount > 0) _suggestionBanner(cart.suggestedCount),
+          if (cart.expiredCount > 0) _expiredBanner(cart.expiredCount),
           if (cart.unavailableCount > 0) _shortageBanner(cart.unavailableCount),
           ...cart.groups.map((group) => _group(state, group)),
           const SizedBox(height: 8),
@@ -158,6 +159,17 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
       text:
           '$count item(s) were added for you because stock ran low. '
           'Nothing is bought until you press Buy.',
+    );
+  }
+
+  Widget _expiredBanner(int count) {
+    return _banner(
+      key: const ValueKey('cart-expired-banner'),
+      icon: Icons.block,
+      colour: AppColors.errorRed,
+      text:
+          '$count item(s) have expired. Nothing can be bought until they are '
+          'removed — the till would refuse to sell them.',
     );
   }
 
@@ -295,6 +307,20 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
               icon: Icons.warning_amber_rounded,
               colour: AppColors.errorRed,
               text: 'Only ${line.availableQuantity} left at this supplier',
+            ),
+          if (line.expired)
+            _tag(
+              key: ValueKey('cart-expired-${line.id}'),
+              icon: Icons.block,
+              colour: AppColors.errorRed,
+              text: 'Expired ${line.expiresOn ?? ''} — cannot be bought',
+            )
+          else if (line.expiringSoon)
+            _tag(
+              key: ValueKey('cart-expiring-${line.id}'),
+              icon: Icons.schedule,
+              colour: Colors.orange,
+              text: 'Expires ${line.expiresOn ?? 'soon'}',
             ),
           const SizedBox(height: 6),
           Row(
@@ -486,7 +512,11 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
               ),
               FilledButton.icon(
                 key: const ValueKey('cart-buy-button'),
-                onPressed: state.busy ? null : _confirmBuy,
+                // Blocked outright with an expired line present: checkout would
+                // only refuse, so letting them press it teaches nothing.
+                onPressed: state.busy || cart.expiredCount > 0
+                    ? null
+                    : _confirmBuy,
                 icon: buying
                     ? const SizedBox.square(
                         dimension: 14,

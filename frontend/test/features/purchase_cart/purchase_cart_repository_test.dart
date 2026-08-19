@@ -123,6 +123,23 @@ void main() {
     await cubit.close();
   });
 
+  test('expiry is carried through to the line', () async {
+    // Checkout refuses an expired line outright, so the screen has to be able
+    // to say so before Buy is pressed rather than after it is rejected.
+    final cart = await PurchaseCartRepository(FakeCartApi()).fetch();
+
+    expect(cart.expiredCount, 1);
+    expect(cart.expiringSoonCount, 1);
+
+    final stale = cart.groups.first.items.last;
+    expect(stale.expired, isTrue);
+    expect(stale.expiresOn, '2026-01-01');
+
+    final soon = cart.groups.last.items.single;
+    expect(soon.expired, isFalse);
+    expect(soon.expiringSoon, isTrue);
+  });
+
   test('one write at a time', () async {
     // Two overlapping quantity changes would race, and the loser would win.
     final api = FakeCartApi();
@@ -220,6 +237,8 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
       'item_count': 3,
       'suggested_count': 1,
       'unavailable_count': 1,
+      'expired_count': 1,
+      'expiring_soon_count': 1,
       'suppliers': [
         {
           'supplier': {
@@ -236,6 +255,8 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
               'subtotal': 80000,
               'added_by': 'pharmacist',
               'available': true,
+              'expired': false,
+              'expiring_soon': false,
               'medicine': {
                 'id': 11,
                 'name': 'Amoxicillin 500mg',
@@ -258,6 +279,8 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
               'subtotal': 10000,
               'added_by': 'pharmacist',
               'available': true,
+              'expired': true,
+              'expiring_soon': false,
               'medicine': {
                 'id': 12,
                 'name': 'Aspirin 100mg',
@@ -265,6 +288,7 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
                 'cost_price': 2000,
                 'suggested_retail': 4000,
                 'available_quantity': 300,
+                'expire_date': '2026-01-01',
               },
               'cheaper_elsewhere': null,
             },
@@ -285,6 +309,8 @@ class FakeCartApi implements PurchaseCartRemoteDataSource {
               'subtotal': 36000,
               'added_by': 'app',
               'available': false,
+              'expired': false,
+              'expiring_soon': true,
               'medicine': {
                 'id': 33,
                 'name': 'Salbutamol Inhaler',
