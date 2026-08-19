@@ -5,6 +5,7 @@ import '../../../../core/format/money.dart';
 import '../../../../core/network/user_facing_error.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_app_bar.dart';
+import '../../../../core/widgets/quantity_dialog.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../../domain/purchase_cart.dart';
 import '../cubit/purchase_cart_cubit.dart';
@@ -616,60 +617,16 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
   }
 
   Future<void> _askQuantity(CartLine line) async {
-    final controller = TextEditingController(text: '${line.quantity}');
-    String? error;
-
-    final quantity = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(line.name),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('${line.availableQuantity} available at this supplier'),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('cart-quantity-field'),
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Quantity',
-                  errorText: error,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              key: const ValueKey('cart-quantity-confirm'),
-              onPressed: () {
-                final value = int.tryParse(controller.text.trim());
-                if (value == null || value < 1) {
-                  setDialogState(
-                    () => error = 'Enter a quantity of 1 or more.',
-                  );
-
-                  return;
-                }
-                Navigator.pop(dialogContext, value);
-              },
-              child: const Text('Set'),
-            ),
-          ],
-        ),
-      ),
+    final quantity = await askQuantity(
+      context,
+      title: line.name,
+      subtitle: '${line.availableQuantity} available at this supplier',
+      initial: line.quantity,
+      confirmLabel: 'Set',
+      fieldKey: const ValueKey('cart-quantity-field'),
+      confirmKey: const ValueKey('cart-quantity-confirm'),
     );
 
-    // Disposed after the dialog is gone, never while its route animates out.
-    controller.dispose();
     if (quantity == null || !mounted) return;
 
     await context.read<PurchaseCartCubit>().setQuantity(line.id, quantity);

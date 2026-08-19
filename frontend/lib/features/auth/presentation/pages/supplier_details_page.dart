@@ -5,6 +5,7 @@ import '../../../../core/format/money.dart';
 import '../../../../core/network/user_facing_error.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/purchases/cart_fab.dart';
+import '../../../../core/widgets/quantity_dialog.dart';
 import '../../../purchase_cart/presentation/cubit/purchase_cart_cubit.dart';
 import '../../../purchase_cart/presentation/cubit/purchase_cart_state.dart';
 import '../../../purchase_cart/presentation/pages/purchase_cart_page.dart';
@@ -173,70 +174,19 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
   /// pharmacies, so nothing is enforced here. The cart flags a line the
   /// supplier can no longer fill, and checkout refuses it under a row lock.
   Future<void> _addToCart(SupplierMedicine medicine) async {
-    final controller = TextEditingController(
-      text: (medicine.availableQuantity < 10 ? medicine.availableQuantity : 10)
-          .toString(),
-    );
-    String? error;
-
-    final quantity = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(medicine.name),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Available from this supplier: ${medicine.availableQuantity}',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('order-quantity-field'),
-                controller: controller,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Quantity',
-                  errorText: error,
-                  border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Unit cost ${money(medicine.price)}',
-                style: const TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              key: const ValueKey('order-confirm-button'),
-              onPressed: () {
-                final value = int.tryParse(controller.text.trim());
-                if (value == null || value < 1) {
-                  setDialogState(
-                    () => error = 'Enter a quantity of 1 or more.',
-                  );
-
-                  return;
-                }
-                Navigator.pop(dialogContext, value);
-              },
-              child: const Text('Add to cart'),
-            ),
-          ],
-        ),
-      ),
+    final quantity = await askQuantity(
+      context,
+      title: medicine.name,
+      subtitle: 'Available from this supplier: ${medicine.availableQuantity}',
+      footnote: 'Unit cost ${money(medicine.price)}',
+      initial: medicine.availableQuantity < 10
+          ? medicine.availableQuantity
+          : 10,
+      confirmLabel: 'Add to cart',
+      fieldKey: const ValueKey('order-quantity-field'),
+      confirmKey: const ValueKey('order-confirm-button'),
     );
 
-    // Disposed once the route is gone, never while it animates out.
-    controller.dispose();
     if (quantity == null || !mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);

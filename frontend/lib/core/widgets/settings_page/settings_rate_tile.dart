@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../../features/rating/data/rating_repository.dart';
 import '../../../features/rating/presentation/cubit/rating_cubit.dart';
 import '../../../features/rating/presentation/cubit/rating_state.dart';
 import '../../network/user_facing_error.dart';
@@ -78,137 +79,17 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
       messenger.showSnackBar(
         const SnackBar(content: Text("Sign in to rate the application.")),
       );
+
       return;
     }
 
-    // Seeded from whatever they said last, so revising is an edit rather than
-    // starting over.
-    final existing = cubit.state.rating;
-    var selectedRating = existing.myStars ?? 0;
-    final note = TextEditingController(text: existing.myNote ?? '');
-
     final result = await showDialog<(int, String)>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: AppColors.white,
-              title: Text(
-                existing.hasRated ? "Change your rating" : "Rate Application",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text("Choose your rating"),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return IconButton(
-                        key: ValueKey('rating-star-${index + 1}'),
-                        onPressed: () =>
-                            setDialogState(() => selectedRating = index + 1),
-                        icon: Icon(
-                          index < selectedRating
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: AppColors.pendingOrange,
-                          size: 35,
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "$selectedRating / 5",
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.tealGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // The part anyone can act on. A star says somebody was
-                  // unhappy; this says what to fix.
-                  TextField(
-                    key: const ValueKey('rating-note-field'),
-                    controller: note,
-                    maxLines: 3,
-                    maxLength: 1000,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'What worked, what did not (optional)',
-                      alignLabelWithHint: true,
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-              actionsPadding: const EdgeInsets.only(
-                left: 16,
-                right: 20,
-                bottom: 24,
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.tealGreen,
-                          backgroundColor: AppColors.veryLightGreen,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          minimumSize: const Size(0, 36),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        onPressed: () => Navigator.pop(dialogContext),
-                        child: const Text(
-                          "Cancel",
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 11),
-                    Expanded(
-                      child: ElevatedButton(
-                        key: const ValueKey('rating-submit-button'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.tealGreen,
-                          foregroundColor: AppColors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          minimumSize: const Size(0, 36),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: selectedRating == 0
-                            ? null
-                            : () => Navigator.pop(dialogContext, (
-                                selectedRating,
-                                note.text,
-                              )),
-                        child: Text(
-                          existing.hasRated ? "Update" : "Submit",
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
+      // Seeded from whatever they said last, so revising is an edit rather
+      // than starting over.
+      builder: (_) => _RatingDialog(existing: cubit.state.rating),
     );
 
-    // Disposed once the route is gone, never while it animates out.
-    note.dispose();
     if (result == null || !mounted) return;
 
     final ok = await cubit.submit(
@@ -229,6 +110,140 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
                 ),
         ),
       ),
+    );
+  }
+}
+
+/// The stars and the note.
+///
+/// A widget rather than a controller built inside a method: awaiting
+/// `showDialog` returns when the button is pressed, not when the dialog has
+/// finished animating away, so disposing the controller straight afterwards
+/// destroys it while the field is still being built for its exit.
+class _RatingDialog extends StatefulWidget {
+  final AppRating existing;
+
+  const _RatingDialog({required this.existing});
+
+  @override
+  State<_RatingDialog> createState() => _RatingDialogState();
+}
+
+class _RatingDialogState extends State<_RatingDialog> {
+  late final TextEditingController _note;
+  late int _stars;
+
+  @override
+  void initState() {
+    super.initState();
+    _stars = widget.existing.myStars ?? 0;
+    _note = TextEditingController(text: widget.existing.myNote ?? '');
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.white,
+      title: Text(
+        widget.existing.hasRated ? "Change your rating" : "Rate Application",
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("Choose your rating"),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              return IconButton(
+                key: ValueKey('rating-star-${index + 1}'),
+                onPressed: () => setState(() => _stars = index + 1),
+                icon: Icon(
+                  index < _stars ? Icons.star : Icons.star_border,
+                  color: AppColors.pendingOrange,
+                  size: 35,
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "$_stars / 5",
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.tealGreen,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // The part anyone can act on. A star says somebody was unhappy;
+          // this says what to fix.
+          TextField(
+            key: const ValueKey('rating-note-field'),
+            controller: _note,
+            maxLines: 3,
+            maxLength: 1000,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'What worked, what did not (optional)',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actionsPadding: const EdgeInsets.only(left: 16, right: 20, bottom: 24),
+      actions: [
+        Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.tealGreen,
+                  backgroundColor: AppColors.veryLightGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  minimumSize: const Size(0, 36),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel", style: TextStyle(fontSize: 13)),
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: ElevatedButton(
+                key: const ValueKey('rating-submit-button'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.tealGreen,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  minimumSize: const Size(0, 36),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: _stars == 0
+                    ? null
+                    : () => Navigator.pop(context, (_stars, _note.text)),
+                child: Text(
+                  widget.existing.hasRated ? "Update" : "Submit",
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
