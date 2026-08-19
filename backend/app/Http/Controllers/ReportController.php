@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Order;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Medicine;
@@ -170,6 +171,121 @@ class ReportController extends Controller
             'salaries'        => round($salaryForPeriod, 2),
             'write_offs'      => round((float) $losses, 2),
             'profit'          => round($profit, 2),
+        ]);
+    }
+
+    /**
+     * Money in and money out, which is not the same question as profit.
+     *
+     * Profit answers "did the shop trade well": revenue less what the goods
+     * sold cost, less wages, less stock thrown away. Buying stock does not
+     * appear in it at all, and correctly so — cash turned into inventory is not
+     * a cost, it is the same value in a different form.
+     *
+     * Which is exactly why a pharmacy can be profitable and still unable to pay
+     * anyone. Two million spent on a delivery leaves the profit figure
+     * untouched and the till empty, and until now no screen in this application
+     * would have shown that.
+     *
+     * A purchase counts on the day the order was placed, which is when a
+     * Syrian wholesaler is paid. Waiting for the delivery to be marked received
+     * would leave money already gone sitting in a report as though it were
+     * still there.
+     */
+    public function getCashFlow(Request $request)
+    {
+        $request->validate([
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+        ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+
+        [$start, $end] = $this->getDateRange($request->filter);
+
+        $sales = Sale::where('pharmacy_id', $pharmacyId)
+            ->whereBetween('created_at', [$start, $end]);
+
+        // Split by method because they are not the same money. Cash is in the
+        // drawer tonight; a card settles later and insurance later still.
+        $byMethod = (clone $sales)
+            ->selectRaw('payment_method, SUM(total_price) as total')
+            ->groupBy('payment_method')
+            ->pluck('total', 'payment_method');
+
+        $moneyIn = (float) (clone $sales)->sum('total_price');
+
+        // Cancelled orders were never paid for, so they are not money out.
+        $purchases = (float) Order::where('pharmacy_id', $pharmacyId)
+            ->where('status', '!=', 'cancelled')
+            ->whereBetween('created_at', [$start, $end])
+            ->sum('total_price');
+
+        $monthlySalaries = Employee::where('pharmacy_id', $pharmacyId)
+            ->where('status', Employee::STATUS_APPROVED)
+            ->where('role', Employee::ROLE_EMPLOYEE)
+            ->sum('salary');
+
+        $salaries = match ($request->filter) {
+            'daily'   => $monthlySalaries / 30,
+            'weekly'  => $monthlySalaries / 4,
+            'monthly' => $monthlySalaries,
+            'yearly'  => $monthlySalaries * 12,
+        };
+
+        $moneyOut = $purchases + $salaries;
+
+        return response()->json([
+            'filter' => $request->filter,
+            'money_in' => round($moneyIn, 2),
+            'money_in_by_method' => [
+                'cash'      => round((float) ($byMethod['cash'] ?? 0), 2),
+                'card'      => round((float) ($byMethod['card'] ?? 0), 2),
+                'insurance' => round((float) ($byMethod['insurance'] ?? 0), 2),
+            ],
+            'money_out' => round($moneyOut, 2),
+            'purchases' => round($purchases, 2),
+            'salaries'  => round($salaries, 2),
+            'net'       => round($moneyIn - $moneyOut, 2),
+        ]);
+    }
+
+    /**
+     * How the shop's sales were paid for.
+     *
+     * Its own endpoint rather than a slice of the cash flow, because the
+     * question is different: cash flow asks how much came in, this asks in what
+     * form — and a pharmacy with a third of its takings tied up in insurance
+     * claims has a problem that a single total hides.
+     */
+    public function getPaymentMethods(Request $request)
+    {
+        $request->validate([
+            'pharmacy_id' => 'required|exists:pharmacies,id',
+            'filter'      => 'required|in:daily,weekly,monthly,yearly',
+        ]);
+        $pharmacyId = $this->pharmacyContext->resolve($request)->id;
+
+        [$start, $end] = $this->getDateRange($request->filter);
+
+        $rows = Sale::where('pharmacy_id', $pharmacyId)
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('payment_method, COUNT(*) as sales, SUM(total_price) as total')
+            ->groupBy('payment_method')
+            ->get();
+
+        $total = (float) $rows->sum('total');
+
+        return response()->json([
+            'filter'  => $request->filter,
+            'total'   => round($total, 2),
+            'methods' => $rows->map(fn ($row) => [
+                'payment_method' => $row->payment_method,
+                'sales' => (int) $row->sales,
+                'total' => round((float) $row->total, 2),
+                // Rendered as a share of takings, so a donut does not have to
+                // work it out and disagree with the figure beside it.
+                'share' => $total > 0 ? round((float) $row->total / $total * 100, 1) : 0,
+            ])->values()->all(),
         ]);
     }
 

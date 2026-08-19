@@ -209,6 +209,11 @@ Route::middleware(['auth:pharmacist', 'abilities:app', 'active.account', 'approv
     Route::get('/reports/inventory-value', [ReportController::class, 'getInventoryValue']);
     Route::get('/reports/average-sales', [ReportController::class, 'getAverageSales']);
     Route::get('/reports/profits', [ReportController::class, 'getProfits']);
+    // Liquidity, which profit deliberately does not measure: stock bought is
+    // cash gone but not a cost, so a pharmacy can trade well and still be
+    // unable to pay anyone.
+    Route::get('/reports/cash-flow', [ReportController::class, 'getCashFlow']);
+    Route::get('/reports/payment-methods', [ReportController::class, 'getPaymentMethods']);
     Route::get('/reports/most-sold', [ReportController::class, 'getMostSoldMedicines']);
     Route::get('/reports/most-sold-category', [ReportController::class, 'getMostSoldByCategory']);
 
