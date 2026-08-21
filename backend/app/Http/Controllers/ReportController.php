@@ -157,11 +157,20 @@ class ReportController extends Controller
         // of goods, so without this its cost left the books entirely: it did
         // not reduce profit when bought, did not reduce profit when discarded,
         // and sat in the inventory valuation as an asset. Real money, invisible.
-        $losses = StockWriteOff::where('pharmacy_id', $pharmacyId)
+        //
+        // Broken down by reason too: a single total says money is leaving, not
+        // whether it is expiry (a buying problem), damage (a handling problem)
+        // or loss (a problem with the count itself) — three different things to
+        // go fix. Returns to the supplier stay out, same as the total: they are
+        // replaced or refunded, not lost.
+        $lossesByReason = StockWriteOff::where('pharmacy_id', $pharmacyId)
             ->counted()
             ->whereBetween('created_at', [$start, $end])
-            ->selectRaw('SUM(quantity * unit_cost) as total_loss')
-            ->value('total_loss') ?? 0;
+            ->selectRaw('reason, SUM(quantity * unit_cost) as total_loss')
+            ->groupBy('reason')
+            ->pluck('total_loss', 'reason');
+
+        $losses = (float) $lossesByReason->sum();
 
         // ✅ FIX: الرواتب نحسبها نسبة للفترة الزمنية مو كاملة
         $monthlySalaries = Employee::where('pharmacy_id', $pharmacyId)
@@ -194,7 +203,14 @@ class ReportController extends Controller
             'refunds' => round($refunds, 2),
             'cost_of_goods' => round($netCost, 2),
             'salaries' => round($salaryForPeriod, 2),
-            'write_offs' => round((float) $losses, 2),
+            'write_offs' => round($losses, 2),
+            // Same three reasons a pharmacist can pick when booking a write-off.
+            // `returned_to_supplier` is not here on purpose: it is never a loss.
+            'write_offs_by_reason' => [
+                StockWriteOff::REASON_EXPIRED => round((float) ($lossesByReason[StockWriteOff::REASON_EXPIRED] ?? 0), 2),
+                StockWriteOff::REASON_DAMAGED => round((float) ($lossesByReason[StockWriteOff::REASON_DAMAGED] ?? 0), 2),
+                StockWriteOff::REASON_LOST => round((float) ($lossesByReason[StockWriteOff::REASON_LOST] ?? 0), 2),
+            ],
             'profit' => round($profit, 2),
         ]);
     }

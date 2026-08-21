@@ -30,8 +30,10 @@ class _EmployeeNavigationPageState extends State<EmployeeNavigationPage> {
   @override
   void initState() {
     super.initState();
-    // Populates the app-bar notification badge.
-    context.read<NotificationsCubit>().refreshQuietly();
+    // Populates the app-bar notification badge from the employee's own bell,
+    // not the pharmacy-scoped feed — that one carries the owner's traffic and
+    // misses the employee's personal notifications entirely.
+    context.read<NotificationsCubit>().refreshQuietlyForEmployee();
   }
 
   @override

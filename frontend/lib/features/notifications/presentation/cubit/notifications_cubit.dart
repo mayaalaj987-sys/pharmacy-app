@@ -66,12 +66,55 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     }
   }
 
+  /// Same contract as [refreshQuietly], for the employee's own bell.
+  Future<void> refreshQuietlyForEmployee() async {
+    try {
+      final feed = await repository.fetchEmployeeNotifications();
+      emit(state.copyWith(status: NotificationsStatus.ready, feed: feed));
+    } catch (_) {
+      // Badge refresh is best-effort.
+    }
+  }
+
   Future<bool> markAsRead(int id) async {
     if (state.busy) return false;
     emit(state.copyWith(mutatingId: id, clearError: true));
     try {
       await repository.markAsRead(id);
       final feed = await repository.fetchNotifications();
+      emit(
+        state.copyWith(
+          status: NotificationsStatus.ready,
+          feed: feed,
+          clearMutating: true,
+        ),
+      );
+      return true;
+    } on AuthApiException catch (error) {
+      emit(state.copyWith(error: error, clearMutating: true));
+      return false;
+    } catch (_) {
+      emit(
+        state.copyWith(
+          error: const AuthApiException(
+            message: 'Unable to update the notification.',
+          ),
+          clearMutating: true,
+        ),
+      );
+      return false;
+    }
+  }
+
+  /// Same contract as [markAsRead], for the employee's own bell — a
+  /// personal notification has no `pharmacy_id`, so the pharmacist-scoped
+  /// endpoint above cannot be asked to mark one read.
+  Future<bool> markEmployeeAsRead(int id) async {
+    if (state.busy) return false;
+    emit(state.copyWith(mutatingId: id, clearError: true));
+    try {
+      await repository.markEmployeeAsRead(id);
+      final feed = await repository.fetchEmployeeNotifications();
       emit(
         state.copyWith(
           status: NotificationsStatus.ready,

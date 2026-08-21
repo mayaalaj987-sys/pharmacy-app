@@ -39,42 +39,38 @@ class RecruitmentDocumentAccessLogger
                 'accessed_at' => now(),
             ]);
 
-            $this->announceOncePerDay($pharmacist, $pharmacy, $document);
+            $this->announceOncePerDay($document);
         });
     }
 
     /**
-     * One "your CV was viewed" per pharmacy per day.
+     * One anonymous "your document was viewed" per day, across every pharmacy.
      *
-     * A recruiter previewing a file and then downloading it is two rows in the
-     * log and one act of interest. Announcing both would tell the applicant the
-     * same thing twice within a minute, and a feed of "somebody looked at you"
-     * stops being news very quickly. The log keeps every access; this only
-     * decides when to interrupt someone.
+     * Naming the pharmacy on every open used to be the whole notice — but a
+     * recruiter may read any in-pool CV without asking, so being told exactly
+     * who looked, every time, reads as surveillance rather than a service. The
+     * count of distinct pharmacies is still exact and still theirs to see
+     * ({@see \App\Http\Resources\EmployeeDocumentVersionResource}); this ping is
+     * only a nudge to go look at it, so one per day is enough regardless of how
+     * many pharmacies opened the file or how many times.
      */
-    private function announceOncePerDay(
-        Pharmacist $pharmacist,
-        ?Pharmacy $pharmacy,
-        EmployeeDocumentVersion $document,
-    ): void {
+    private function announceOncePerDay(EmployeeDocumentVersion $document): void
+    {
         $alreadyToldToday = RecruitmentDocumentAccess::query()
             ->where('employee_id', $document->employee_id)
-            ->where('pharmacist_id', $pharmacist->id)
             ->whereDate('accessed_at', now()->toDateString())
             // The row for this very access is already written, so anything
-            // beyond it means we have announced this pharmacy today.
+            // beyond it means today has already been announced.
             ->count() > 1;
 
         if ($alreadyToldToday) {
             return;
         }
 
-        $name = $pharmacy?->pharmacy_name ?? 'A pharmacy';
-
         Notification::notifyEmployee(
             $document->employee_id,
             'Your application was viewed',
-            $name.' opened your '.$this->label($document->document_type).'.',
+            'Your '.$this->label($document->document_type).' was viewed today.',
             Notification::TYPE_CV_VIEWED,
         );
     }

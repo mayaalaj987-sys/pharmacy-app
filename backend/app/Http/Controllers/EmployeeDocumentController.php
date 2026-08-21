@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePrivateDocumentRequest;
 use App\Http\Resources\EmployeeDocumentVersionResource;
 use App\Models\EmployeeDocumentVersion;
+use App\Models\RecruitmentDocumentAccess;
 use App\Services\DocumentVersionService;
 use App\Services\PrivateDocumentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -24,9 +26,37 @@ class EmployeeDocumentController extends Controller
     {
         $versions = $request->user()->documentVersions()->latest('version_number')->get();
 
+        $this->attachViewerCounts($versions);
+
         return response()->json([
             'data' => EmployeeDocumentVersionResource::collection($versions)->resolve($request),
         ]);
+    }
+
+    /**
+     * How many distinct pharmacies opened each document, never which ones.
+     *
+     * One grouped query for the whole list rather than one per document, and a
+     * count of distinct pharmacies rather than of accesses: a recruiter opening
+     * the same file five times is one pharmacy's interest, not five.
+     */
+    private function attachViewerCounts(Collection $versions): void
+    {
+        if ($versions->isEmpty()) {
+            return;
+        }
+
+        $counts = RecruitmentDocumentAccess::query()
+            ->whereIn('employee_document_version_id', $versions->pluck('id'))
+            ->whereNotNull('pharmacy_id')
+            ->selectRaw('employee_document_version_id, count(distinct pharmacy_id) as viewer_count')
+            ->groupBy('employee_document_version_id')
+            ->pluck('viewer_count', 'employee_document_version_id');
+
+        $versions->each(fn (EmployeeDocumentVersion $version) => $version->setAttribute(
+            'viewer_count',
+            (int) ($counts[$version->id] ?? 0),
+        ));
     }
 
     public function store(StorePrivateDocumentRequest $request, string $type): JsonResponse

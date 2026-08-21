@@ -68,6 +68,38 @@ class StockWriteOffTest extends SecurityTestCase
             ->assertJsonPath('profit', -492000);
     }
 
+    public function test_the_profit_report_breaks_losses_down_by_reason(): void
+    {
+        // A single total says money left. This says whether it was expiry (a
+        // buying problem), damage (a handling problem) or loss (a problem with
+        // the count itself) — three different things to go fix.
+        [$owner, $pharmacy] = $this->buyer('wo-byreason');
+        $batch = $this->shelf($pharmacy, quantity: 30, cost: 5000);
+
+        Sanctum::actingAs($owner, ['*'], 'pharmacist');
+        foreach ([
+            [3, StockWriteOff::REASON_EXPIRED],
+            [2, StockWriteOff::REASON_DAMAGED],
+            [4, StockWriteOff::REASON_LOST],
+            [5, StockWriteOff::REASON_RETURNED],
+        ] as [$quantity, $reason]) {
+            $this->postJson('/api/medicines/'.$batch->id.'/write-off', [
+                'quantity' => $quantity,
+                'reason' => $reason,
+            ], $this->at($pharmacy))->assertCreated();
+        }
+
+        $this->getJson('/api/reports/profits?pharmacy_id='.$pharmacy->id.'&filter=monthly', $this->at($pharmacy))
+            ->assertOk()
+            // 3 + 2 + 4 boxes at 5,000. The five returned to the supplier are
+            // not a loss and are left out of both the total and the breakdown.
+            ->assertJsonPath('write_offs', 45000)
+            ->assertJsonPath('write_offs_by_reason.expired', 15000)
+            ->assertJsonPath('write_offs_by_reason.damaged', 10000)
+            ->assertJsonPath('write_offs_by_reason.lost', 20000)
+            ->assertJsonCount(3, 'write_offs_by_reason');
+    }
+
     public function test_stock_sent_back_to_the_supplier_is_not_a_loss(): void
     {
         // It is replaced or refunded. Counting it would show a pharmacy losing

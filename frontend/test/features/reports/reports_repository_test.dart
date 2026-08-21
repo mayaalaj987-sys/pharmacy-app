@@ -96,6 +96,11 @@ void main() {
     // Stock thrown away rather than sold. It reduced profit at no point in its
     // life before this figure existed.
     expect(profits.writeOffs, 50.0);
+    // Split by reason, so a pharmacist can tell expiry from damage from a
+    // count that came up short — three different problems, one figure.
+    expect(profits.writeOffsByReason['expired'], 30.0);
+    expect(profits.writeOffsByReason['damaged'], 20.0);
+    expect(profits.writeOffsByReason['lost'], 0.0);
     expect(profits.refunds, 25.0);
     // Profit comes from the backend; it is never recomputed client-side.
     expect(profits.profit, 400.0);
@@ -283,6 +288,7 @@ class FakeReportsApi implements ReportsRemoteDataSource {
         'cost_of_goods': '400.00',
         'salaries': 200,
         'write_offs': 50,
+        'write_offs_by_reason': {'expired': 30, 'damaged': 20, 'lost': 0},
         'refunds': 25,
         'profit': 400,
       },

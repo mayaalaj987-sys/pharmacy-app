@@ -243,6 +243,41 @@ void main() {
       await cubit.close();
     });
 
+    test(
+      'loadForEmployee reads through the employee endpoint, not the '
+      'pharmacy-scoped one an unattached employee cannot pass',
+      () async {
+        final api = FakeNotificationsApi();
+        final cubit = NotificationsCubit(NotificationsRepository(api));
+
+        await cubit.loadForEmployee();
+
+        expect(api.employeeFeedCalls, 1);
+        expect(cubit.state.status, NotificationsStatus.ready);
+        expect(cubit.state.unreadCount, 2);
+        await cubit.close();
+      },
+    );
+
+    test(
+      'marking read for an employee goes through the employee endpoint',
+      () async {
+        // A personal notification has no pharmacy_id, so the pharmacy-scoped
+        // mark-as-read endpoint has nothing to match it against.
+        final api = FakeNotificationsApi();
+        final cubit = NotificationsCubit(NotificationsRepository(api));
+        await cubit.loadForEmployee();
+
+        final ok = await cubit.markEmployeeAsRead(1);
+
+        expect(ok, isTrue);
+        expect(api.employeeReadIds, [1]);
+        expect(api.readIds, isEmpty);
+        expect(cubit.state.unreadCount, 1);
+        await cubit.close();
+      },
+    );
+
     test('a load failure surfaces an error state', () async {
       final cubit = NotificationsCubit(
         NotificationsRepository(FakeNotificationsApi()..failLoad = true),

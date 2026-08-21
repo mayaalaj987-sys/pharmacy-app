@@ -183,7 +183,7 @@ class RecruiterDocumentAccessTest extends SecurityTestCase
         $this->assertSame($cv->id, (int) $accesses->first()->employee_document_version_id);
     }
 
-    public function test_the_applicant_is_told_once_per_pharmacy_per_day(): void
+    public function test_the_applicant_is_told_once_per_day_without_naming_who_looked(): void
     {
         $applicant = $this->applicant('doc-notify');
         $cv = $this->uploadFor($applicant, 'cv');
@@ -203,16 +203,48 @@ class RecruiterDocumentAccessTest extends SecurityTestCase
             ->get();
 
         $this->assertCount(1, $announcements);
-        $this->assertStringContainsString($firstPharmacy->pharmacy_name, $announcements->first()->message);
+        // Anonymous: a recruiter may read any in-pool CV without asking, so
+        // naming them on every open reads as surveillance rather than a
+        // service. The applicant learns that a pharmacy looked, not which one.
+        $this->assertStringNotContainsString($firstPharmacy->pharmacy_name, $announcements->first()->message);
+        $this->assertSame('Your CV was viewed today.', $announcements->first()->message);
         $this->assertNull($announcements->first()->pharmacy_id);
 
-        // A different pharmacy is different news.
+        // A second pharmacy looking the same day is still just today's news —
+        // "how many" lives in the document's viewer_count, not in a second
+        // identical push.
         $this->asOwner($second)->get(
             '/api/recruitment/applicants/'.$applicant->id.'/documents/'.$cv->public_id.'/preview'
         )->assertOk();
 
-        $this->assertSame(2, Notification::where('employee_id', $applicant->id)
+        $this->assertSame(1, Notification::where('employee_id', $applicant->id)
             ->where('type', Notification::TYPE_CV_VIEWED)->count());
+    }
+
+    public function test_the_employee_sees_how_many_distinct_pharmacies_viewed_their_document(): void
+    {
+        $applicant = $this->applicant('doc-count');
+        $cv = $this->uploadFor($applicant, 'cv');
+        [$first] = $this->hiringOwner('doc-count-a');
+        [$second] = $this->hiringOwner('doc-count-b');
+
+        // Two opens by the same pharmacy and one by another: interest from two
+        // pharmacies, not three views.
+        $this->asOwner($first)->get(
+            '/api/recruitment/applicants/'.$applicant->id.'/documents/'.$cv->public_id.'/preview'
+        )->assertOk();
+        $this->asOwner($first)->get(
+            '/api/recruitment/applicants/'.$applicant->id.'/documents/'.$cv->public_id.'/download'
+        )->assertOk();
+        $this->asOwner($second)->get(
+            '/api/recruitment/applicants/'.$applicant->id.'/documents/'.$cv->public_id.'/preview'
+        )->assertOk();
+
+        Sanctum::actingAs($applicant, ['*'], 'employee');
+
+        $this->getJson('/api/employee/documents')
+            ->assertOk()
+            ->assertJsonPath('data.0.viewer_count', 2);
     }
 
     public function test_a_document_whose_bytes_changed_underneath_is_refused(): void

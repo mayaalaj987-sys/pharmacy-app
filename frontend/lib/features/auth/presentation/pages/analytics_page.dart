@@ -9,6 +9,17 @@ import '../../../reports/presentation/cubit/reports_cubit.dart';
 import '../../../reports/presentation/cubit/reports_state.dart';
 import '../../../reports/presentation/widgets/analytics_pieces.dart';
 
+/// Same three reasons a pharmacist picks from when booking a write-off, in
+/// `lib/features/inventory/presentation/widgets/write_off_sheet.dart` — kept
+/// in sync with those labels so a loss reads the same wherever it is booked
+/// and wherever it is later reported. `returned_to_supplier` has no place
+/// here: it is never a loss, so the server never sends a figure for it.
+const _writeOffReasonLabels = <String, String>{
+  'expired': 'Expired',
+  'damaged': 'Damaged or spoiled',
+  'lost': 'Missing at stock count',
+};
+
 /// What the pharmacy is actually doing, in one screen.
 ///
 /// Two figures lead it and they answer different questions. Profit says whether
@@ -149,6 +160,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         children: [
           _headline(state),
           _profitBreakdown(state),
+          _writeOffBreakdown(state),
           AnalyticsSection(
             title: 'Revenue by period',
             child: RevenueBars(
@@ -284,11 +296,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           _line('Cost of goods', -profits.costOfGoods, AppColors.pendingOrange),
           _line('Salaries', -profits.salaries, AppColors.pendingOrange),
           if (profits.writeOffs > 0)
-            _line(
-              'Expired and damaged',
-              -profits.writeOffs,
-              AppColors.errorRed,
-            ),
+            // "Expired and damaged" undersold it: this also covers stock that
+            // went missing at a count. See the breakdown below for the split.
+            _line('Stock write-offs', -profits.writeOffs, AppColors.errorRed),
           const Divider(height: 22),
           _line(
             'Profit',
@@ -325,6 +335,35 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// What each write-off reason cost, ranked longest-first.
+  ///
+  /// The headline card above only ever shows one number for stock lost. That
+  /// answers "how much", not "what do I do about it" — expiry means buying
+  /// less or discounting sooner, damage means a handling problem, and stock
+  /// missing at a count means the count itself needs a closer look. Three
+  /// different fixes hiding inside one figure.
+  Widget _writeOffBreakdown(ReportsState state) {
+    final byReason = state.profits.writeOffsByReason;
+
+    return AnalyticsSection(
+      title: 'Why stock was written off',
+      subtitle: 'What each reason cost this period.',
+      child: RankedBars(
+        emptyMessage: 'Nothing written off in this period.',
+        rows: _writeOffReasonLabels.entries
+            .map(
+              (entry) => (
+                label: entry.value,
+                value: money(byReason[entry.key] ?? 0),
+                weight: byReason[entry.key] ?? 0,
+              ),
+            )
+            .where((row) => row.weight > 0)
+            .toList(),
       ),
     );
   }

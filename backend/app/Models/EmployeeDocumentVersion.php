@@ -64,6 +64,11 @@ class EmployeeDocumentVersion extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function documentAccesses()
+    {
+        return $this->hasMany(RecruitmentDocumentAccess::class, 'employee_document_version_id');
+    }
+
     public function uploadedBy()
     {
         return $this->morphTo();

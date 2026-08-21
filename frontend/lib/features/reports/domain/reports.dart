@@ -69,6 +69,12 @@ class ProfitReport {
   /// at no point in its life: not a cost when bought, not a cost when binned.
   final double writeOffs;
 
+  /// The total above, split by why: expired, damaged, or lost at a stock
+  /// count. Three different problems with three different fixes, which a
+  /// single figure cannot tell apart. Returns to the supplier are not a
+  /// reason here — they were never a loss, so the server never counts them.
+  final Map<String, double> writeOffsByReason;
+
   /// Money handed back to customers, booked in the period it happened.
   final double refunds;
 
@@ -81,6 +87,7 @@ class ProfitReport {
     required this.salaries,
     required this.profit,
     this.writeOffs = 0,
+    this.writeOffsByReason = const <String, double>{},
     this.refunds = 0,
   });
 
@@ -93,12 +100,17 @@ class ProfitReport {
   );
 
   factory ProfitReport.fromJson(Map<String, dynamic> json) {
+    final byReason = json['write_offs_by_reason'];
+
     return ProfitReport(
       filter: json['filter']?.toString() ?? '',
       revenue: _toDouble(json['revenue']),
       costOfGoods: _toDouble(json['cost_of_goods']),
       salaries: _toDouble(json['salaries']),
       writeOffs: _toDouble(json['write_offs']),
+      writeOffsByReason: byReason is Map<String, dynamic>
+          ? byReason.map((key, value) => MapEntry(key, _toDouble(value)))
+          : const <String, double>{},
       refunds: _toDouble(json['refunds']),
       profit: _toDouble(json['profit']),
     );

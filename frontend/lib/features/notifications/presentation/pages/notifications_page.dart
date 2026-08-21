@@ -25,13 +25,22 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
-    context.read<NotificationsCubit>().load();
+    _load(context);
   }
 
   /// "Mark all as read" and delete are pharmacist-only on the backend, so the
   /// control is hidden for employees rather than failing with a 401.
   bool get _isPharmacist =>
       context.read<AuthCubit>().session?.actor.type == AuthActorType.pharmacist;
+
+  /// The pharmacy-scoped feed sits behind an active-pharmacy check an
+  /// employee waiting on a job does not have, and even once employed it
+  /// carries the owner's traffic rather than the employee's own — so an
+  /// employee always reads through their own bell instead.
+  Future<void> _load(BuildContext context) {
+    final cubit = context.read<NotificationsCubit>();
+    return _isPharmacist ? cubit.load() : cubit.loadForEmployee();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +85,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 key: const ValueKey('notifications-retry-button'),
-                onPressed: () => context.read<NotificationsCubit>().load(),
+                onPressed: () => _load(context),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
               ),
@@ -90,7 +99,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     if (items.isEmpty) {
       return RefreshIndicator(
-        onRefresh: () => context.read<NotificationsCubit>().load(),
+        onRefresh: () => _load(context),
         child: ListView(
           children: const [
             SizedBox(height: 120),
@@ -140,7 +149,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => context.read<NotificationsCubit>().load(),
+            onRefresh: () => _load(context),
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: items.length,
@@ -163,7 +172,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final navigator = Navigator.of(context);
     final cubit = context.read<NotificationsCubit>();
 
-    if (!item.isRead) await cubit.markAsRead(item.id);
+    if (!item.isRead) {
+      await (_isPharmacist
+          ? cubit.markAsRead(item.id)
+          : cubit.markEmployeeAsRead(item.id));
+    }
 
     final page = switch (item.destination) {
       NotificationDestination.purchaseCart => const PurchaseCartPage(),
