@@ -45,8 +45,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(
@@ -153,8 +151,51 @@ class _NotificationsPageState extends State<NotificationsPage> {
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: items.length,
-              itemBuilder: (context, index) =>
-                  _tile(context, state, items[index]),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final tile = _tile(context, state, item);
+                if (!_isPharmacist) return tile;
+
+                return Dismissible(
+                  key: ValueKey('dismiss-notification-${item.id}'),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) => showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Delete notification?'),
+                      content: const Text(
+                        'This removes it from your notification history.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  onDismissed: (_) =>
+                      context.read<NotificationsCubit>().delete(item.id),
+                  background: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsetsDirectional.only(end: 22),
+                    alignment: AlignmentDirectional.centerEnd,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  child: tile,
+                );
+              },
             ),
           ),
         ),
@@ -199,7 +240,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final busy = state.mutatingId == item.id;
 
     return Card(
-      color: item.isRead ? Colors.white : AppColors.veryLightGreen,
+      color: item.isRead
+          ? Theme.of(context).cardColor
+          : Theme.of(context).colorScheme.primaryContainer,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(

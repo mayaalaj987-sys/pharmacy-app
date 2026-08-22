@@ -38,9 +38,9 @@ class TasksRepository {
         doneCount: toInt(data['done_count']),
         tasks: raw is List
             ? raw
-                .whereType<Map<String, dynamic>>()
-                .map(PharmacyTask.fromJson)
-                .toList(growable: false)
+                  .whereType<Map<String, dynamic>>()
+                  .map(PharmacyTask.fromJson)
+                  .toList(growable: false)
             : const <PharmacyTask>[],
       );
     } on DioException catch (error) {

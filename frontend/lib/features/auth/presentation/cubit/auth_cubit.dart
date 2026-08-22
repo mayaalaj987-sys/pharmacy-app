@@ -30,7 +30,12 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final restored = await repository.restoreSession();
       if (restored == null) {
-        emit(const AuthUnauthenticated());
+        _registrationStatus = await repository.restoreRegistrationStatus();
+        if (_registrationStatus == null) {
+          emit(const AuthUnauthenticated());
+        } else {
+          emit(PharmacistRegistrationStatus(_registrationStatus!));
+        }
       } else {
         _routeSession(restored);
       }

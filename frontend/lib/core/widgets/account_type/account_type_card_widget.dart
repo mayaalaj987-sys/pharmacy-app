@@ -25,17 +25,19 @@ class AccountTypeCardWidget extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppColors.darkGreen : Colors.transparent,
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outlineVariant,
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? AppColors.darkGreen.withOpacity(0.15)
-                  : Colors.black.withOpacity(0.05),
+                  ? AppColors.darkGreen.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: 15,
               offset: const Offset(0, 5),
             ),
@@ -48,14 +50,16 @@ class AccountTypeCardWidget extends StatelessWidget {
               height: 60,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.darkGreen
-                    : AppColors.veryLightGreen,
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
                 icon,
                 size: 30,
-                color: isSelected ? AppColors.white : AppColors.darkGreen,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ),
             const SizedBox(width: 16),
@@ -65,18 +69,18 @@ class AccountTypeCardWidget extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.darkGreen,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.secondaryText,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -84,7 +88,9 @@ class AccountTypeCardWidget extends StatelessWidget {
             ),
             Icon(
               isSelected ? Icons.check_circle : Icons.circle_outlined,
-              color: isSelected ? AppColors.darkGreen : AppColors.secondaryText,
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
             ),
           ],
         ),

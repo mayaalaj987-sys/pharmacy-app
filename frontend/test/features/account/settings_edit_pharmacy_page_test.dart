@@ -29,12 +29,10 @@ void main() {
     expect(find.text('Pharmacy'), findsOneWidget);
     expect(find.text('Address'), findsOneWidget);
     expect(find.text('33.500000, 36.200000'), findsOneWidget);
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 
-  testWidgets('empty name blocks save without calling the API', (
-    tester,
-  ) async {
+  testWidgets('empty name blocks save without calling the API', (tester) async {
     final api = FakeAccountCubitApi();
     final harness = Harness(accountApi: api);
     await tester.pumpWidget(host(harness));
@@ -50,7 +48,7 @@ void main() {
       find.text('Pharmacy name and address are required.'),
       findsOneWidget,
     );
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 
   testWidgets('valid save calls updatePharmacy with the new name', (
@@ -68,6 +66,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.auth.session?.activePharmacy?.name, 'New Pharmacy Name');
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 }

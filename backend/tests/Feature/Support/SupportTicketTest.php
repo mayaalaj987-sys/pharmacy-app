@@ -143,4 +143,37 @@ class SupportTicketTest extends SecurityTestCase
             'message' => 'A ticket with no authenticated sender at all.',
         ])->assertUnauthorized();
     }
+
+    public function test_rejected_owner_can_contact_support_with_only_the_registration_credential(): void
+    {
+        $owner = $this->pharmacist('rejected-support');
+        $pharmacy = $this->pharmacy($owner, 'rejected-support');
+        $pharmacy->forceFill([
+            'status' => 'rejected',
+            'rejection_reason' => 'The license image is unreadable.',
+        ])->save();
+        $token = $owner->createToken('registration', ['registration-status'])->plainTextToken;
+
+        $this->withToken($token)
+            ->postJson('/api/registration/support/tickets', [
+                'subject' => 'Question about rejection',
+                'message' => 'Please tell me which replacement document is acceptable.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('ticket.status', 'open');
+
+        $ticket = SupportTicket::sole();
+        $this->assertSame($owner->id, $ticket->pharmacist_id);
+        $this->assertSame($pharmacy->id, $ticket->pharmacy_id);
+
+        $this->withToken($token)
+            ->getJson('/api/registration/support/tickets')
+            ->assertOk()
+            ->assertJsonCount(1, 'tickets');
+
+        // The credential remains deliberately useless for normal support and
+        // every operational endpoint.
+        $this->withToken($token)->getJson('/api/support/tickets')->assertForbidden();
+        $this->withToken($token)->getJson('/api/medicines')->assertForbidden();
+    }
 }

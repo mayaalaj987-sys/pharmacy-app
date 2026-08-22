@@ -55,6 +55,7 @@ class SessionPharmacy {
   final double? longitude;
   final bool certificateOnFile;
   final bool licenseOnFile;
+  final String? rejectionReason;
 
   const SessionPharmacy({
     required this.id,
@@ -65,6 +66,7 @@ class SessionPharmacy {
     this.longitude,
     this.certificateOnFile = false,
     this.licenseOnFile = false,
+    this.rejectionReason,
   });
 
   bool get isApproved => status == 'approved';
@@ -79,7 +81,13 @@ class SessionPharmacy {
       longitude: (json['longitude'] as num?)?.toDouble(),
       certificateOnFile: json['certificate_on_file'] as bool? ?? false,
       licenseOnFile: json['license_on_file'] as bool? ?? false,
+      rejectionReason: _nonEmptyString(json['rejection_reason']),
     );
+  }
+
+  static String? _nonEmptyString(dynamic value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
   }
 }
 

@@ -5,12 +5,13 @@ import 'package:provider/provider.dart';
 import 'core/network/auth_session_events.dart';
 import 'core/network/dio_client.dart';
 import 'core/storage/secure_storage_service.dart';
+import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/auth/data/datasource/auth_api.dart';
 import 'features/auth/data/datasource/auth_repository.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/auth/presentation/cubit/auth_state.dart';
-import 'features/auth/presentation/pages/auth_gate.dart';
+import 'core/widgets/app_startup_gate.dart';
 import 'features/account/data/account_api.dart';
 import 'features/account/data/account_repository.dart';
 import 'features/account/presentation/cubit/account_cubit.dart';
@@ -54,16 +55,17 @@ import 'features/support/presentation/cubit/support_cubit.dart';
 import 'features/rating/data/rating_repository.dart';
 import 'features/rating/presentation/cubit/rating_cubit.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final storage = TokenStorage();
   final sessionEvents = AuthSessionEvents();
+  final themeProvider = await ThemeProvider.load();
   DioClient.init(storage, sessionEvents);
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider.value(value: themeProvider),
         BlocProvider(
           create: (_) => AuthCubit(
             AuthRepository(AuthApi(), storage, storage, sessionEvents),
@@ -152,10 +154,10 @@ class _MyAppState extends State<MyApp> {
           child: MaterialApp(
             navigatorKey: _navigatorKey,
             debugShowCheckedModeBanner: false,
-            themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
-            theme: ThemeData(brightness: Brightness.light),
-            darkTheme: ThemeData(brightness: Brightness.dark),
-            home: const AuthGate(),
+            themeMode: themeProvider.themeMode,
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            home: const AppStartupGate(),
           ),
         );
       },

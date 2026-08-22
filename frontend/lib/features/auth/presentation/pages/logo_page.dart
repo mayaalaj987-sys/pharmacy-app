@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phamacy_managment/features/auth/presentation/pages/signup_page1.dart';
+
 class LogoPage extends StatefulWidget {
   const LogoPage({super.key});
 
@@ -34,12 +35,10 @@ class _LogoPageState extends State<LogoPage>
     );
 
     // 🔥 Scale pop (Rive-like feel)
-    scale = Tween(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutBack,
-      ),
-    );
+    scale = Tween(
+      begin: 0.6,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
     // ⬆️ حركة طلوع خفيفة
     slide = Tween(begin: const Offset(0, 0.2), end: Offset.zero).animate(
@@ -54,11 +53,10 @@ class _LogoPageState extends State<LogoPage>
 
     // ⏱ الانتقال بعد 5 ثانية
     Future.delayed(const Duration(milliseconds: 5000), () {
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const SignupPage1(),
-        ),
+        MaterialPageRoute(builder: (_) => const SignupPage1()),
       );
     });
   }
@@ -81,20 +79,13 @@ class _LogoPageState extends State<LogoPage>
               opacity: opacity.value,
               child: Transform.translate(
                 offset: slide.value * 150,
-                child: Transform.scale(
-                  scale: scale.value,
-                  child: child,
-                ),
+                child: Transform.scale(scale: scale.value, child: child),
               ),
             );
           },
-          child: Image.asset(
-            'assets/images/logo.jpg',
-            width: 350,
-          ),
+          child: Image.asset('assets/images/logo.jpg', width: 350),
         ),
       ),
     );
   }
 }
-

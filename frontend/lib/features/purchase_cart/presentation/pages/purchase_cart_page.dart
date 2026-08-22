@@ -46,7 +46,6 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(
@@ -479,7 +478,7 @@ class _PurchaseCartPageState extends State<PurchaseCartPage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 8),
         ],

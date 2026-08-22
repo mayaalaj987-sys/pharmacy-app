@@ -1,7 +1,7 @@
 class ApiConstants {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.6:8000/api',
+    defaultValue: 'http://192.168.137.102:8000/api',
   );
 
   static const String login = "/login";
@@ -9,6 +9,8 @@ class ApiConstants {
   static const String registerPharmacist = "/register";
   static const String registerEmployee = "/employee/register";
   static const String registrationStatus = "/registration/status";
+  static const String registrationSupportTickets =
+      "/registration/support/tickets";
   static const String me = "/me";
   static const String logout = "/logout";
   static const String profileUpdate = "/profile/update";

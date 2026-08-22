@@ -15,10 +15,7 @@ class DashboardGreeting extends StatelessWidget {
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
-        Text(
-          "Today Overview",
-          style: TextStyle(color: AppColors.grey),
-        ),
+        Text("Today Overview", style: TextStyle(color: AppColors.grey)),
       ],
     );
   }

@@ -48,11 +48,9 @@ void main() {
   test('createTask omits a blank description', () async {
     final api = FakeTasksApi();
 
-    await TasksRepository(api).createTask(
-      employeeId: 9,
-      title: 'Count inventory',
-      description: '   ',
-    );
+    await TasksRepository(
+      api,
+    ).createTask(employeeId: 9, title: 'Count inventory', description: '   ');
 
     expect(api.lastCreatePayload!.containsKey('description'), isFalse);
   });
@@ -130,14 +128,14 @@ class FakeTasksApi implements TasksRemoteDataSource {
   int listCalls = 0;
 
   DioException _error(String path, int status, String message) => DioException(
-        requestOptions: RequestOptions(path: path),
-        response: Response<dynamic>(
-          requestOptions: RequestOptions(path: path),
-          statusCode: status,
-          data: {'message': message},
-        ),
-        type: DioExceptionType.badResponse,
-      );
+    requestOptions: RequestOptions(path: path),
+    response: Response<dynamic>(
+      requestOptions: RequestOptions(path: path),
+      statusCode: status,
+      data: {'message': message},
+    ),
+    type: DioExceptionType.badResponse,
+  );
 
   @override
   Future<Response<dynamic>> getPharmacyTasks() async {

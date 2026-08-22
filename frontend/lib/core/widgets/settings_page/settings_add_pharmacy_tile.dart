@@ -36,7 +36,6 @@ class _SettingsAddPharmacyTileState extends State<SettingsAddPharmacyTile> {
     return Column(
       children: [
         Card(
-          color: AppColors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -72,7 +71,6 @@ class _SettingsAddPharmacyTileState extends State<SettingsAddPharmacyTile> {
         ),
         const SizedBox(height: 12),
         Card(
-          color: AppColors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

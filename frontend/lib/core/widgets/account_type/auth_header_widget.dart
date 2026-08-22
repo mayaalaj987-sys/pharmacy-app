@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class AuthHeaderWidget extends StatelessWidget {
   const AuthHeaderWidget({super.key});
@@ -12,24 +11,27 @@ class AuthHeaderWidget extends StatelessWidget {
           width: 120,
           height: 120,
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(30),
           ),
           child: Image.asset('assets/images/login.jpg'),
         ),
         const SizedBox(height: 32),
-        const Text(
+        Text(
           'Who Are You?',
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: AppColors.darkGreen,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Select your account type to continue',
-          style: TextStyle(fontSize: 15, color: AppColors.secondaryText),
+          style: TextStyle(
+            fontSize: 15,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );

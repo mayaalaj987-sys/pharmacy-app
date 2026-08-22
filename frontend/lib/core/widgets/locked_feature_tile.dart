@@ -36,14 +36,16 @@ class LockedFeatureTile extends StatelessWidget {
         opacity: 0.4,
         child: Card(
           margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: ListTile(
             leading: Icon(icon),
             title: Text(title),
             trailing: const Icon(Icons.lock_outline, size: 18),
-            onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(reason)),
-            ),
+            onTap: () => ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(reason))),
           ),
         ),
       ),
@@ -72,10 +74,7 @@ class LockedFeaturePage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Opacity(
-              opacity: 0.4,
-              child: Icon(icon, size: 64),
-            ),
+            Opacity(opacity: 0.4, child: Icon(icon, size: 64)),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -84,7 +83,10 @@ class LockedFeaturePage extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),

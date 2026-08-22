@@ -17,94 +17,98 @@ class AuthOptionsPage extends StatelessWidget {
     final bool isPharmacist = accountType == AccountType.pharmacist;
 
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Icon(
-                  isPharmacist ? Icons.local_pharmacy : Icons.work,
-                  size: 60,
-                  color: AppColors.darkGreen,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Text(
-                isPharmacist ? 'Pharmacist' : 'Employee / Trainee',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkGreen,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isPharmacist
-                    ? 'Manage your pharmacy and team'
-                    : 'Find your opportunity',
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: AppColors.secondaryText,
-                ),
-              ),
-              const SizedBox(height: 60),
-              CustomButton(
-                text: 'Login',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => isPharmacist
-                          ? const LoginPage()
-                          : const EmployeeLoginPage(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(
-                      color: AppColors.darkGreen,
-                      width: 2,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                    child: Icon(
+                      isPharmacist ? Icons.local_pharmacy : Icons.work,
+                      size: 60,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => isPharmacist
-                            ? const SignupPage1()
-                            : const EmployeeSignupPage(),
-                      ),
-                    );
-                  },
-                  child: const Text(
-                    'Sign Up',
+                  const SizedBox(height: 32),
+                  Text(
+                    isPharmacist ? 'Pharmacist' : 'Employee / Trainee',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.darkGreen,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isPharmacist
+                        ? 'Manage your pharmacy and team'
+                        : 'Find your opportunity',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 60),
+                  CustomButton(
+                    text: 'Login',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => isPharmacist
+                              ? const LoginPage()
+                              : const EmployeeLoginPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                          color: AppColors.darkGreen,
+                          width: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => isPharmacist
+                                ? const SignupPage1()
+                                : const EmployeeSignupPage(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

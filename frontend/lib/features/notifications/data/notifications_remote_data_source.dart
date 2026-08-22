@@ -8,6 +8,8 @@ abstract class NotificationsRemoteDataSource {
   /// Pharmacist-only on the backend.
   Future<Response<dynamic>> markAllAsRead();
 
+  Future<Response<dynamic>> deleteNotification(int id);
+
   /// The employee's own bell. A separate endpoint because the pharmacy-scoped
   /// one sits behind the active-pharmacy gate, which someone waiting on a job
   /// does not have. It returns their personal messages merged with their

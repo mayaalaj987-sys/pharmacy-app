@@ -8,6 +8,7 @@ import '../../../sales/domain/sale.dart';
 import '../../../sales/presentation/cubit/sales_cubit.dart';
 import '../../../sales/presentation/cubit/sales_state.dart';
 import '../../../../core/format/money.dart';
+import '../../../sales/presentation/pages/sale_return_page.dart';
 
 class SaleHistoryPage extends StatefulWidget {
   const SaleHistoryPage({super.key});
@@ -18,6 +19,7 @@ class SaleHistoryPage extends StatefulWidget {
 
 class _SaleHistoryPageState extends State<SaleHistoryPage> {
   final searchController = TextEditingController();
+  String? _filter;
 
   @override
   void initState() {
@@ -34,8 +36,6 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Sales History"),
@@ -71,6 +71,34 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
                   onChanged: (_) {
                     setState(() {});
                   },
+                ),
+              ),
+
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final option in const <(String, String?)>[
+                      ('All', null),
+                      ('Today', 'daily'),
+                      ('This week', 'weekly'),
+                      ('This month', 'monthly'),
+                      ('This year', 'yearly'),
+                    ])
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 8),
+                        child: ChoiceChip(
+                          label: Text(option.$1),
+                          selected: _filter == option.$2,
+                          onSelected: (_) {
+                            setState(() => _filter = option.$2);
+                            context.read<SalesCubit>().load(filter: _filter);
+                          },
+                        ),
+                      ),
+                  ],
                 ),
               ),
 
@@ -131,7 +159,8 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 key: const ValueKey('sales-retry-button'),
-                onPressed: () => context.read<SalesCubit>().load(),
+                onPressed: () =>
+                    context.read<SalesCubit>().load(filter: _filter),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
               ),
@@ -146,7 +175,7 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<SalesCubit>().load(),
+      onRefresh: () => context.read<SalesCubit>().load(filter: _filter),
       child: ListView.builder(
         itemCount: sales.length,
 
@@ -227,6 +256,25 @@ class _SaleHistoryPageState extends State<SaleHistoryPage> {
               ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SaleReturnPage(saleId: sale.id),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.keyboard_return_rounded),
+              label: const Text('Return item'),
+            ),
+          ],
         );
       },
     );

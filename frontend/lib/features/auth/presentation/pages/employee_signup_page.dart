@@ -114,7 +114,6 @@ class _EmployeeSignupPageState extends State<EmployeeSignupPage> {
       },
       builder: (context, state) {
         return Scaffold(
-          backgroundColor: AppColors.veryLightGreen,
           body: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),

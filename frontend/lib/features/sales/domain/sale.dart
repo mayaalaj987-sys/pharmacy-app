@@ -82,3 +82,78 @@ class SaleItem {
     );
   }
 }
+
+class SaleReturnable {
+  const SaleReturnable({
+    required this.saleId,
+    required this.isOpen,
+    required this.hoursLeft,
+    required this.items,
+  });
+
+  final int saleId;
+  final bool isOpen;
+  final int hoursLeft;
+  final List<ReturnableSaleItem> items;
+
+  bool get hasItems => items.any((item) => item.returnable > 0);
+
+  factory SaleReturnable.fromJson(Map<String, dynamic> json) {
+    final sale = json['sale'];
+    final rawItems = json['items'];
+    return SaleReturnable(
+      saleId: sale is Map ? Sale._toInt(sale['id']) : 0,
+      isOpen: json['returnable'] == true,
+      hoursLeft: Sale._toInt(json['hours_left']),
+      items: rawItems is List
+          ? rawItems
+                .whereType<Map<String, dynamic>>()
+                .map(ReturnableSaleItem.fromJson)
+                .toList(growable: false)
+          : const <ReturnableSaleItem>[],
+    );
+  }
+}
+
+class ReturnableSaleItem {
+  const ReturnableSaleItem({
+    required this.saleItemId,
+    required this.name,
+    required this.quantity,
+    required this.returned,
+    required this.returnable,
+    required this.unitPrice,
+  });
+
+  final int saleItemId;
+  final String name;
+  final int quantity;
+  final int returned;
+  final int returnable;
+  final double unitPrice;
+
+  factory ReturnableSaleItem.fromJson(Map<String, dynamic> json) {
+    return ReturnableSaleItem(
+      saleItemId: Sale._toInt(json['sale_item_id']),
+      name: json['name']?.toString() ?? 'Medicine',
+      quantity: Sale._toInt(json['quantity']),
+      returned: Sale._toInt(json['returned']),
+      returnable: Sale._toInt(json['returnable']),
+      unitPrice: Sale._toDouble(json['unit_price']),
+    );
+  }
+}
+
+class SaleReturnResult {
+  const SaleReturnResult({required this.refundAmount, required this.restocked});
+
+  final double refundAmount;
+  final bool restocked;
+
+  factory SaleReturnResult.fromJson(Map<String, dynamic> json) {
+    return SaleReturnResult(
+      refundAmount: Sale._toDouble(json['refund_amount']),
+      restocked: json['restocked'] == true,
+    );
+  }
+}

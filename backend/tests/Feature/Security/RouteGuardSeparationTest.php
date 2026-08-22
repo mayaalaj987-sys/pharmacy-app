@@ -41,7 +41,11 @@ class RouteGuardSeparationTest extends SecurityTestCase
     public function test_normal_sanctum_routes_require_the_app_ability(): void
     {
         $routes = collect(app('router')->getRoutes()->getRoutes());
-        $exempt = ['api/logout', 'api/registration/status'];
+        $exempt = [
+            'api/logout',
+            'api/registration/status',
+            'api/registration/support/tickets',
+        ];
 
         $normalAuthenticatedRoutes = $routes->filter(function (Route $route) use ($exempt) {
             $middleware = $route->gatherMiddleware();
@@ -67,6 +71,16 @@ class RouteGuardSeparationTest extends SecurityTestCase
         $statusRoute = $routes->first(fn (Route $route) => $route->uri() === 'api/registration/status');
         $this->assertNotNull($statusRoute);
         $this->assertContains('abilities:registration-status', $statusRoute->gatherMiddleware());
+
+        $registrationSupport = $routes->filter(
+            fn (Route $route) => $route->uri() === 'api/registration/support/tickets',
+        );
+        $this->assertCount(2, $registrationSupport);
+        foreach ($registrationSupport as $route) {
+            $this->assertContains('auth:pharmacist', $route->gatherMiddleware());
+            $this->assertContains('abilities:registration-status', $route->gatherMiddleware());
+            $this->assertNotContains('abilities:app', $route->gatherMiddleware());
+        }
 
         $logoutRoute = $routes->first(fn (Route $route) => $route->uri() === 'api/logout');
         $this->assertNotNull($logoutRoute);

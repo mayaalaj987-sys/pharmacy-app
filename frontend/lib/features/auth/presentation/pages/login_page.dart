@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 
@@ -41,98 +40,104 @@ class _LoginPageState extends State<LoginPage> {
       },
       builder: (context, state) {
         return Scaffold(
-          backgroundColor: AppColors.veryLightGreen,
-
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
 
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
 
-                children: [
-                  const SizedBox(height: 40),
+                    children: [
+                      const SizedBox(height: 40),
 
-                  Center(
-                    child: Container(
-                      width: 150,
+                      Center(
+                        child: Container(
+                          width: 150,
 
-                      height: 150,
+                          height: 150,
 
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
 
-                        borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+
+                          child: Image.asset('assets/images/login.jpg'),
+                        ),
                       ),
 
-                      child: Image.asset('assets/images/login.jpg'),
-                    ),
+                      const SizedBox(height: 40),
+
+                      Text(
+                        'Welcome Back',
+
+                        style: TextStyle(
+                          fontSize: 32,
+
+                          fontWeight: FontWeight.bold,
+
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      Text(
+                        'Login to continue',
+
+                        style: TextStyle(
+                          fontSize: 15,
+
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      CustomTextField(
+                        controller: usernameController,
+
+                        hint: 'Email',
+
+                        prefixIcon: Icons.email,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      CustomTextField(
+                        controller: passwordController,
+
+                        hint: 'Password',
+
+                        prefixIcon: Icons.lock,
+
+                        isPassword: true,
+                      ),
+
+                      const SizedBox(height: 34),
+
+                      CustomButton(
+                        text: state is AuthLoading ? "Loading..." : "Login",
+
+                        onPressed: state is AuthLoading
+                            ? null
+                            : () {
+                                context.read<AuthCubit>().login(
+                                  usernameController.text,
+
+                                  passwordController.text,
+                                );
+                              },
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 40),
-
-                  const Text(
-                    'Welcome Back',
-
-                    style: TextStyle(
-                      fontSize: 32,
-
-                      fontWeight: FontWeight.bold,
-
-                      color: AppColors.darkGreen,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    'Login to continue',
-
-                    style: TextStyle(
-                      fontSize: 15,
-
-                      color: AppColors.secondaryText,
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  CustomTextField(
-                    controller: usernameController,
-
-                    hint: 'Email',
-
-                    prefixIcon: Icons.email,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  CustomTextField(
-                    controller: passwordController,
-
-                    hint: 'Password',
-
-                    prefixIcon: Icons.lock,
-
-                    isPassword: true,
-                  ),
-
-                  const SizedBox(height: 34),
-
-                  CustomButton(
-                    text: state is AuthLoading ? "Loading..." : "Login",
-
-                    onPressed: state is AuthLoading
-                        ? null
-                        : () {
-                            context.read<AuthCubit>().login(
-                              usernameController.text,
-
-                              passwordController.text,
-                            );
-                          },
-                  ),
-                ],
+                ),
               ),
             ),
           ),

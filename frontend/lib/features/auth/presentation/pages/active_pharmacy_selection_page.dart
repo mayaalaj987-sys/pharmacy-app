@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../../data/models/auth_session_model.dart';
 import '../cubit/auth_cubit.dart';
 
@@ -19,7 +18,6 @@ class ActivePharmacySelectionPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final pharmacies = session.approvedPharmacies;
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       appBar: AppBar(
         title: const Text('Select Pharmacy'),
         actions: [

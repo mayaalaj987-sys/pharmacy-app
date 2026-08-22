@@ -10,6 +10,7 @@ import 'employee_navigation_page.dart';
 import 'main_navigation_page.dart';
 import 'employee_unattached_shell.dart';
 import 'session_status_page.dart';
+import 'pending_page.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -28,6 +29,10 @@ class AuthGate extends StatelessWidget {
           return state.session.actor.type.name == 'employee'
               ? EmployeeNavigationPage(session: state.session)
               : const MainNavigationPage();
+        }
+
+        if (state is PharmacistRegistrationStatus) {
+          return const PendingPage();
         }
 
         if (state is AuthPharmacySelectionRequired) {

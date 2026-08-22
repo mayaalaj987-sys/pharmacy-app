@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/format/money.dart';
+import '../../../../core/layout/responsive_layout.dart';
 import '../../../../core/network/user_facing_error.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/purchases/cart_fab.dart';
@@ -28,6 +29,9 @@ class SupplierDetailsPage extends StatefulWidget {
 }
 
 class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
   @override
   void initState() {
     super.initState();
@@ -36,11 +40,16 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final supplier = widget.supplier;
 
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: AppBar(title: Text(supplier.name)),
       floatingActionButton: const PurchaseCartFab(),
       body: BlocBuilder<SuppliersCubit, SuppliersState>(
@@ -79,14 +88,126 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
               state.medicinesBySupplier[supplier.id] ??
               const <SupplierMedicine>[];
 
-          if (medicines.isEmpty) {
-            return const Center(child: Text('No medicines available'));
-          }
+          final normalizedQuery = _query.trim().toLowerCase();
+          final filtered = normalizedQuery.isEmpty
+              ? medicines
+              : medicines
+                    .where(
+                      (medicine) =>
+                          medicine.name.toLowerCase().contains(
+                            normalizedQuery,
+                          ) ||
+                          medicine.category.toLowerCase().contains(
+                            normalizedQuery,
+                          ),
+                    )
+                    .toList(growable: false);
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: medicines.length,
-            itemBuilder: (context, index) => _card(medicines[index]),
+          return ResponsiveContent(
+            safeArea: false,
+            padding: context.pagePadding.copyWith(top: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  key: const ValueKey('supplier-medicine-search'),
+                  controller: _searchController,
+                  autofocus: false,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (value) => setState(() => _query = value),
+                  decoration: InputDecoration(
+                    labelText: 'Search this supplier',
+                    hintText: 'Medicine name or category',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _query = '');
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.medication_outlined,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      normalizedQuery.isEmpty
+                          ? '${medicines.length} medicines available'
+                          : '${filtered.length} of ${medicines.length} medicines',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: medicines.isEmpty
+                        ? const _SupplierEmptyState(
+                            key: ValueKey('empty-catalogue'),
+                            icon: Icons.inventory_2_outlined,
+                            title: 'No medicines available',
+                            message:
+                                'This supplier has not added medicines yet.',
+                          )
+                        : filtered.isEmpty
+                        ? _SupplierEmptyState(
+                            key: const ValueKey('empty-search'),
+                            icon: Icons.search_off_rounded,
+                            title: 'No matching medicine',
+                            message:
+                                'Try another name or clear “${_query.trim()}”.',
+                            action: TextButton.icon(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _query = '');
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                              label: const Text('Clear search'),
+                            ),
+                          )
+                        : LayoutBuilder(
+                            key: ValueKey('results-$normalizedQuery'),
+                            builder: (context, constraints) {
+                              if (constraints.maxWidth >= 700) {
+                                return GridView.builder(
+                                  padding: const EdgeInsets.only(bottom: 96),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        mainAxisSpacing: 12,
+                                        crossAxisSpacing: 12,
+                                        childAspectRatio: 1.45,
+                                      ),
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, index) =>
+                                      _card(filtered[index]),
+                                );
+                              }
+                              return ListView.separated(
+                                padding: const EdgeInsets.only(bottom: 96),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) =>
+                                    _card(filtered[index]),
+                              );
+                            },
+                          ),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -97,8 +218,6 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
     final soldOut = medicine.availableQuantity <= 0;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -124,17 +243,17 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
                     // for the bill.
                     Text(
                       money(medicine.price),
-                      style: const TextStyle(
-                        color: AppColors.darkGreen,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     Text(
                       'sells for ~${money(medicine.suggestedRetail)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
-                        color: Colors.black54,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -144,7 +263,9 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
             const SizedBox(height: 8),
             Text(
               medicine.category,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Text('Available: ${medicine.availableQuantity}'),
@@ -215,6 +336,48 @@ class _SupplierDetailsPageState extends State<SupplierDetailsPage> {
                 ),
               )
             : null,
+      ),
+    );
+  }
+}
+
+class _SupplierEmptyState extends StatelessWidget {
+  const _SupplierEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 58, color: theme.colorScheme.outline),
+            const SizedBox(height: 14),
+            Text(title, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (action != null) ...[const SizedBox(height: 8), action!],
+          ],
+        ),
       ),
     );
   }

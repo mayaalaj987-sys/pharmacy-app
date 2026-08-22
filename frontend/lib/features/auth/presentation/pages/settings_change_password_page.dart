@@ -42,6 +42,11 @@ class _SettingsChangePasswordPageState
         builder: (context, state) {
           final loading =
               state.loading && state.operation == AccountOperation.password;
+          final currentPasswordError = _error(state, 'current_password');
+          final newPasswordError = _error(state, 'new_password');
+          final generalError = state.operation == AccountOperation.password
+              ? state.error?.message
+              : null;
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -50,7 +55,7 @@ class _SettingsChangePasswordPageState
                 controller: _currentController,
                 label: 'Current password',
                 enabled: !loading,
-                error: _error(state, 'current_password'),
+                error: currentPasswordError,
               ),
               const SizedBox(height: 16),
               _passwordField(
@@ -58,7 +63,7 @@ class _SettingsChangePasswordPageState
                 controller: _newController,
                 label: 'New password',
                 enabled: !loading,
-                error: _error(state, 'new_password'),
+                error: newPasswordError,
               ),
               const SizedBox(height: 16),
               _passwordField(
@@ -67,11 +72,12 @@ class _SettingsChangePasswordPageState
                 label: 'Confirm new password',
                 enabled: !loading,
               ),
-              if (state.operation == AccountOperation.password &&
-                  state.error != null) ...[
+              if (generalError != null &&
+                  generalError != currentPasswordError &&
+                  generalError != newPasswordError) ...[
                 const SizedBox(height: 12),
                 Text(
-                  state.error!.message,
+                  generalError,
                   key: const ValueKey('password-error'),
                   style: const TextStyle(color: AppColors.errorRed),
                 ),

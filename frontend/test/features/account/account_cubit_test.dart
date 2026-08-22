@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:phamacy_managment/core/network/auth_session_events.dart';
 import 'package:phamacy_managment/core/storage/secure_storage_service.dart';
@@ -130,6 +131,11 @@ class Harness {
     await account.close();
     await auth.close();
   }
+}
+
+Future<void> closeWidgetHarness(WidgetTester tester, Harness harness) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.runAsync(harness.close);
 }
 
 class FakeAccountCubitApi implements AccountRemoteDataSource {

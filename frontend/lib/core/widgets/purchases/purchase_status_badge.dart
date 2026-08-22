@@ -38,7 +38,7 @@ class PurchaseStatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
 
       decoration: BoxDecoration(
-        color: color.withOpacity(.12),
+        color: color.withValues(alpha: .12),
 
         borderRadius: BorderRadius.circular(30),
       ),

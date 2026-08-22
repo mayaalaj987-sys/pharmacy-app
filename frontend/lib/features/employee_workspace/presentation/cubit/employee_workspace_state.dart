@@ -41,8 +41,9 @@ class EmployeeWorkspaceState {
       tasks: tasks ?? this.tasks,
       sales: sales ?? this.sales,
       error: clearError ? null : (error ?? this.error),
-      mutatingTaskId:
-          clearMutating ? null : (mutatingTaskId ?? this.mutatingTaskId),
+      mutatingTaskId: clearMutating
+          ? null
+          : (mutatingTaskId ?? this.mutatingTaskId),
       savingAccount: savingAccount ?? this.savingAccount,
     );
   }

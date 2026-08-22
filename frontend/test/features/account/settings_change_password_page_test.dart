@@ -42,10 +42,11 @@ void main() {
       'new-password',
     );
     await tester.tap(_submitButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
 
     expect(api.passwordCalls, 1);
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 
   testWidgets('wrong current password surfaces inline field error', (
@@ -69,35 +70,37 @@ void main() {
       'new-password',
     );
     await tester.tap(_submitButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.text('The current password is incorrect.'), findsOneWidget);
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 
-  testWidgets('mismatched confirmation blocks submission without calling the API', (
-    tester,
-  ) async {
-    final api = FakeAccountCubitApi();
-    final harness = Harness(accountApi: api);
-    await tester.pumpWidget(host(harness.account));
+  testWidgets(
+    'mismatched confirmation blocks submission without calling the API',
+    (tester) async {
+      final api = FakeAccountCubitApi();
+      final harness = Harness(accountApi: api);
+      await tester.pumpWidget(host(harness.account));
 
-    await tester.enterText(
-      find.byKey(const ValueKey('current-password-field')),
-      'password',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('new-password-field')),
-      'new-password',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('confirm-password-field')),
-      'different',
-    );
-    await tester.tap(_submitButton);
-    await tester.pump();
+      await tester.enterText(
+        find.byKey(const ValueKey('current-password-field')),
+        'password',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('new-password-field')),
+        'new-password',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('confirm-password-field')),
+        'different',
+      );
+      await tester.tap(_submitButton);
+      await tester.pump();
 
-    expect(api.passwordCalls, 0);
-    await harness.close();
-  });
+      expect(api.passwordCalls, 0);
+      await closeWidgetHarness(tester, harness);
+    },
+  );
 }

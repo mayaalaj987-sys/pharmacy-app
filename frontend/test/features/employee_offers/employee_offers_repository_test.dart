@@ -86,39 +86,45 @@ void main() {
     expect(job.unavailableExplanation, 'You accepted this offer.');
   });
 
-  test('accepting reloads the session, because the whole app changes', () async {
-    sessionReloads = 0;
-    final api = FakeOffersApi();
-    final cubit = _cubit(api);
-    await cubit.load();
+  test(
+    'accepting reloads the session, because the whole app changes',
+    () async {
+      sessionReloads = 0;
+      final api = FakeOffersApi();
+      final cubit = _cubit(api);
+      await cubit.load();
 
-    expect(await cubit.accept(1), isTrue);
+      expect(await cubit.accept(1), isTrue);
 
-    expect(api.accepted, [1]);
-    // Without this the app would stay on the unattached shell after being
-    // hired: AuthGate routes off the session, not off this list.
-    expect(sessionReloads, 1);
-    expect(cubit.state.accepting, isFalse);
-    await cubit.close();
-  });
+      expect(api.accepted, [1]);
+      // Without this the app would stay on the unattached shell after being
+      // hired: AuthGate routes off the session, not off this list.
+      expect(sessionReloads, 1);
+      expect(cubit.state.accepting, isFalse);
+      await cubit.close();
+    },
+  );
 
-  test('a refused acceptance surfaces the reason and reloads nothing', () async {
-    sessionReloads = 0;
-    final api = FakeOffersApi()..failAccept = true;
-    final cubit = _cubit(api);
-    await cubit.load();
+  test(
+    'a refused acceptance surfaces the reason and reloads nothing',
+    () async {
+      sessionReloads = 0;
+      final api = FakeOffersApi()..failAccept = true;
+      final cubit = _cubit(api);
+      await cubit.load();
 
-    expect(await cubit.accept(1), isFalse);
+      expect(await cubit.accept(1), isFalse);
 
-    expect(api.accepted, isEmpty);
-    expect(sessionReloads, 0);
-    expect(cubit.state.error!.code, 'shift_taken');
-    // The list stays on screen; the refusal is nearly always the world having
-    // moved on, and the reason is what the applicant needs to see.
-    expect(cubit.state.offers, hasLength(2));
-    expect(cubit.state.accepting, isFalse);
-    await cubit.close();
-  });
+      expect(api.accepted, isEmpty);
+      expect(sessionReloads, 0);
+      expect(cubit.state.error!.code, 'shift_taken');
+      // The list stays on screen; the refusal is nearly always the world having
+      // moved on, and the reason is what the applicant needs to see.
+      expect(cubit.state.offers, hasLength(2));
+      expect(cubit.state.accepting, isFalse);
+      await cubit.close();
+    },
+  );
 
   test('a second tap while accepting is ignored', () async {
     sessionReloads = 0;

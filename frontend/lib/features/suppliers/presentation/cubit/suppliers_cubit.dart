@@ -15,9 +15,7 @@ class SuppliersCubit extends Cubit<SuppliersState> {
     emit(state.copyWith(status: SuppliersStatus.loading, clearError: true));
     try {
       final suppliers = await repository.fetchSuppliers();
-      emit(
-        state.copyWith(status: SuppliersStatus.ready, suppliers: suppliers),
-      );
+      emit(state.copyWith(status: SuppliersStatus.ready, suppliers: suppliers));
     } on AuthApiException catch (error) {
       emit(state.copyWith(status: SuppliersStatus.failure, error: error));
     } catch (_) {
@@ -50,12 +48,7 @@ class SuppliersCubit extends Cubit<SuppliersState> {
         ),
       );
     } on AuthApiException catch (error) {
-      emit(
-        state.copyWith(
-          medicinesError: error,
-          clearMedicinesLoading: true,
-        ),
-      );
+      emit(state.copyWith(medicinesError: error, clearMedicinesLoading: true));
     } catch (_) {
       emit(
         state.copyWith(

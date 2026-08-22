@@ -37,7 +37,6 @@ class _SettingsRateTileState extends State<SettingsRateTile> {
         final rating = state.rating;
 
         return Card(
-          color: AppColors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -149,7 +148,6 @@ class _RatingDialogState extends State<_RatingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.white,
       title: Text(
         widget.existing.hasRated ? "Change your rating" : "Rate Application",
         style: const TextStyle(fontWeight: FontWeight.bold),

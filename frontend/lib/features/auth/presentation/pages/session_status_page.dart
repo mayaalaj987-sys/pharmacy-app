@@ -30,7 +30,6 @@ class SessionStatusPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),

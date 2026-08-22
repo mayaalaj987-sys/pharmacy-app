@@ -40,8 +40,9 @@ class TasksState {
       tasks: tasks ?? this.tasks,
       error: clearError ? null : (error ?? this.error),
       creating: creating ?? this.creating,
-      deletingTaskId:
-          clearDeleting ? null : (deletingTaskId ?? this.deletingTaskId),
+      deletingTaskId: clearDeleting
+          ? null
+          : (deletingTaskId ?? this.deletingTaskId),
     );
   }
 }

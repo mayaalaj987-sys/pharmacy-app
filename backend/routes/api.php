@@ -46,6 +46,15 @@ Route::middleware(['auth:pharmacist,employee'])->group(function () {
 Route::get('/registration/status', [PharmacistController::class, 'registrationStatus'])
     ->middleware(['auth:pharmacist', 'abilities:registration-status']);
 
+// A rejected owner still has a narrow registration credential, not an app
+// session. These two routes let that owner ask about the decision without
+// opening any pharmacy data or operational endpoint.
+Route::middleware(['auth:pharmacist', 'abilities:registration-status'])->group(function () {
+    Route::get('/registration/support/tickets', [SupportTicketController::class, 'index']);
+    Route::post('/registration/support/tickets', [SupportTicketController::class, 'store'])
+        ->middleware('throttle:account-security');
+});
+
 Route::middleware(['auth:pharmacist,employee', 'abilities:app', 'active.account', 'approved.pharmacist'])->group(function () {
     Route::get('/me', [SessionController::class, 'me']);
 

@@ -169,4 +169,34 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       return false;
     }
   }
+
+  Future<bool> delete(int id) async {
+    if (state.busy) return false;
+    emit(state.copyWith(mutatingId: id, clearError: true));
+    try {
+      await repository.deleteNotification(id);
+      final feed = await repository.fetchNotifications();
+      emit(
+        state.copyWith(
+          status: NotificationsStatus.ready,
+          feed: feed,
+          clearMutating: true,
+        ),
+      );
+      return true;
+    } on AuthApiException catch (error) {
+      emit(state.copyWith(error: error, clearMutating: true));
+      return false;
+    } catch (_) {
+      emit(
+        state.copyWith(
+          error: const AuthApiException(
+            message: 'Unable to delete the notification.',
+          ),
+          clearMutating: true,
+        ),
+      );
+      return false;
+    }
+  }
 }

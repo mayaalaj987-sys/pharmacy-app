@@ -12,7 +12,6 @@ class SettingsLogoutTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ListTile(
         leading: const Icon(Icons.logout, color: AppColors.pendingOrange),
@@ -52,7 +51,6 @@ class _LogoutDialogState extends State<_LogoutDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: const Text(
         'Logout',

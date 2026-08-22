@@ -14,6 +14,7 @@ import '../../../../core/widgets/settings_page/settings_rate_tile.dart';
 import '../../../../core/widgets/settings_page/settings_theme_tile.dart';
 import 'settings_change_password_page.dart';
 import 'settings_edit_profile_page.dart';
+import '../../../documents/presentation/self_documents_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -21,7 +22,6 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Settings"),
@@ -42,10 +42,25 @@ class SettingsPage extends StatelessWidget {
             const SettingsPharmacyCard(),
             const SizedBox(height: 12),
             const SettingsAddPharmacyTile(),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.folder_copy_outlined),
+                title: const Text('Legal Documents'),
+                subtitle: const Text('License, certificate, and review status'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const SelfDocumentsPage(owner: DocumentOwner.pharmacy),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 22),
             const _SectionTitle('ACCOUNT'),
             Card(
-              color: AppColors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -75,7 +90,6 @@ class SettingsPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Card(
-              color: AppColors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -111,7 +125,6 @@ class SettingsPage extends StatelessWidget {
             const SettingsRateTile(),
             const SizedBox(height: 12),
             Card(
-              color: AppColors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),

@@ -6,7 +6,6 @@ import 'package:phamacy_managment/features/auth/presentation/pages/pos_page.dart
 
 import '../../../../core/theme/app_colors.dart';
 
-
 import 'analytics_page.dart';
 import 'home_page.dart';
 import 'medicine_page.dart';

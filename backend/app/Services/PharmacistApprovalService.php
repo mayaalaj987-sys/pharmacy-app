@@ -62,6 +62,12 @@ class PharmacistApprovalService
                     'name' => $pharmacy->pharmacy_name,
                     'address' => $pharmacy->pharmacy_address,
                     'status' => $pharmacy->status,
+                    // Only the owner sees this response, through their narrow
+                    // registration-status token. Pending/approved pharmacies
+                    // never receive stale decision text.
+                    'rejection_reason' => $pharmacy->status === 'rejected'
+                        ? $pharmacy->rejection_reason
+                        : null,
                 ])
                 ->values()
                 ->all(),

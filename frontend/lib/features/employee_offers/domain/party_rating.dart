@@ -24,7 +24,9 @@ class PartyRating {
     final rawCount = json['count'];
 
     return PartyRating(
-      average: raw is num ? raw.toDouble() : double.tryParse(raw?.toString() ?? ''),
+      average: raw is num
+          ? raw.toDouble()
+          : double.tryParse(raw?.toString() ?? ''),
       count: rawCount is num ? rawCount.toInt() : 0,
     );
   }

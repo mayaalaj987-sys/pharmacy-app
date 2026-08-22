@@ -18,7 +18,6 @@ class SettingsPharmacyCard extends StatelessWidget {
         : '${pharmacy.latitude!.toStringAsFixed(5)}, ${pharmacy.longitude!.toStringAsFixed(5)}';
 
     return Card(
-      color: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(16),

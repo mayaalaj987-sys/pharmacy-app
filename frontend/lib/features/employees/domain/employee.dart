@@ -6,6 +6,7 @@ class Employee {
   final int id;
   final int? pharmacyId;
   final String name;
+
   /// Empty for anyone in the hiring pool: contact details are withheld until
   /// this pharmacy has hired them. A CV is how you evaluate a stranger.
   final String phone;
@@ -70,10 +71,10 @@ class Employee {
   bool get hasContactDetails => phone.isNotEmpty || email.isNotEmpty;
 
   String get roleLabel => switch (role) {
-        'employee' => 'Employee',
-        'trainee' => 'Trainee',
-        _ => role,
-      };
+    'employee' => 'Employee',
+    'trainee' => 'Trainee',
+    _ => role,
+  };
 
   String? get offerShiftLabel => switch (offerShift) {
     'morning' => 'Morning',
@@ -82,16 +83,16 @@ class Employee {
   };
 
   String get shiftLabel => switch (shift) {
-        'morning' => 'Morning',
-        'evening' => 'Evening',
-        _ => 'No shift',
-      };
+    'morning' => 'Morning',
+    'evening' => 'Evening',
+    _ => 'No shift',
+  };
 
   String get statusLabel => switch (status) {
-        'approved' => 'Approved',
-        'pending' => 'Pending',
-        _ => status,
-      };
+    'approved' => 'Approved',
+    'pending' => 'Pending',
+    _ => status,
+  };
 
   factory Employee.fromJson(Map<String, dynamic> json) {
     int toInt(dynamic v) =>
@@ -122,8 +123,8 @@ class Employee {
       salary: rawSalary == null
           ? null
           : (rawSalary is num
-              ? rawSalary.toDouble()
-              : double.tryParse(rawSalary.toString())),
+                ? rawSalary.toDouble()
+                : double.tryParse(rawSalary.toString())),
       createdAt: rawCreated == null || rawCreated.isEmpty
           ? null
           : DateTime.tryParse(rawCreated),

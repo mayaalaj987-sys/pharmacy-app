@@ -11,6 +11,7 @@ import '../cubit/employees_state.dart';
 import '../../../employment_history/presentation/pages/employment_history_page.dart';
 import '../widgets/applicant_documents_sheet.dart';
 import '../../../../core/format/money.dart';
+import 'sent_offers_page.dart';
 
 class EmployeesPage extends StatefulWidget {
   const EmployeesPage({super.key});
@@ -47,8 +48,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Employees"),
@@ -123,6 +122,19 @@ class _EmployeesPageState extends State<EmployeesPage> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const ValueKey('sent-offers-button'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SentOffersPage()),
+              ),
+              icon: const Icon(Icons.outbox_outlined),
+              label: const Text('View sent offers'),
+            ),
+          ),
+          const SizedBox(height: 18),
           _sectionTitle(
             "Current Employees",
             "${state.current.length} of ${EmployeesState.shifts.length} shifts covered",

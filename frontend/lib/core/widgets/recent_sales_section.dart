@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
 class RecentSalesSection extends StatelessWidget {
   const RecentSalesSection({super.key});
 
@@ -18,12 +16,10 @@ class RecentSalesSection extends StatelessWidget {
         Container(
           height: 120,
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Center(
-            child: Text("Last 4 Invoices"),
-          ),
+          child: const Center(child: Text("Last 4 Invoices")),
         ),
       ],
     );

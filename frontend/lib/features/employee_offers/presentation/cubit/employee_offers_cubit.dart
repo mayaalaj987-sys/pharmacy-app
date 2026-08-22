@@ -20,7 +20,9 @@ class EmployeeOffersCubit extends Cubit<EmployeeOffersState> {
 
   Future<void> load() async {
     if (state.status == EmployeeOffersStatus.loading) return;
-    emit(state.copyWith(status: EmployeeOffersStatus.loading, clearError: true));
+    emit(
+      state.copyWith(status: EmployeeOffersStatus.loading, clearError: true),
+    );
 
     try {
       emit(

@@ -87,7 +87,24 @@ class SupportTicketController extends Controller
             return $user->pharmacy_id;
         }
 
-        return $user->pharmacies()->where('status', 'approved')->orderBy('id')->value('id');
+        $approved = $user->pharmacies()
+            ->where('status', 'approved')
+            ->orderBy('id')
+            ->value('id');
+
+        if ($approved !== null) {
+            return (int) $approved;
+        }
+
+        // Registration-status callers have no approved branch by definition.
+        // Keep the rejected/pending pharmacy as ticket context so the admin
+        // immediately knows which review the owner is asking about.
+        $registrationPharmacy = $user->pharmacies()
+            ->whereIn('status', ['rejected', 'pending'])
+            ->latest('id')
+            ->value('id');
+
+        return $registrationPharmacy === null ? null : (int) $registrationPharmacy;
     }
 
     /** @return array<string, mixed> */

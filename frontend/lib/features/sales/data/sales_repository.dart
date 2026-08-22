@@ -72,6 +72,39 @@ class SalesRepository {
     }
   }
 
+  Future<SaleReturnable> fetchReturnable(int saleId) async {
+    try {
+      final response = await api.getReturnable(saleId);
+      return SaleReturnable.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<SaleReturnResult> returnItem({
+    required int saleId,
+    required int saleItemId,
+    required int quantity,
+    required String reason,
+    String? note,
+  }) async {
+    try {
+      final response = await api.createReturn(saleId, {
+        'sale_item_id': saleItemId,
+        'quantity': quantity,
+        'reason': reason,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      });
+      return SaleReturnResult.fromJson(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
   SalesSummary _parse(Response<dynamic> response) {
     final data = response.data;
     if (data is! Map<String, dynamic>) {

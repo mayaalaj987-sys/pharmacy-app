@@ -37,9 +37,9 @@ class CustomAppBar extends StatelessWidget {
               //),
               const SizedBox(width: 1),
 
-             Expanded(
+              Expanded(
                 child: Text(
-                  title ,
+                  title,
                   style: TextStyle(
                     color: AppColors.white,
                     fontSize: 25,

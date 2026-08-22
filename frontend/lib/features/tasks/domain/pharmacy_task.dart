@@ -24,9 +24,8 @@ class PharmacyTask {
   String get statusLabel => isDone ? 'Done' : 'Pending';
 
   factory PharmacyTask.fromJson(Map<String, dynamic> json) {
-    int? toIntOrNull(dynamic v) => v == null
-        ? null
-        : (v is num ? v.toInt() : int.tryParse(v.toString()));
+    int? toIntOrNull(dynamic v) =>
+        v == null ? null : (v is num ? v.toInt() : int.tryParse(v.toString()));
 
     final employee = json['employee'];
     final description = json['description']?.toString();
@@ -35,8 +34,9 @@ class PharmacyTask {
     return PharmacyTask(
       id: toIntOrNull(json['id']) ?? 0,
       title: json['title']?.toString() ?? '',
-      description:
-          description == null || description.isEmpty ? null : description,
+      description: description == null || description.isEmpty
+          ? null
+          : description,
       status: json['status']?.toString() ?? 'pending',
       employeeId: toIntOrNull(json['employee_id']),
       employeeName: employee is Map<String, dynamic>

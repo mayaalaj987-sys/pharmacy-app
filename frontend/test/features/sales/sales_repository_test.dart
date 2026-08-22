@@ -257,4 +257,28 @@ class FakeSalesApi implements SalesRemoteDataSource {
       },
     );
   }
+
+  @override
+  Future<Response<dynamic>> getReturnable(int saleId) async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/sale/$saleId/returnable'),
+      data: {
+        'sale': {'id': saleId},
+        'returnable': true,
+        'hours_left': 24,
+        'items': const <dynamic>[],
+      },
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> createReturn(
+    int saleId,
+    Map<String, dynamic> data,
+  ) async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/sale/$saleId/return'),
+      data: {'refund_amount': 20, 'restocked': true},
+    );
+  }
 }

@@ -29,7 +29,8 @@ class EmployeeUnattachedShell extends StatefulWidget {
   const EmployeeUnattachedShell({super.key, required this.session});
 
   @override
-  State<EmployeeUnattachedShell> createState() => _EmployeeUnattachedShellState();
+  State<EmployeeUnattachedShell> createState() =>
+      _EmployeeUnattachedShellState();
 }
 
 class _EmployeeUnattachedShellState extends State<EmployeeUnattachedShell> {
@@ -48,7 +49,6 @@ class _EmployeeUnattachedShellState extends State<EmployeeUnattachedShell> {
     final actor = widget.session.actor;
 
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,10 +113,7 @@ class _EmployeeUnattachedShellState extends State<EmployeeUnattachedShell> {
         onTap: (value) => setState(() => _index = value),
         type: BottomNavigationBarType.fixed,
         items: [
-          BottomNavigationBarItem(
-            icon: _offersIcon(),
-            label: 'Offers',
-          ),
+          BottomNavigationBarItem(icon: _offersIcon(), label: 'Offers'),
           const BottomNavigationBarItem(
             icon: Icon(Icons.medication),
             label: 'Medicines',
@@ -143,7 +140,10 @@ class _EmployeeUnattachedShellState extends State<EmployeeUnattachedShell> {
                 right: -6,
                 top: -4,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: const BoxDecoration(
                     color: AppColors.errorRed,
                     shape: BoxShape.circle,

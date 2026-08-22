@@ -49,6 +49,9 @@ class StockAllocator
                 // is how the dated one ends up being thrown away.
                 fn (Medicine $a, Medicine $b) => ($a->expire_date === null) <=> ($b->expire_date === null),
                 fn (Medicine $a, Medicine $b) => ($a->expire_date?->timestamp ?? 0) <=> ($b->expire_date?->timestamp ?? 0),
+                // Two deliveries can share the same expiry date. The older
+                // database row is the deterministic FIFO tie-breaker.
+                fn (Medicine $a, Medicine $b) => $a->id <=> $b->id,
             ])
             ->values();
 

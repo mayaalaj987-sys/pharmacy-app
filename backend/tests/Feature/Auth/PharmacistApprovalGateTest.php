@@ -83,6 +83,28 @@ class PharmacistApprovalGateTest extends TestCase
         $this->assertSame(['registration-status'], PersonalAccessToken::sole()->abilities);
     }
 
+    public function test_rejected_status_includes_the_admin_reason_only_on_the_rejected_pharmacy(): void
+    {
+        $pharmacist = $this->pharmacist('rejection-reason');
+        $pending = $this->pharmacy($pharmacist, 'pending', 'pending');
+        $rejected = $this->pharmacy($pharmacist, 'rejected', 'rejected');
+        $rejected->forceFill(['rejection_reason' => 'The submitted license has expired.'])->save();
+        $token = $pharmacist->createToken('status', ['registration-status'])->plainTextToken;
+
+        $response = $this->withToken($token)
+            ->getJson('/api/registration/status')
+            ->assertOk()
+            ->assertJsonPath('data.registration.status', 'pending');
+
+        $pharmacies = collect($response->json('data.registration.pharmacies'))
+            ->keyBy('id');
+        $this->assertNull($pharmacies[$pending->id]['rejection_reason']);
+        $this->assertSame(
+            'The submitted license has expired.',
+            $pharmacies[$rejected->id]['rejection_reason'],
+        );
+    }
+
     public function test_logout_accepts_status_tokens_and_revokes_only_the_presented_token(): void
     {
         $pharmacist = $this->pharmacist('status-logout');

@@ -103,6 +103,64 @@ class BatchAndFefoTest extends SecurityTestCase
         $this->assertSame(2, SaleItem::count());
     }
 
+    public function test_duplicate_lines_cannot_claim_the_same_stock_twice(): void
+    {
+        [$owner, $pharmacy] = $this->buyer('fefo-duplicate');
+        $batch = $this->shelf($pharmacy, 'Amoxicillin 500mg', quantity: 10, expiresInDays: 200);
+
+        Sanctum::actingAs($owner, ['*'], 'pharmacist');
+        $this->postJson('/api/sale/create', [
+            'pharmacy_id' => $pharmacy->id,
+            'payment_method' => 'cash',
+            'items' => [
+                ['medicine_id' => $batch->id, 'quantity' => 8],
+                ['medicine_id' => $batch->id, 'quantity' => 8],
+            ],
+        ], $this->at($pharmacy))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('items.1.medicine_id');
+
+        $this->assertSame(10, $batch->fresh()->quantity);
+        $this->assertSame(0, Sale::count());
+    }
+
+    public function test_two_batch_ids_cannot_oversell_the_combined_shelf(): void
+    {
+        [$owner, $pharmacy] = $this->buyer('fefo-two-lines');
+        $old = $this->shelf($pharmacy, 'Amoxicillin 500mg', quantity: 5, expiresInDays: 20);
+        $fresh = $this->shelf($pharmacy, 'Amoxicillin 500mg', quantity: 5, expiresInDays: 200);
+
+        Sanctum::actingAs($owner, ['*'], 'pharmacist');
+        $this->postJson('/api/sale/create', [
+            'pharmacy_id' => $pharmacy->id,
+            'payment_method' => 'cash',
+            'items' => [
+                ['medicine_id' => $old->id, 'quantity' => 8],
+                ['medicine_id' => $fresh->id, 'quantity' => 8],
+            ],
+        ], $this->at($pharmacy))
+            ->assertStatus(400)
+            ->assertJsonPath('code', 'insufficient_stock')
+            ->assertJsonPath('medicine.available_quantity', 2);
+
+        // The first reservation is rolled back with the failed basket.
+        $this->assertSame(5, $old->fresh()->quantity);
+        $this->assertSame(5, $fresh->fresh()->quantity);
+        $this->assertSame(0, Sale::count());
+    }
+
+    public function test_equal_expiry_batches_use_the_older_row_first(): void
+    {
+        [$owner, $pharmacy] = $this->buyer('fefo-tie');
+        $first = $this->shelf($pharmacy, 'Amoxicillin 500mg', quantity: 10, expiresInDays: 200);
+        $second = $this->shelf($pharmacy, 'Amoxicillin 500mg', quantity: 10, expiresInDays: 200);
+
+        $this->sell($owner, $pharmacy, $second, 4);
+
+        $this->assertSame(6, $first->fresh()->quantity);
+        $this->assertSame(10, $second->fresh()->quantity);
+    }
+
     public function test_each_sale_line_records_the_cost_of_its_own_batch(): void
     {
         // Profit is revenue minus this. Reading it back off the medicine later

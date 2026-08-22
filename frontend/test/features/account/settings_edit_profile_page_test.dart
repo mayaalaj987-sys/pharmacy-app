@@ -31,12 +31,10 @@ void main() {
       find.byKey(const ValueKey('profile-email-field')),
     );
     expect(email.readOnly, isTrue);
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 
-  testWidgets('empty name blocks save without calling the API', (
-    tester,
-  ) async {
+  testWidgets('empty name blocks save without calling the API', (tester) async {
     final api = FakeAccountCubitApi();
     final harness = Harness(accountApi: api);
     await tester.pumpWidget(host(harness));
@@ -49,7 +47,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Name is required.'), findsOneWidget);
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 
   testWidgets('valid save calls updateProfile with the trimmed name', (
@@ -67,6 +65,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(harness.auth.session?.actor.name, 'Updated Owner');
-    await harness.close();
+    await closeWidgetHarness(tester, harness);
   });
 }

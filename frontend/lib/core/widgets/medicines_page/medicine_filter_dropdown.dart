@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
 
 class MedicineFilterDropdown extends StatelessWidget {
   final String selectedCategory;
@@ -18,6 +17,7 @@ class MedicineFilterDropdown extends StatelessWidget {
       "Antibiotics",
       "Painkillers",
       "Vitamins",
+      "Antidiabetics",
       "Gastrointestinal",
       "Respiratory",
       "Cardiovascular",
@@ -26,50 +26,30 @@ class MedicineFilterDropdown extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.lightGreen, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+      child: DropdownButtonFormField<String>(
+        key: ValueKey(selectedCategory),
+        initialValue: selectedCategory,
+        decoration: const InputDecoration(
+          labelText: 'Filter inventory',
+          prefixIcon: Icon(Icons.tune_rounded),
         ),
-        child: DropdownButtonFormField<String>(
-          value: selectedCategory,
+        items:
+            [
+              "All",
+              "Low stock",
+              "Out of stock",
+              "Expiring soon",
+              "Expired",
+              ...categories.where((item) => item != 'All'),
+            ].map((category) {
+              return DropdownMenuItem(value: category, child: Text(category));
+            }).toList(),
 
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.darkGreen,
-          ),
-
-          dropdownColor: Colors.white,
-
-          style: const TextStyle(
-            color: AppColors.darkGreen,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-
-          items: categories.map((category) {
-            return DropdownMenuItem(value: category, child: Text(category));
-          }).toList(),
-
-          onChanged: (value) {
-            if (value != null) {
-              onChanged(value);
-            }
-          },
-        ),
+        onChanged: (value) {
+          if (value != null) {
+            onChanged(value);
+          }
+        },
       ),
     );
   }

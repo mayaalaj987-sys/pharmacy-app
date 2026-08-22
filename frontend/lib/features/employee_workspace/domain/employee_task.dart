@@ -28,8 +28,9 @@ class EmployeeTask {
     return EmployeeTask(
       id: toInt(json['id']),
       title: json['title']?.toString() ?? '',
-      description:
-          description == null || description.isEmpty ? null : description,
+      description: description == null || description.isEmpty
+          ? null
+          : description,
       status: json['status']?.toString() ?? 'pending',
       createdAt: created == null || created.isEmpty
           ? null

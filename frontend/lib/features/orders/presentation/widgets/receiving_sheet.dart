@@ -20,7 +20,6 @@ Future<Map<int, double>?> showReceivingSheet(
   return showModalBottomSheet<Map<int, double>>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: AppColors.white,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),

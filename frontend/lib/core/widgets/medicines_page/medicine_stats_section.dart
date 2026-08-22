@@ -21,11 +21,7 @@ class MedicineStatsSection extends StatelessWidget {
             .where((m) => m.isLowStock && m.quantity > 0)
             .length;
 
-        final expiring = medicines.where((m) {
-          final expiry = m.expireDate;
-          if (expiry == null) return false;
-          return expiry.difference(DateTime.now()).inDays <= 90;
-        }).length;
+        final expiring = medicines.where((m) => m.isExpiringSoon).length;
 
         return Padding(
           padding: const EdgeInsets.all(16),

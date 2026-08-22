@@ -8,7 +8,6 @@ class SettingsAboutTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
 
       child: ListTile(
@@ -30,8 +29,6 @@ class SettingsAboutTile extends StatelessWidget {
             context: context,
             builder: (_) {
               return AlertDialog(
-                backgroundColor: AppColors.white,
-
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
                 ),

@@ -77,7 +77,9 @@ void main() {
       longitude: 2,
       onCleared: () => cleared = true,
     );
-    await tester.tap(find.byKey(const ValueKey('clear-pharmacy-location-button')));
+    await tester.tap(
+      find.byKey(const ValueKey('clear-pharmacy-location-button')),
+    );
 
     expect(cleared, isTrue);
   });
@@ -160,9 +162,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PharmacyLocationPickerPage), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('use-current-location-button')),
-    );
+    await tester.tap(find.byKey(const ValueKey('use-current-location-button')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('confirm-location-button')));
     await tester.pumpAndSettle();

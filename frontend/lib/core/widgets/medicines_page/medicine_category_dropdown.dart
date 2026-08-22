@@ -5,6 +5,8 @@ const categories = [
 
   'Vitamins',
 
+  'Antidiabetics',
+
   'Gastrointestinal',
 
   'Respiratory',

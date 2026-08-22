@@ -69,10 +69,15 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const ValueKey('use-current-location-button')));
+      await tester.tap(
+        find.byKey(const ValueKey('use-current-location-button')),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('map-selected-coordinates')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('map-selected-coordinates')),
+        findsOneWidget,
+      );
       expect(find.text('33.500000, 36.200000'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('confirm-location-button')));
@@ -101,7 +106,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('use-current-location-button')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('location-failure-message')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('location-failure-message')),
+      findsOneWidget,
+    );
     final confirm = tester.widget<FilledButton>(
       find.byKey(const ValueKey('confirm-location-button')),
     );

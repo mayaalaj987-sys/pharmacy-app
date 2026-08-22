@@ -11,7 +11,6 @@ class QuickActionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-
       children: [
         _Action(
           icon: Icons.shopping_cart,
@@ -24,7 +23,6 @@ class QuickActionsSection extends StatelessWidget {
 
             // Purchases Page
           },
-
         ),
 
         const SizedBox(width: 25),

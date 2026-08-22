@@ -37,7 +37,6 @@ class _EmployeeSessionPageState extends State<EmployeeSessionPage> {
     final pharmacy = widget.session.activePharmacy;
 
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       appBar: AppBar(
         title: const Text('Employee Session'),
         actions: [

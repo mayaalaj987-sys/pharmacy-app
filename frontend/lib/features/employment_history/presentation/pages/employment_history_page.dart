@@ -48,7 +48,9 @@ class _EmploymentHistoryPageState extends State<EmploymentHistoryPage> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = const AuthApiException(message: 'Unable to load the history.');
+          _error = const AuthApiException(
+            message: 'Unable to load the history.',
+          );
         });
       }
     }
@@ -57,7 +59,6 @@ class _EmploymentHistoryPageState extends State<EmploymentHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(60),
         child: CustomAppBar(
@@ -133,7 +134,10 @@ class _EmploymentHistoryPageState extends State<EmploymentHistoryPage> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.lightGreen.withValues(alpha: .15),
                     borderRadius: BorderRadius.circular(20),

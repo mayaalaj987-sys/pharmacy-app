@@ -26,4 +26,17 @@ class SalesApi implements SalesRemoteDataSource {
   Future<Response<dynamic>> getDailySales() {
     return dio.get(ApiConstants.saleDaily);
   }
+
+  @override
+  Future<Response<dynamic>> getReturnable(int saleId) {
+    return dio.get('/sale/$saleId/returnable');
+  }
+
+  @override
+  Future<Response<dynamic>> createReturn(
+    int saleId,
+    Map<String, dynamic> data,
+  ) {
+    return dio.post('/sale/$saleId/return', data: data);
+  }
 }

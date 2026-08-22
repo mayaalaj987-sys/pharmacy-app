@@ -37,7 +37,7 @@ class SaleController extends Controller
             'payment_method' => 'required|in:cash,card,insurance',
             'card_number' => 'required_if:payment_method,card|digits:10',
             'items' => 'required|array|min:1',
-            'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.medicine_id' => 'required|distinct|exists:medicines,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
@@ -66,6 +66,15 @@ class SaleController extends Controller
 
                 $plans[$index] = ['plan' => $plan, 'unit_price' => $unitPrice];
                 $totalPrice += $unitPrice * (int) $item['quantity'];
+
+                // Reserve immediately inside this transaction. A second line
+                // may point at another batch of the same drug; planning every
+                // line against the original quantities lets both lines claim
+                // the last boxes. Any later failure rolls these decrements
+                // back, so the basket remains all-or-nothing.
+                foreach ($plan as ['batch' => $batch, 'quantity' => $taken]) {
+                    $batch->decrement('quantity', $taken);
+                }
             }
 
             if ($request->payment_method === 'insurance') {
@@ -94,7 +103,6 @@ class SaleController extends Controller
                         // reading it back later would reprice a finished sale.
                         'cost_price' => $batch->cost_price,
                     ]);
-                    $batch->decrement('quantity', $taken);
                 }
 
                 // Judged on the drug, not on the batch that happened to run

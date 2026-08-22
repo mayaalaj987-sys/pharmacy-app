@@ -138,6 +138,24 @@ class AuthRepository {
     }
   }
 
+  /// Restores the narrow registration flow after the app is restarted.
+  /// An expired status credential is cleared locally; network failures are
+  /// kept visible so the user is not silently pushed out of their status page.
+  Future<RegistrationStatus?> restoreRegistrationStatus() async {
+    final token = await registrationStatusStorage.getRegistrationStatusToken();
+    if (token == null || token.isEmpty) return null;
+
+    try {
+      return await refreshRegistrationStatus();
+    } on AuthApiException catch (error) {
+      if (error.statusCode == 401) {
+        await registrationStatusStorage.clearRegistrationStatusToken();
+        return null;
+      }
+      rethrow;
+    }
+  }
+
   Future<void> finishRegistrationStatus() async {
     final token = await registrationStatusStorage.getRegistrationStatusToken();
 

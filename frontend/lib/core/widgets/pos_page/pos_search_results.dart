@@ -23,11 +23,11 @@ class PosSearchResults extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20),
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
 
         borderRadius: BorderRadius.circular(16),
 
-        boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
 
       child: ListView.builder(

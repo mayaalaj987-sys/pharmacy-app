@@ -22,10 +22,7 @@ class MedicineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppColors.veryLightGreen,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
 
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -45,10 +42,10 @@ class MedicineCard extends StatelessWidget {
                     children: [
                       Text(
                         medicine.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.darkGreen,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
 
@@ -85,10 +82,14 @@ class MedicineCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: infoTile("Quantity", medicine.quantity.toString()),
+                  child: infoTile(
+                    context,
+                    "Quantity",
+                    medicine.quantity.toString(),
+                  ),
                 ),
 
-                Expanded(child: infoTile("Expiry", _expiry)),
+                Expanded(child: infoTile(context, "Expiry", _expiry)),
               ],
             ),
 
@@ -98,6 +99,7 @@ class MedicineCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: infoTile(
+                    context,
                     "Selling ",
                     medicine.sellingPrice.toStringAsFixed(2),
                   ),
@@ -105,6 +107,7 @@ class MedicineCard extends StatelessWidget {
 
                 Expanded(
                   child: infoTile(
+                    context,
                     "Cost",
                     medicine.costPrice.toStringAsFixed(2),
                   ),
@@ -125,16 +128,16 @@ class MedicineCard extends StatelessWidget {
         '${date.day.toString().padLeft(2, '0')}';
   }
 
-  Widget infoTile(String title, String value) {
+  Widget infoTile(BuildContext context, String title, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
 
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.darkGreen,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
 

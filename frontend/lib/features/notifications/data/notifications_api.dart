@@ -25,6 +25,11 @@ class NotificationsApi implements NotificationsRemoteDataSource {
   }
 
   @override
+  Future<Response<dynamic>> deleteNotification(int id) {
+    return dio.delete('${ApiConstants.notifications}/$id');
+  }
+
+  @override
   Future<Response<dynamic>> getEmployeeNotifications() {
     return dio.get(
       ApiConstants.employeeNotifications,

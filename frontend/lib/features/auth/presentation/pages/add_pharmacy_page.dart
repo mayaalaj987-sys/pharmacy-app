@@ -67,7 +67,6 @@ class _AddPharmacyPageState extends State<AddPharmacyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: 'Add Pharmacy', showNotificationBell: false),

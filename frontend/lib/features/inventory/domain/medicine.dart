@@ -121,17 +121,25 @@ class Medicine {
     final shelf = <Medicine>[];
 
     for (final group in byDrug.values) {
-      final sellable = group.where((batch) => !batch.isExpired).toList()
-        ..sort((a, b) {
-          // Undated stock last: it has no claim to being urgent, and putting it
-          // first is how a dated batch ends up thrown away.
-          if ((a.expireDate == null) != (b.expireDate == null)) {
-            return a.expireDate == null ? 1 : -1;
-          }
-          if (a.expireDate == null) return 0;
+      final sellable =
+          group
+              .where((batch) => !batch.isExpired && batch.quantity > 0)
+              .toList()
+            ..sort((a, b) {
+              // Undated stock last: it has no claim to being urgent, and putting it
+              // first is how a dated batch ends up thrown away.
+              if ((a.expireDate == null) != (b.expireDate == null)) {
+                return a.expireDate == null ? 1 : -1;
+              }
+              if (a.expireDate != null) {
+                final byExpiry = a.expireDate!.compareTo(b.expireDate!);
+                if (byExpiry != 0) return byExpiry;
+              }
 
-          return a.expireDate!.compareTo(b.expireDate!);
-        });
+              // Same-day deliveries follow the same deterministic FIFO
+              // tie-breaker as the backend allocator.
+              return a.id.compareTo(b.id);
+            });
 
       if (sellable.isEmpty) continue;
 

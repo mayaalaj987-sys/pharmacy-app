@@ -41,7 +41,6 @@ class _SupportPageState extends State<SupportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: 'Support', showNotificationBell: false),
@@ -98,7 +97,7 @@ class _SupportPageState extends State<SupportPage> {
 
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Your messages',
                       style: TextStyle(
                         fontSize: 16,
@@ -183,7 +182,6 @@ class _SupportPageState extends State<SupportPage> {
   Widget _ticketCard(SupportTicket ticket) {
     return Card(
       key: ValueKey('support-ticket-${ticket.id}'),
-      color: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -233,18 +231,18 @@ class _SupportPageState extends State<SupportPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.veryLightGreen,
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Support replied',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.darkGreen,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
                     const SizedBox(height: 6),

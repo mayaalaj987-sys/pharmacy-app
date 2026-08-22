@@ -243,21 +243,18 @@ void main() {
       await cubit.close();
     });
 
-    test(
-      'loadForEmployee reads through the employee endpoint, not the '
-      'pharmacy-scoped one an unattached employee cannot pass',
-      () async {
-        final api = FakeNotificationsApi();
-        final cubit = NotificationsCubit(NotificationsRepository(api));
+    test('loadForEmployee reads through the employee endpoint, not the '
+        'pharmacy-scoped one an unattached employee cannot pass', () async {
+      final api = FakeNotificationsApi();
+      final cubit = NotificationsCubit(NotificationsRepository(api));
 
-        await cubit.loadForEmployee();
+      await cubit.loadForEmployee();
 
-        expect(api.employeeFeedCalls, 1);
-        expect(cubit.state.status, NotificationsStatus.ready);
-        expect(cubit.state.unreadCount, 2);
-        await cubit.close();
-      },
-    );
+      expect(api.employeeFeedCalls, 1);
+      expect(cubit.state.status, NotificationsStatus.ready);
+      expect(cubit.state.unreadCount, 2);
+      await cubit.close();
+    });
 
     test(
       'marking read for an employee goes through the employee endpoint',
@@ -318,14 +315,22 @@ class FakeNotificationsApi implements NotificationsRemoteDataSource {
   );
 
   @override
-  Future<Response<dynamic>> getNotifications() async {
+  Future<Response<dynamic>> getNotifications() => _notificationsResponse(
+    path: '/notifications',
+    readNotificationIds: readIds,
+  );
+
+  Future<Response<dynamic>> _notificationsResponse({
+    required String path,
+    required List<int> readNotificationIds,
+  }) async {
     if (failLoad) throw _error('/notifications', 500);
     final effectiveUnread = _allRead
         ? 0
-        : (unreadCount - readIds.length).clamp(0, 1 << 30);
+        : (unreadCount - readNotificationIds.length).clamp(0, 1 << 30);
 
     return Response<dynamic>(
-      requestOptions: RequestOptions(path: '/notifications'),
+      requestOptions: RequestOptions(path: path),
       data: {
         'unread_count': effectiveUnread,
         'notifications': [
@@ -334,7 +339,7 @@ class FakeNotificationsApi implements NotificationsRemoteDataSource {
             'title': 'طلب جديد',
             'message': 'تم إنشاء طلب جديد',
             'type': 'order',
-            'is_read': _allRead || readIds.contains(1),
+            'is_read': _allRead || readNotificationIds.contains(1),
             'date': '2026-08-17',
             'created_at': '2026-08-17T09:00:00.000Z',
           },
@@ -343,7 +348,7 @@ class FakeNotificationsApi implements NotificationsRemoteDataSource {
             'title': 'Pharmacy approved',
             'message': 'Your pharmacy registration has been approved.',
             'type': 'pharmacy_approved',
-            'is_read': _allRead || readIds.contains(2),
+            'is_read': _allRead || readNotificationIds.contains(2),
             'date': '2026-08-17',
           },
           {
@@ -382,12 +387,26 @@ class FakeNotificationsApi implements NotificationsRemoteDataSource {
   @override
   Future<Response<dynamic>> getEmployeeNotifications() async {
     employeeFeedCalls++;
-    return getNotifications();
+    return _notificationsResponse(
+      path: '/employee/notifications',
+      readNotificationIds: employeeReadIds,
+    );
   }
 
   @override
   Future<Response<dynamic>> markEmployeeAsRead(int id) async {
     employeeReadIds.add(id);
-    return markAsRead(id);
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/employee/notifications/$id/read'),
+      data: {'message': 'ok'},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> deleteNotification(int id) async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/notifications/$id'),
+      data: const {'message': 'Deleted'},
+    );
   }
 }

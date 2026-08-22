@@ -38,6 +38,7 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
     "Antibiotics",
     "Painkillers",
     "Vitamins",
+    "Antidiabetics",
     "Gastrointestinal",
     "Respiratory",
     "Cardiovascular",
@@ -151,7 +152,7 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
 
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -159,7 +160,7 @@ class _AddMedicinePageState extends State<AddMedicinePage> {
               ),
 
               child: DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
 
                 decoration: const InputDecoration(
                   border: InputBorder.none,

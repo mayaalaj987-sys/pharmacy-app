@@ -20,12 +20,12 @@ class MedicineController extends Controller
             'supplier_id' => 'nullable|exists:suppliers,id',
             'name' => 'required|string',
             'category_medicine' => 'required|in:Antibiotics,Painkillers,Vitamins,Antidiabetics,Gastrointestinal,Respiratory,Cardiovascular,Dermatology',
-            'selling_price' => 'required|numeric',
-            'cost_price' => 'required|numeric',
-            'quantity' => 'required|integer',
+            'selling_price' => 'required|numeric|min:0',
+            'cost_price' => 'required|numeric|min:0',
+            'quantity' => 'required|integer|min:0',
             'expire_date' => 'required|date',
             'manufacturer' => 'required|string',
-            'reorder_level' => 'nullable|integer',
+            'reorder_level' => 'nullable|integer|min:0',
             // Barcodes were removed from the app. The column stays nullable so
             // existing rows and the catalogue seeders keep working.
             'qr_code' => 'nullable|numeric',
@@ -44,7 +44,10 @@ class MedicineController extends Controller
     public function getMedicines(Request $request): JsonResponse
     {
         $pharmacyId = $this->validatedPharmacyId($request);
-        $medicines = Medicine::where('pharmacy_id', $pharmacyId)->where('quantity', '>', 0)->get();
+        // Inventory means the whole shelf, including empty rows. The POS
+        // filters unsellable stock client-side, while the inventory screen
+        // needs zero-quantity rows for its Out of stock filter and restocking.
+        $medicines = Medicine::where('pharmacy_id', $pharmacyId)->get();
 
         return response()->json(['medicines_count' => $medicines->count(), 'medicines' => $medicines]);
     }
@@ -73,12 +76,12 @@ class MedicineController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|string',
             'category_medicine' => 'sometimes|in:Antibiotics,Painkillers,Vitamins,Antidiabetics,Gastrointestinal,Respiratory,Cardiovascular,Dermatology',
-            'selling_price' => 'sometimes|numeric',
-            'cost_price' => 'sometimes|numeric',
-            'quantity' => 'sometimes|integer',
+            'selling_price' => 'sometimes|numeric|min:0',
+            'cost_price' => 'sometimes|numeric|min:0',
+            'quantity' => 'sometimes|integer|min:0',
             'expire_date' => 'sometimes|date',
             'manufacturer' => 'sometimes|string',
-            'reorder_level' => 'sometimes|integer',
+            'reorder_level' => 'sometimes|integer|min:0',
             'qr_code' => 'sometimes|numeric',
             'supplier_id' => 'sometimes|nullable|exists:suppliers,id',
         ]);

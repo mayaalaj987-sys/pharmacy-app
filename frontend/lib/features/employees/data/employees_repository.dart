@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../core/network/error_handler.dart';
 import '../domain/applicant_document.dart';
 import '../domain/employee.dart';
+import '../domain/sent_job_offer.dart';
 import 'employees_remote_data_source.dart';
 
 class EmployeesRepository {
@@ -30,13 +31,40 @@ class EmployeesRepository {
 
   /// Offers [id] the named [shift]. The applicant decides from here; nothing
   /// about their employment changes until they accept.
-  Future<void> sendOffer(int id, {required String shift, double? salary}) async {
+  Future<void> sendOffer(
+    int id, {
+    required String shift,
+    double? salary,
+  }) async {
     try {
       await api.sendOffer({
         'employee_id': id,
         'shift': shift,
         'salary': ?salary,
       });
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<List<SentJobOffer>> fetchOffers() async {
+    try {
+      final data = (await api.getOffers()).data;
+      final raw = data is Map<String, dynamic> ? data['offers'] : null;
+      return raw is List
+          ? raw
+                .whereType<Map<String, dynamic>>()
+                .map(SentJobOffer.fromJson)
+                .toList(growable: false)
+          : const <SentJobOffer>[];
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  Future<void> withdrawOffer(int offerId) async {
+    try {
+      await api.withdrawOffer(offerId);
     } on DioException catch (error) {
       throw ErrorHandler.fromDio(error);
     }
@@ -68,7 +96,9 @@ class EmployeesRepository {
         .toList(growable: false);
   }
 
-  Future<List<ApplicantDocument>> fetchApplicantDocuments(int employeeId) async {
+  Future<List<ApplicantDocument>> fetchApplicantDocuments(
+    int employeeId,
+  ) async {
     try {
       final response = await api.getApplicantDocuments(employeeId);
       final data = response.data;

@@ -82,4 +82,12 @@ class NotificationsRepository {
       throw ErrorHandler.fromDio(error);
     }
   }
+
+  Future<void> deleteNotification(int id) async {
+    try {
+      await api.deleteNotification(id);
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
 }

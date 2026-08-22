@@ -11,6 +11,7 @@ import '../../../employment_history/presentation/pages/employment_history_page.d
 import '../../../employee_offers/presentation/cubit/employee_offers_state.dart';
 import '../cubit/employee_workspace_cubit.dart';
 import '../cubit/employee_workspace_state.dart';
+import '../../../documents/presentation/self_documents_page.dart';
 
 /// Employee self-service account screen.
 ///
@@ -53,7 +54,6 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "My Account", showNotificationBell: false),
@@ -141,6 +141,29 @@ class _EmployeeAccountPageState extends State<EmployeeAccountPage> {
               FilledButton(
                 onPressed: busy ? null : _changePassword,
                 child: const Text('Change password'),
+              ),
+
+              const Divider(height: 40),
+              const Text(
+                'Documents',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Manage your CV and training certificate, and see how many pharmacies viewed them.',
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('employee-documents-button'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const SelfDocumentsPage(owner: DocumentOwner.employee),
+                  ),
+                ),
+                icon: const Icon(Icons.folder_copy_outlined),
+                label: const Text('My documents'),
               ),
 
               const Divider(height: 40),

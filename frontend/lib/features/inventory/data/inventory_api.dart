@@ -34,4 +34,9 @@ class InventoryApi implements InventoryRemoteDataSource {
       data: data,
     );
   }
+
+  @override
+  Future<Response<dynamic>> getWriteOffs() {
+    return dio.get('${ApiConstants.medicines}/write-offs');
+  }
 }

@@ -9,7 +9,6 @@ class EmployeePendingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.veryLightGreen,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -24,7 +23,7 @@ class EmployeePendingPage extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),

@@ -54,9 +54,14 @@ class MedicineList extends StatelessWidget {
 
         final normalizedQuery = query.trim().toLowerCase();
         final filtered = state.medicines.where((medicine) {
-          final matchesCategory =
-              selectedCategory == 'All' ||
-              medicine.category == selectedCategory;
+          final matchesCategory = switch (selectedCategory) {
+            'All' => true,
+            'Low stock' => medicine.isLowStock && !medicine.isOutOfStock,
+            'Out of stock' => medicine.isOutOfStock,
+            'Expiring soon' => medicine.isExpiringSoon,
+            'Expired' => medicine.isExpired,
+            _ => medicine.category == selectedCategory,
+          };
           final matchesQuery =
               normalizedQuery.isEmpty ||
               medicine.name.toLowerCase().contains(normalizedQuery);

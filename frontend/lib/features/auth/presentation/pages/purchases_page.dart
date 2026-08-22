@@ -30,8 +30,6 @@ class _PurchasesPageState extends State<PurchasesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
 

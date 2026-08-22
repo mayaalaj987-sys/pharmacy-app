@@ -115,6 +115,14 @@ void main() {
 }
 
 class FakeInventoryApi implements InventoryRemoteDataSource {
+  @override
+  Future<Response<dynamic>> getWriteOffs() async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/medicines/write-offs'),
+      data: const {'write_offs': <dynamic>[], 'total_value': 0},
+    );
+  }
+
   Map<String, dynamic>? lastAddPayload;
   Map<String, dynamic>? lastWriteOffPayload;
   bool failAdd = false;

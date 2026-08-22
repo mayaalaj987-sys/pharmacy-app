@@ -18,7 +18,6 @@ class SettingsActivePharmacyTile extends StatelessWidget {
     }
 
     return Card(
-      color: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ListTile(
         leading: const Icon(Icons.local_pharmacy, color: AppColors.tealGreen),

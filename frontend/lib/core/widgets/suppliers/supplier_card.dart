@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../features/auth/presentation/pages/supplier_details_page.dart';
 import '../../../features/suppliers/domain/supplier.dart';
-import '../../theme/app_colors.dart';
 
 class SupplierCard extends StatelessWidget {
   final Supplier supplier;
@@ -24,8 +23,6 @@ class SupplierCard extends StatelessWidget {
       },
 
       child: Card(
-        color: AppColors.white,
-
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
 
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -63,16 +60,15 @@ class SupplierCard extends StatelessWidget {
                 ),
 
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: Theme.of(context).colorScheme.primaryContainer,
 
-                  borderRadius:
-                  BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20),
                 ),
 
                 child: Text(
                   "View medicines",
                   style: TextStyle(
-                    color: Colors.green.shade700,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

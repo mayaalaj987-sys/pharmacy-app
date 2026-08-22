@@ -58,6 +58,30 @@ class InventoryRepository {
     }
   }
 
+  Future<StockWriteOffHistory> fetchWriteOffs() async {
+    try {
+      final response = await api.getWriteOffs();
+      final data = response.data;
+      if (data is! Map<String, dynamic>) return StockWriteOffHistory.empty;
+      final raw = data['write_offs'];
+      return StockWriteOffHistory(
+        totalValue: _toDouble(data['total_value']),
+        records: raw is List
+            ? raw
+                  .whereType<Map<String, dynamic>>()
+                  .map(StockWriteOffRecord.fromJson)
+                  .toList(growable: false)
+            : const <StockWriteOffRecord>[],
+      );
+    } on DioException catch (error) {
+      throw ErrorHandler.fromDio(error);
+    }
+  }
+
+  static double _toDouble(dynamic value) => value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+
   List<Medicine> _parseList(Response<dynamic> response) {
     final data = response.data;
     final raw = data is Map<String, dynamic> ? data['medicines'] : null;
@@ -75,5 +99,47 @@ class InventoryRepository {
       throw const FormatException('Malformed medicine response.');
     }
     return Medicine.fromJson(raw);
+  }
+}
+
+class StockWriteOffHistory {
+  const StockWriteOffHistory({required this.totalValue, required this.records});
+
+  final double totalValue;
+  final List<StockWriteOffRecord> records;
+
+  static const empty = StockWriteOffHistory(totalValue: 0, records: []);
+}
+
+class StockWriteOffRecord {
+  const StockWriteOffRecord({
+    required this.id,
+    required this.medicineName,
+    required this.quantity,
+    required this.value,
+    required this.reason,
+    this.note,
+    this.recordedAt,
+  });
+
+  final int id;
+  final String medicineName;
+  final int quantity;
+  final double value;
+  final String reason;
+  final String? note;
+  final DateTime? recordedAt;
+
+  factory StockWriteOffRecord.fromJson(Map<String, dynamic> json) {
+    final note = json['note']?.toString().trim();
+    return StockWriteOffRecord(
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      medicineName: json['medicine_name']?.toString() ?? 'Medicine',
+      quantity: int.tryParse(json['quantity']?.toString() ?? '') ?? 0,
+      value: InventoryRepository._toDouble(json['value']),
+      reason: json['reason']?.toString() ?? '',
+      note: note == null || note.isEmpty ? null : note,
+      recordedAt: DateTime.tryParse(json['recorded_at']?.toString() ?? ''),
+    );
   }
 }

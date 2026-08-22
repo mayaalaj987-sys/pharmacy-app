@@ -286,8 +286,6 @@ class _PosPageState extends State<PosPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(60),
         child: CustomAppBar(title: "Point of Sale"),
@@ -417,7 +415,7 @@ class _PosPageState extends State<PosPage> {
                     padding: const EdgeInsets.all(20),
 
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: Theme.of(context).colorScheme.surfaceContainer,
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(30),
                       ),

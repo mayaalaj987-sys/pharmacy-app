@@ -6,29 +6,34 @@ import 'package:phamacy_managment/features/employees/presentation/cubit/employee
 import 'package:phamacy_managment/features/employees/presentation/cubit/employees_state.dart';
 
 void main() {
-  test('fetchPharmacyEmployees parses the SafeEmployeeResource shape', () async {
-    final employees =
-        await EmployeesRepository(FakeEmployeesApi()).fetchPharmacyEmployees(7);
+  test(
+    'fetchPharmacyEmployees parses the SafeEmployeeResource shape',
+    () async {
+      final employees = await EmployeesRepository(
+        FakeEmployeesApi(),
+      ).fetchPharmacyEmployees(7);
 
-    expect(employees, hasLength(1));
-    final e = employees.first;
-    expect(e.id, 1);
-    expect(e.pharmacyId, 7);
-    expect(e.name, 'Existing Employee');
-    expect(e.email, 'emp@example.test');
-    expect(e.phone, '0999000000');
-    expect(e.role, 'employee');
-    expect(e.roleLabel, 'Employee');
-    expect(e.status, 'approved');
-    expect(e.shift, 'morning');
-    expect(e.shiftLabel, 'Morning');
-    expect(e.salary, 500.0);
-    expect(e.isTrainee, isFalse);
-  });
+      expect(employees, hasLength(1));
+      final e = employees.first;
+      expect(e.id, 1);
+      expect(e.pharmacyId, 7);
+      expect(e.name, 'Existing Employee');
+      expect(e.email, 'emp@example.test');
+      expect(e.phone, '0999000000');
+      expect(e.role, 'employee');
+      expect(e.roleLabel, 'Employee');
+      expect(e.status, 'approved');
+      expect(e.shift, 'morning');
+      expect(e.shiftLabel, 'Morning');
+      expect(e.salary, 500.0);
+      expect(e.isTrainee, isFalse);
+    },
+  );
 
   test('pool applicants parse without any way to contact them', () async {
-    final pending =
-        await EmployeesRepository(FakeEmployeesApi()).fetchPendingEmployees();
+    final pending = await EmployeesRepository(
+      FakeEmployeesApi(),
+    ).fetchPendingEmployees();
 
     expect(pending, hasLength(2));
     expect(pending.first.name, 'Applicant One');
@@ -48,8 +53,9 @@ void main() {
   });
 
   test('a pool applicant carries the offer this pharmacy made', () async {
-    final pending =
-        await EmployeesRepository(FakeEmployeesApi()).fetchPendingEmployees();
+    final pending = await EmployeesRepository(
+      FakeEmployeesApi(),
+    ).fetchPendingEmployees();
 
     // Which shift was offered, so two outstanding offers are distinguishable.
     // Without it a pharmacist could not tell whom they had offered mornings to.
@@ -117,22 +123,22 @@ void main() {
     await cubit.close();
   });
 
-  test('a 409 document-retention refusal keeps the employee in the list', () async {
-    final api = FakeEmployeesApi()..failDismissWithRetention = true;
-    final cubit = EmployeesCubit(EmployeesRepository(api));
-    await cubit.load(7);
+  test(
+    'a 409 document-retention refusal keeps the employee in the list',
+    () async {
+      final api = FakeEmployeesApi()..failDismissWithRetention = true;
+      final cubit = EmployeesCubit(EmployeesRepository(api));
+      await cubit.load(7);
 
-    final ok = await cubit.dismiss(7, 1);
+      final ok = await cubit.dismiss(7, 1);
 
-    expect(ok, isFalse);
-    expect(
-      cubit.state.error!.message,
-      contains('retention policy'),
-    );
-    // The employee must NOT be removed locally when the API rejects it.
-    expect(cubit.state.current, hasLength(1));
-    await cubit.close();
-  });
+      expect(ok, isFalse);
+      expect(cubit.state.error!.message, contains('retention policy'));
+      // The employee must NOT be removed locally when the API rejects it.
+      expect(cubit.state.current, hasLength(1));
+      await cubit.close();
+    },
+  );
 
   test('confirming training promotes and refetches', () async {
     final api = FakeEmployeesApi();
@@ -184,6 +190,22 @@ void main() {
 }
 
 class FakeEmployeesApi implements EmployeesRemoteDataSource {
+  @override
+  Future<Response<dynamic>> getOffers() async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/recruitment/offers'),
+      data: const {'offers': <dynamic>[]},
+    );
+  }
+
+  @override
+  Future<Response<dynamic>> withdrawOffer(int offerId) async {
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/recruitment/offers/$offerId'),
+      data: const {'code': 'offer_withdrawn'},
+    );
+  }
+
   Map<String, dynamic>? lastOfferPayload;
   bool failApproveWithCap = false;
   bool failDismissWithRetention = false;

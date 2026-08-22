@@ -13,10 +13,7 @@ class EmployeeWorkspaceCubit extends Cubit<EmployeeWorkspaceState> {
   Future<void> load(int employeeId) async {
     if (state.status == EmployeeWorkspaceStatus.loading) return;
     emit(
-      state.copyWith(
-        status: EmployeeWorkspaceStatus.loading,
-        clearError: true,
-      ),
+      state.copyWith(status: EmployeeWorkspaceStatus.loading, clearError: true),
     );
     try {
       final tasks = await repository.fetchMyTasks();
@@ -30,10 +27,7 @@ class EmployeeWorkspaceCubit extends Cubit<EmployeeWorkspaceState> {
       );
     } on AuthApiException catch (error) {
       emit(
-        state.copyWith(
-          status: EmployeeWorkspaceStatus.failure,
-          error: error,
-        ),
+        state.copyWith(status: EmployeeWorkspaceStatus.failure, error: error),
       );
     } catch (_) {
       emit(
@@ -121,9 +115,7 @@ class EmployeeWorkspaceCubit extends Cubit<EmployeeWorkspaceState> {
     } catch (_) {
       emit(
         state.copyWith(
-          error: const AuthApiException(
-            message: 'Unable to update the task.',
-          ),
+          error: const AuthApiException(message: 'Unable to update the task.'),
           clearMutating: true,
         ),
       );

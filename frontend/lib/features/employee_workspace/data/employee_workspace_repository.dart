@@ -50,9 +50,9 @@ class EmployeeWorkspaceRepository {
         doneCount: _toInt(data['done_count']),
         tasks: raw is List
             ? raw
-                .whereType<Map<String, dynamic>>()
-                .map(EmployeeTask.fromJson)
-                .toList(growable: false)
+                  .whereType<Map<String, dynamic>>()
+                  .map(EmployeeTask.fromJson)
+                  .toList(growable: false)
             : const <EmployeeTask>[],
       );
     } on DioException catch (error) {
@@ -80,9 +80,9 @@ class EmployeeWorkspaceRepository {
         totalPrice: _toDouble(data['total_price']),
         sales: raw is List
             ? raw
-                .whereType<Map<String, dynamic>>()
-                .map(Sale.fromJson)
-                .toList(growable: false)
+                  .whereType<Map<String, dynamic>>()
+                  .map(Sale.fromJson)
+                  .toList(growable: false)
             : const <Sale>[],
       );
     } on DioException catch (error) {

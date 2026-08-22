@@ -9,6 +9,10 @@ abstract class EmployeesRemoteDataSource {
   /// replaced the approve call that attached them outright.
   Future<Response<dynamic>> sendOffer(Map<String, dynamic> data);
 
+  Future<Response<dynamic>> getOffers();
+
+  Future<Response<dynamic>> withdrawOffer(int offerId);
+
   /// Confirms a trainee finished their training. Only a pharmacy that employed
   /// them can say so, so this is the pharmacist's call rather than the
   /// trainee's — `role` is prohibited on their own profile for that reason.
